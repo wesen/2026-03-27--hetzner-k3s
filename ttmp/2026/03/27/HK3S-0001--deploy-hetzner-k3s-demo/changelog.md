@@ -96,3 +96,12 @@ Step 9: added the DigitalOcean DNS records for k3s.scapegoat.dev and *.yolo.scap
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the external Terraform DNS apply and narrowed the blocker to propagation
 
+
+## 2026-03-27
+
+Step 10: public DNS propagation completed, cert-manager issued the certificate, and https://k3s.scapegoat.dev returned HTTP/2 200; residual follow-ups are Argo CD drift on postgres and the runtime CoreDNS override.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded final HTTPS success and residual risks
+

@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 6 is active: wait for recursive DNS propagation and cert-manager certificate issuance for `k3s.scapegoat.dev`, then verify HTTPS end to end.
+Step 10 is active: final validation and residual cleanup. The deployment is working end to end; the main remaining follow-ups are the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet and the runtime CoreDNS override that is not yet codified in the repo.
 
 ## Key Links
 
@@ -55,7 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- Recursive DNS propagation for `k3s.scapegoat.dev`
+- None for basic service operation.
 
 Inputs already resolved or proposed:
 
@@ -63,7 +63,7 @@ Inputs already resolved or proposed:
 - Confirmed `admin_cidrs`: `98.175.153.62/32`
 - Confirmed repo URL candidate: `https://github.com/wesen/2026-03-27--hetzner-k3s.git`
 - Git revision: `main`
-- Server type override: `cpx31`
+- Server type override: `cpx32`
 - Confirmed hostname: `k3s.scapegoat.dev`
 - Confirmed ACME email: `wesen@ruinwesen.com`
 - Local `terraform.tfvars` created and excluded from git
@@ -80,11 +80,14 @@ Inputs already resolved or proposed:
 - DigitalOcean authoritative DNS now serves:
   - `k3s.scapegoat.dev -> 91.98.46.169`
   - `*.yolo.scapegoat.dev -> 91.98.46.169`
-- cert-manager challenge is still pending while recursive DNS catches up
+- Public recursive DNS resolves `k3s.scapegoat.dev -> 91.98.46.169`
+- `demo-app-tls` certificate is `Ready=True`
+- `https://k3s.scapegoat.dev` returns `HTTP/2 200`
+- Residual note: Argo CD still reports `demo-stack` as `OutOfSync` while `Healthy`, with the PostgreSQL StatefulSet shown as the unsynced resource
 
 Next operator action:
 
-- Wait for public resolvers to see `k3s.scapegoat.dev -> 91.98.46.169`
+- Optional: inspect and clean up the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
 
 ## Topics
 

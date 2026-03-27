@@ -624,3 +624,66 @@ The authoritative DigitalOcean nameserver is already serving both records, which
 - Terraform DNS apply created:
   - `digitalocean_record.records["k3s_a"]` with record id `1813844261`
   - `digitalocean_record.records["wildcard_yolo_a"]` with record id `1813844262`
+
+## Step 10: Verify public HTTPS and capture the residual post-deploy drift
+
+After the DNS change propagated publicly, the remaining certificate and ingress path cleared. Public resolvers returned `k3s.scapegoat.dev -> 91.98.46.169`, cert-manager marked `demo-app-tls` as ready, and `curl -I https://k3s.scapegoat.dev` returned `HTTP/2 200`. That is the first fully end-to-end success state for the deployment.
+
+One operational wrinkle remains: Argo CD reports the `demo-stack` application as `Healthy` but still `OutOfSync`, with the PostgreSQL StatefulSet listed as the unsynced resource. The workload itself is functioning, so this is no longer a go-live blocker, but it is worth treating as residual GitOps drift rather than silently calling the environment perfectly clean.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, continue"
+
+**Assistant interpretation:** Keep driving the deployment through propagation, certificate issuance, and final validation until the environment is working or the next real blocker appears.
+
+**Inferred user intent:** Reach a genuinely usable deployed state, not just infrastructure existence.
+
+### What I did
+- Confirmed that public recursive DNS now resolves `k3s.scapegoat.dev`.
+- Verified that the application serves over HTTPS at `https://k3s.scapegoat.dev`.
+- Verified `certificate/demo-app-tls` is `Ready=True`.
+- Verified the app and Postgres pods are both `Running` and the ingress has the expected host and address.
+- Checked the Argo CD application status after the deployment reached steady state.
+
+### Why
+- HTTPS reachability is the real deployment completion condition for this stack.
+- Residual GitOps drift should be called out explicitly rather than hidden behind a healthy app status.
+
+### What worked
+- Public DNS propagation completed.
+- cert-manager completed the ACME flow and issued the certificate.
+- `https://k3s.scapegoat.dev` responds successfully.
+- The K3s node, app pod, PostgreSQL pod, ingress, and certificate are all in a working state.
+
+### What didn't work
+- CoreDNS on the cluster initially continued to return NXDOMAIN even after public DNS propagation, which required a runtime CoreDNS forwarder adjustment before the in-cluster self-check path caught up cleanly.
+
+### What I learned
+- This deployment is operationally successful even though the original cloud-init run failed and Argo CD still shows a residual `OutOfSync` resource.
+- The cleanest post-deploy follow-up is not “make it work” anymore; it is “explain or eliminate the remaining GitOps drift on the PostgreSQL StatefulSet.”
+
+### What was tricky to build
+- The subtle part of the final stretch was distinguishing end-user success from control-plane perfection. Public HTTPS and a ready certificate are the real service outcome, but the GitOps control plane still has a mismatch to explain. Treating those as separate concerns made it possible to close the deployment confidently without losing sight of the remaining drift.
+
+### What warrants a second pair of eyes
+- The `demo-stack-postgres` StatefulSet drift in Argo CD.
+- The runtime CoreDNS override, which was a practical deployment fix but not yet codified in repo-managed infrastructure.
+
+### What should be done in the future
+- Inspect the Argo CD diff for `demo-stack-postgres`.
+- Decide whether to codify the CoreDNS forwarder behavior or solve the node resolver issue in infrastructure config.
+- Record the final residual risks and cleanup choices.
+
+### Code review instructions
+- Validate the final service with:
+  - `curl -I https://k3s.scapegoat.dev`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n demo get pods,svc,ingress,certificate`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get applications`
+
+### Technical details
+- Final validation commands:
+  - `dig +short k3s.scapegoat.dev`
+  - `curl -I https://k3s.scapegoat.dev`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n demo get pods,svc,ingress,certificate`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get application demo-stack -o yaml`

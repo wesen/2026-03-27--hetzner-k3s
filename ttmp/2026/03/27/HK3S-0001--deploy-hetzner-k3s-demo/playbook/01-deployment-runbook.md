@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 6: wait for recursive DNS propagation and certificate issuance, then verify HTTPS.
+Step 10: record the final working state and decide whether to investigate the residual Argo CD `OutOfSync` status and codify the runtime CoreDNS workaround.
 
 ## Environment Assumptions
 
@@ -107,7 +107,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `repo_revision = "main"`
 - `base_domain = "scapegoat.dev"`
 - `app_subdomain = "k3s"`
-- `server_type = "cpx31"`
+- `server_type = "cpx32"`
 - `acme_email = "wesen@ruinwesen.com"`
 
 ### Local Preparation Status
@@ -124,9 +124,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### Immediate Next Action
 
-- Wait for recursive resolvers to return:
-  - `k3s.scapegoat.dev -> 91.98.46.169`
-- After propagation, cert-manager should finish the HTTP-01 challenge and issue `demo-app-tls`.
+- Optional follow-up: inspect the residual Argo CD drift on `demo-stack-postgres`.
+- Optional follow-up: codify the CoreDNS resolver behavior instead of relying on the runtime ConfigMap adjustment.
 
 ### Current Runtime Status
 
@@ -135,7 +134,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - Authoritative DigitalOcean DNS returns:
   - `k3s.scapegoat.dev -> 91.98.46.169`
   - `*.yolo.scapegoat.dev -> 91.98.46.169`
-- cert-manager is still waiting for HTTP-01 challenge propagation through recursive DNS.
+- Public recursive DNS also returns `k3s.scapegoat.dev -> 91.98.46.169`.
+- `certificate/demo-app-tls` is `Ready=True`.
+- `curl -I https://k3s.scapegoat.dev` returns `HTTP/2 200`.
+- Argo CD reports `demo-stack` as `Healthy` but still `OutOfSync`, with `demo-stack-postgres` shown as the remaining unsynced resource.
 - The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria
@@ -144,7 +146,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - The server becomes reachable over SSH.
 - `kubectl get nodes` shows the single node as `Ready`.
 - `kubectl -n argocd get applications` shows `demo-stack` present and healthy.
-- `https://demo.<base_domain>` serves the demo app with a valid certificate.
+- `https://<app_subdomain>.<base_domain>` serves the demo app with a valid certificate.
 
 ## Notes
 
