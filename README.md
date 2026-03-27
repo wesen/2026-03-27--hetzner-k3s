@@ -82,7 +82,14 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
      -o jsonpath='{.data.password}' | base64 -d && echo
    ```
 
-9. Open the demo app:
+9. Switch the live Argo CD application to the Kustomize source:
+
+   ```bash
+   kubectl apply -f gitops/applications/demo-stack.yaml
+   kubectl -n argocd annotate application demo-stack argocd.argoproj.io/refresh=hard --overwrite
+   ```
+
+10. Open the demo app:
 
    ```
    https://demo.<your-domain>
@@ -100,7 +107,8 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
 
 - `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`: Hetzner infra
 - `cloud-init.yaml.tftpl`: first-boot bootstrap logic
-- `gitops/kustomize/demo-stack`: Kustomize package deployed by Argo CD
+- `docs/`: long-form intern-facing operational guides in Glazed help-page format
+- `gitops/kustomize/demo-stack`: Kustomize package deployed by the live Argo CD application
 - `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
 - `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
 - `app/`: demo Go app source + Dockerfile
