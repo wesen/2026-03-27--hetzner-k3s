@@ -13,6 +13,14 @@ topics:
       description: GitOps bootstrapping and Argo CD deployment flow
     - slug: kubernetes
       description: Kubernetes cluster bootstrap and operations
+    - slug: vault
+      description: HashiCorp Vault secret management and auth design
+    - slug: argocd
+      description: Argo CD applications and GitOps controller patterns
+    - slug: k3s
+      description: Lightweight Kubernetes distributions and K3s-specific platform work
+    - slug: migration
+      description: Platform and application migration planning and execution
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
