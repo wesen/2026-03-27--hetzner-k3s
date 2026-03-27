@@ -21,6 +21,8 @@ topics:
       description: Lightweight Kubernetes distributions and K3s-specific platform work
     - slug: migration
       description: Platform and application migration planning and execution
+    - slug: applications
+      description: Application deployment and runtime migration work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -2,11 +2,11 @@
 
 ## Phase 1: Choose the first app intentionally
 
-- [ ] Compare migration candidates:
+- [x] Compare migration candidates:
   CoinVault, hair-booking, and any smaller internal service that depends on fewer external systems
-- [ ] Score the candidates by:
+- [x] Score the candidates by:
   secret complexity, data dependencies, auth complexity, blast radius, and validation ease
-- [ ] Pick the first migration target and record why
+- [x] Pick the first migration target and record why
 
 ## Phase 2: Application secret and runtime contract
 
