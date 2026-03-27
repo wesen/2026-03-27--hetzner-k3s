@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-ide
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: mysql-ide
+    app.kubernetes.io/component: debug
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql-ide
+      app.kubernetes.io/component: debug
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql-ide
+        app.kubernetes.io/component: debug
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: coinvault
+      containers:
+        - name: mysql-ide
+          image: mysql-ide:hk3s-0010
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: MYSQL_IDE_LISTEN_ADDR
+              value: :8080
+            - name: MYSQL_IDE_AUTH_MODE
+              value: oidc
+            - name: MYSQL_IDE_AUTH_PUBLIC_URL
+              value: https://coinvault-sql.yolo.scapegoat.dev
+            - name: MYSQL_IDE_AUTH_SESSION_COOKIE_NAME
+              value: mysql_ide_session
+            - name: MYSQL_IDE_AUTH_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: session_secret
+            - name: MYSQL_IDE_OIDC_ISSUER_URL
+              value: https://auth.scapegoat.dev/realms/coinvault
+            - name: MYSQL_IDE_OIDC_CLIENT_ID
+              value: coinvault-web
+            - name: MYSQL_IDE_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: oidc_client_secret
+            - name: MYSQL_IDE_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_host
+            - name: MYSQL_IDE_DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_port
+            - name: MYSQL_IDE_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_database
+            - name: MYSQL_IDE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_ro_user
+            - name: MYSQL_IDE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_ro_password
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-ide
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: mysql-ide
+    app.kubernetes.io/component: debug
+spec:
+  selector:
+    app.kubernetes.io/name: mysql-ide
+    app.kubernetes.io/component: debug
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

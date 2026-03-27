@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mysql-ide
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: mysql-ide
+    app.kubernetes.io/component: debug
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - coinvault-sql.yolo.scapegoat.dev
+      secretName: mysql-ide-tls
+  rules:
+    - host: coinvault-sql.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mysql-ide
+                port:
+                  number: 80
