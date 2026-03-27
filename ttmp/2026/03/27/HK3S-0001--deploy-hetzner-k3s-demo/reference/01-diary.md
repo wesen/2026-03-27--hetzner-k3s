@@ -51,6 +51,8 @@ I also adjusted the workflow to include incremental git commits, because the use
 
 **Inferred user intent:** Make the Hetzner deployment operationally explicit, inspectable, and easy to continue or review later.
 
+**Commit (code):** `9e20730` — `chore: initialize hetzner k3s demo and deployment ticket`
+
 ### What I did
 - Read the repository layout and `README.md` to identify the actual deployment sequence and external requirements.
 - Read the `docmgr` and `diary` skill instructions and verified that this repo already had a configured `ttmp/` workspace.
@@ -105,3 +107,58 @@ I also adjusted the workflow to include incremental git commits, because the use
   - `docmgr doc add --ticket HK3S-0001 --doc-type playbook --title 'Deployment Runbook'`
   - `docmgr doc add --ticket HK3S-0001 --doc-type reference --title 'Diary'`
   - `docmgr validate frontmatter --doc /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md --suggest-fixes`
+
+## Step 2: Move from scaffolding to deployment input collection
+
+With the initial repository checkpoint committed, the ticket can now act as the live deployment notebook. The current objective is narrower than the setup step: gather the environment-specific values that are still missing, confirm whether the Terraform defaults are acceptable, and then create the local `terraform.tfvars`.
+
+This step is intentionally blocked on operator answers rather than more repo editing. The repository already tells us which values are required; the remaining work is to turn those into concrete answers we can safely apply.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Follow-up user prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Advance from ticket creation to the first real deployment gate by collecting the missing inputs and keeping the current step explicit in the docs.
+
+**Inferred user intent:** Prevent Terraform work from starting until the deployment-specific values are known and documented.
+
+### What I did
+- Committed the initial repository state so subsequent deployment steps can be checkpointed cleanly.
+- Promoted input collection to the active step in the ticket index and runbook.
+- Reduced the next blocking work to the exact values required by `variables.tf` and `terraform.tfvars.example`.
+
+### Why
+- Terraform should not be run until the external values are explicit.
+- A step-by-step workflow only stays useful if the active step is visible in the docs and git history.
+
+### What worked
+- The repository already exposes the required inputs clearly enough that no additional design work is needed before asking questions.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The only values we truly need from the operator before a first apply are the secret-bearing or environment-specific ones; most infrastructure settings already have reasonable defaults.
+
+### What was tricky to build
+- The subtlety here was keeping the step boundary honest. It would have been easy to drift straight into editing `terraform.tfvars`, but that would have mixed inferred defaults with unknown operator choices. I kept the step focused by freezing the docs at the input-collection boundary and deferring value entry until the answers are explicit.
+
+### What warrants a second pair of eyes
+- If you already have a preferred server type, Hetzner region, hostname convention, or private-repo bootstrap path, that should be stated now before we generate the deployment values.
+
+### What should be done in the future
+- Collect the operator answers for the missing deployment inputs.
+- Create `terraform.tfvars`.
+- Move to the Terraform initialization and apply step.
+
+### Code review instructions
+- Review `variables.tf` and `terraform.tfvars.example` to confirm the question set is complete before any value entry happens.
+- Confirm the active-step text in `index.md` and `playbook/01-deployment-runbook.md` matches the real deployment state.
+
+### Technical details
+- Inputs derived from:
+  - `variables.tf`
+  - `terraform.tfvars.example`
+  - `README.md`

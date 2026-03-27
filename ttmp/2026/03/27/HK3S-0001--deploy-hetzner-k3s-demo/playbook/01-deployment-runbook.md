@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 1: gather the external values that are not present in the repository, confirm which defaults to keep, then create the local `terraform.tfvars`.
+Step 2: gather the external values that are not present in the repository, confirm which defaults to keep, then create the local `terraform.tfvars`.
 
 ## Environment Assumptions
 

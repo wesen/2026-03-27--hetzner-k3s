@@ -4,6 +4,7 @@
 
 - [x] Create the docmgr ticket scaffold and initial deployment docs
 - [x] Audit the repo to identify the real deployment flow and blocking external inputs
+- [x] Create the initial repository checkpoint in git
 - [ ] Confirm deployment inputs and defaults with the operator
 - [ ] Create a deployment-ready `terraform.tfvars` locally
 - [ ] Run `terraform init`

@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 1 is active: collect the missing operator inputs, confirm defaults we want to keep, and prepare the first deployment-ready `terraform.tfvars` values.
+Step 2 is active: answer the deployment input questions, confirm which infrastructure defaults stay unchanged, and prepare the first deployment-ready `terraform.tfvars` values.
 
 ## Key Links
 
