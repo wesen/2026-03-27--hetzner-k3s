@@ -1,12 +1,11 @@
 ---
 Title: Enable Vault Kubernetes auth and baseline workload policies
 Ticket: HK3S-0004
-Status: active
+Status: complete
 Topics:
     - vault
     - k3s
     - kubernetes
-    - security
     - gitops
 DocType: index
 Intent: long-term
@@ -14,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implementation ticket for enabling Vault Kubernetes auth on the K3s cluster, bootstrapping baseline workload policies and roles, and proving the first service-account login path."
-LastUpdated: 2026-03-27T13:43:00-04:00
+LastUpdated: 2026-03-27T14:02:00-04:00
 WhatFor: "Use this ticket to enable Vault machine auth for Kubernetes workloads, define the first baseline app policies and roles, and validate the pattern that later GitOps apps will rely on."
 WhenToUse: "Read this when implementing or reviewing how Kubernetes service accounts should authenticate to the K3s-hosted Vault instance."
 ---
@@ -35,7 +34,7 @@ The scope is intentionally practical rather than abstract. The ticket should lea
 
 ## Current Step
 
-Step 3 is active: apply the smoke namespace/service account through Argo CD, bootstrap the live Vault auth backend and policies, and validate allow/deny behavior with a real service account token.
+Completed: Vault Kubernetes auth is enabled on the K3s Vault instance, the smoke namespace/service account is managed through Argo CD, and a real service-account token can log in and read only its own KV subtree.
 
 ## Key Links
 
@@ -48,14 +47,32 @@ Step 3 is active: apply the smoke namespace/service account through Argo CD, boo
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
+
+## Result
+
+The K3s Vault now supports Kubernetes workload auth:
+
+- auth mount: `auth/kubernetes`
+- secrets engine: `kv/`
+- smoke namespace/service account: `vault-auth-smoke/vault-auth-smoke`
+- smoke role: `vault-auth-smoke`
+- baseline future roles: `coinvault-prod`, `hair-booking-prod`
+- smoke validation: passed allow and deny checks with a real Kubernetes service account token
+
+## Next Tickets
+
+Recommended immediate follow-ups:
+
+- [HK3S-0005](../HK3S-0005--enable-vault-keycloak-oidc-operator-login-on-k3s/index.md) for human operator OIDC login
+- [HK3S-0006](../HK3S-0006--deploy-vault-secrets-operator-on-k3s-and-prove-secret-sync/index.md) for controller-based secret delivery
+- [HK3S-0007](../HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md) for the first real workload migration
 
 ## Topics
 
 - vault
 - k3s
 - kubernetes
-- security
 - gitops
 
 ## Tasks

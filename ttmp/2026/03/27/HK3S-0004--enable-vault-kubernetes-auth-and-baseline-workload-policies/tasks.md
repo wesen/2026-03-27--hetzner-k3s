@@ -15,26 +15,26 @@
 - [x] Add the operator bootstrap script that enables/configures Kubernetes auth and writes policies and roles
 - [x] Add the validation script that logs in with a Kubernetes service account JWT and proves both allow and deny behavior
 - [x] Add the Kubernetes manifests for the smoke-test namespace/service account and verify the Vault reviewer RBAC already exists
-- [ ] Update ticket docs and top-level repo docs so the operator flow is discoverable
+- [x] Update ticket docs and top-level repo docs so the operator flow is discoverable
 
 ## Phase 3: Live cluster and Vault configuration
 
-- [ ] Apply the Kubernetes RBAC/manifests needed for Vault Kubernetes auth
-- [ ] Enable or verify the `kv/` secrets engine at the intended path
-- [ ] Enable and configure `auth/kubernetes` on the live Vault instance
-- [ ] Write the baseline policies and roles to the live Vault instance
-- [ ] Seed at least one smoke secret under the new path convention
+- [x] Apply the Kubernetes manifests needed for the smoke namespace/service account
+- [x] Enable or verify the `kv/` secrets engine at the intended path
+- [x] Enable and configure `auth/kubernetes` on the live Vault instance
+- [x] Write the baseline policies and roles to the live Vault instance
+- [x] Seed at least one smoke secret under the new path convention
 
 ## Phase 4: Validation
 
-- [ ] Validate a smoke service account can authenticate against `auth/kubernetes/login`
-- [ ] Validate the smoke workload can read only its allowed secret path
-- [ ] Validate access is denied outside the assigned policy subtree
-- [ ] Record the exact commands and expected outputs in the diary
+- [x] Validate a smoke service account can authenticate against `auth/kubernetes/login`
+- [x] Validate the smoke workload can read only its allowed secret path
+- [x] Validate access is denied outside the assigned policy subtree
+- [x] Record the exact commands and expected outputs in the diary
 
 ## Phase 5: Handoff
 
-- [ ] Record the next-ticket dependencies:
+- [x] Record the next-ticket dependencies:
   OIDC operator login, Vault Secrets Operator, and first app recreation
-- [ ] Validate the ticket with `docmgr doctor`
-- [ ] Commit the work in focused checkpoints
+- [x] Validate the ticket with `docmgr doctor`
+- [x] Commit the work in focused checkpoints

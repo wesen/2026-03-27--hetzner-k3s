@@ -6,7 +6,6 @@ Topics:
     - vault
     - k3s
     - kubernetes
-    - security
     - gitops
 DocType: playbook
 Intent: long-term
@@ -17,7 +16,7 @@ ExternalSources:
     - https://developer.hashicorp.com/vault/api-docs/auth/kubernetes
     - https://developer.hashicorp.com/vault/docs/deploy/kubernetes/vso/sources/vault/auth
 Summary: "Detailed implementation plan for enabling Vault Kubernetes auth on the K3s cluster and bootstrapping the first baseline workload policies and roles."
-LastUpdated: 2026-03-27T13:34:00-04:00
+LastUpdated: 2026-03-27T14:02:00-04:00
 WhatFor: "Use this to implement the first workload authentication path into the K3s-hosted Vault instance."
 WhenToUse: "Read this before changing Vault auth backends, writing policies, or validating workload login from Kubernetes."
 ---
@@ -224,6 +223,19 @@ Success criteria:
 
 - workload identity and least-privilege both work
 
+Commands used in this ticket:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+kubectl apply -f gitops/applications/vault-kubernetes-auth.yaml
+kubectl -n argocd annotate application vault-kubernetes-auth argocd.argoproj.io/refresh=hard --overwrite
+
+export VAULT_ADDR=https://vault.yolo.scapegoat.dev
+export VAULT_TOKEN=<root-token-or-break-glass-operator-token>
+./scripts/bootstrap-vault-kubernetes-auth.sh
+./scripts/validate-vault-kubernetes-auth.sh
+```
+
 ## Failure modes to expect
 
 - `permission denied` from Kubernetes auth login
@@ -244,3 +256,8 @@ Success criteria:
 - the Kubernetes RBAC and smoke resources are managed from repo state
 - a workload JWT can authenticate and read only its own subtree
 - the operator flow is fully documented in the diary
+
+## Observed implementation notes
+
+- The Vault Helm chart already created `ClusterRoleBinding/vault-server-binding` to `system:auth-delegator`, so this ticket did not need to create a second reviewer binding.
+- The Vault role writes returned warnings about missing `audience` configuration. The current implementation intentionally accepts that for compatibility with the default projected service-account token flow. Tightening JWT audience checks can happen in a later hardening pass if the workload token audience strategy is standardized.
