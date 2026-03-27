@@ -766,3 +766,49 @@ I also treated this as a durability issue, not just a live-cluster tweak. The re
 - Terraform validation:
   - `terraform validate -no-color`
   - `terraform plan -no-color` showed `hcloud_server.node` replacement because `user_data` changed
+
+## Step 12: Clean up local git hygiene and freeze the next action
+
+After exposing Argo CD publicly, the only local repo noise left was an untracked `.envrc`. That file is clearly workstation-local state and does not belong in deployment history, so I excluded it from git. This is a small housekeeping step, but it matters because the user explicitly asked for incremental commits as the deployment progresses, and those commits should stay reviewable and free of local shell environment clutter.
+
+At this point the deployment path is no longer blocked on bootstrap or reachability. The next meaningful work item is inside Argo CD itself: inspect why `demo-stack-postgres` remains `OutOfSync` even though the application is healthy.
+
+### Prompt Context
+
+**User prompt (verbatim):** "what user_data has changed? gitignore .envrc. what's next?"
+
+**Assistant interpretation:** Explain the exact bootstrap change that caused Terraform to want server replacement, ignore the local `.envrc`, and make the next operational step explicit.
+
+**Inferred user intent:** Keep the repo clean, understand the Terraform risk, and focus attention on the next real deployment task instead of accidental churn.
+
+### What I did
+- Explained that the changed `user_data` is the Argo CD public-hostname bootstrap logic added in Step 11.
+- Added `.envrc` to `.gitignore`.
+- Promoted Argo CD drift inspection to the next operator action in the ticket.
+
+### Why
+- Local direnv state should not pollute deployment commits.
+- The Terraform replacement warning is only useful if the underlying cause is stated concretely.
+- With public app access and public Argo CD access already working, the next highest-value task is the remaining Argo CD drift.
+
+### What worked
+- `.envrc` is now ignored, so the repo can stay clean between deployment checkpoints.
+- The next step is now explicit in the ticket instead of implicit in chat history.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The only reason Terraform currently wants to replace the server is that `user_data` now includes the optional `argocd_host` bootstrap path. It is not a surprise drift in some unrelated Hetzner resource.
+
+### What warrants a second pair of eyes
+- The eventual strategy for reconciling repo-managed bootstrap changes with an already-running single-node server. Right now that gap is acknowledged, but not solved.
+
+### What should be done in the future
+- Log into Argo CD and inspect the `demo-stack-postgres` diff.
+- Decide whether to resolve the drift in the chart, in the live object, or by changing Argo CD compare behavior.
+- After that, decide whether the CoreDNS workaround should be codified in infrastructure.
+
+### Technical details
+- Files changed:
+  - `.gitignore`

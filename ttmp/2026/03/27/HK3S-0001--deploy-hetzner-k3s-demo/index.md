@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 11 is active: Argo CD public access is now enabled at `argocd.yolo.scapegoat.dev`, and the remaining follow-ups are the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet and the runtime CoreDNS override that is not yet codified in the repo.
+Step 12 is active: repo hygiene is cleaned up after the Argo CD exposure work, and the next operational task is to inspect the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet before making any more infrastructure changes.
 
 ## Key Links
 
@@ -92,6 +92,7 @@ Inputs already resolved or proposed:
 Next operator action:
 
 - Log into `https://argocd.yolo.scapegoat.dev` with the `admin` account and inspect the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
+- Avoid running `terraform apply` on this environment unless you intentionally want to replace the current server
 
 ## Topics
 

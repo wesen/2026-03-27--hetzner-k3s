@@ -115,3 +115,13 @@ Step 11: exposed Argo CD publicly at https://argocd.yolo.scapegoat.dev, issued a
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/cloud-init.yaml.tftpl — Added optional Argo CD public ingress bootstrap logic
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/variables.tf — Added the optional `argocd_host` input
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the public Argo CD exposure step
+
+
+## 2026-03-27
+
+Step 12: ignored the local `.envrc` file so future git checkpoints stay clean, and recorded that the next operational work is Argo CD drift investigation rather than more bootstrap changes.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/.gitignore — Excluded local direnv state from git checkpoints
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the housekeeping step and next operator action
