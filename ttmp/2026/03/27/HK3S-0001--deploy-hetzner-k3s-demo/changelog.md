@@ -25,3 +25,14 @@ Step 2: initial repository checkpoint committed; ticket advanced to deployment i
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Current step updated to input collection
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded transition to active input-collection step
 
+
+## 2026-03-27
+
+Step 3: resolved local SSH key and current public IP, identified SSH Git remote and unavailable 1Password session as remaining input blockers.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Refined the active blockers and proposed inputs
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/playbook/01-deployment-runbook.md — Documented repo URL and hostname composition constraints
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded partial answers and the 1Password CLI failure
+

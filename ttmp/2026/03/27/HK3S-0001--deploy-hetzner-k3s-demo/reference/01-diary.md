@@ -162,3 +162,73 @@ This step is intentionally blocked on operator answers rather than more repo edi
   - `variables.tf`
   - `terraform.tfvars.example`
   - `README.md`
+
+## Step 3: Resolve what can be inferred locally and isolate the remaining decisions
+
+I took the user-provided answers and checked which ones could be resolved directly from the local environment. That narrowed the deployment gate substantially: the SSH public key exists locally, the current public IP can seed a sensible firewall default, the Git revision can remain `main`, and the `cpx31` override is clear.
+
+The remaining blockers are not all obvious from the variable names alone. The most important discoveries were that the current Git remote is SSH, which cloud-init cannot use without additional credentials on the new server, and that the requested 1Password lookup cannot proceed until the `op` CLI has a live desktop-app session or another valid sign-in path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ssh key:  ~/.ssh/id_ed25519.pub 
+hetzner token: api credential hetzner k3s deploy in 1password (use cli)
+3. dunno what to chose
+git: github.com/wesen/2026-03-27--hetzner-k3s
+5. k3s.scapegoat.com, dunno about acme_email and subdomain? I probably need the server IP anyway before cnfigure this?
+6. you generate
+7. cpx31"
+
+**Assistant interpretation:** Use the provided local SSH key, read the Hetzner token from 1Password via CLI, propose a reasonable admin CIDR, infer the intended Git and hostname settings, generate the PostgreSQL password, and identify any remaining missing values.
+
+**Inferred user intent:** Reduce the open deployment questionnaire to only the values that genuinely need an explicit decision.
+
+### What I did
+- Verified that `~/.ssh/id_ed25519.pub` exists locally.
+- Checked that the `op` CLI is installed and attempted to inspect the named 1Password item without printing secret material.
+- Read the current public IP from `https://api.ipify.org` to propose a candidate admin firewall CIDR.
+- Read the local Git remote to see whether the repo URL the server needs should be SSH or HTTPS.
+- Mapped the user-provided hostname input to the Terraform variables to determine whether `k3s.scapegoat.com` refers to `base_domain` or the final full host.
+
+### Why
+- These checks eliminate guesswork before writing `terraform.tfvars`.
+- The repo URL and hostname shape directly affect whether bootstrap succeeds.
+
+### What worked
+- The SSH public key path resolved cleanly to a real key.
+- The current public IP was discoverable and provides a practical `admin_cidrs` default candidate.
+- The Git remote made the bootstrap risk visible before deployment.
+
+### What didn't work
+- `op item get 'hetzner k3s deploy' --vault 'api credential' --format json` failed with: `[ERROR] 2026/03/27 08:11:22 error initializing client: connecting to desktop app: cannot connect to 1Password app, make sure it is running`
+
+### What I learned
+- The simplest workable repo URL for this stack is a public HTTPS clone URL, not the current SSH remote.
+- The desired host must be decided before apply even though DNS is only updated after the server IP exists, because the host is embedded in the bootstrapped Argo CD application values.
+- A reasonable first `admin_cidrs` value is the current public IP as `/32`, which in this environment is `98.175.153.62/32`.
+
+### What was tricky to build
+- The tricky part was separating “unknown because the user has not answered yet” from “unknown because the existing value is subtly invalid for bootstrap.” The Git remote is the best example: `git@github.com:wesen/2026-03-27--hetzner-k3s.git` is a valid local remote, but it is not a valid anonymous clone URL for a fresh server. I handled that by checking the actual remote and translating it into the deployment-safe requirement.
+
+### What warrants a second pair of eyes
+- If the repository is private, the bootstrap design changes materially because cloud-init and Argo CD will both need credentials.
+- If the admin IP is dynamic or shared, using a single `/32` CIDR may cause lockouts later and should be replaced with a more stable range or a deliberate firewall update workflow.
+
+### What should be done in the future
+- Start or re-authenticate the 1Password app/session so the Hetzner token can be read through `op`.
+- Confirm whether the intended hostname is `k3s.scapegoat.com` or `demo.k3s.scapegoat.com`.
+- Provide the ACME email.
+- Confirm whether `admin_cidrs = ["98.175.153.62/32"]` is acceptable.
+- Create `terraform.tfvars` with a generated PostgreSQL password once the remaining answers are fixed.
+
+### Code review instructions
+- Review `variables.tf` and `main.tf` together to confirm the final hostname composition and repo URL expectations.
+- Review `playbook/01-deployment-runbook.md` to confirm the added notes match the actual bootstrap constraints.
+
+### Technical details
+- Commands run:
+  - `test -f ~/.ssh/id_ed25519.pub && sed -n '1p' ~/.ssh/id_ed25519.pub`
+  - `command -v op && op --version`
+  - `curl -fsSL https://api.ipify.org`
+  - `git remote -v`
+  - `op item get 'hetzner k3s deploy' --vault 'api credential' --format json | jq -r '.title, (.fields[] | [.id, .label, .type] | @tsv)'`

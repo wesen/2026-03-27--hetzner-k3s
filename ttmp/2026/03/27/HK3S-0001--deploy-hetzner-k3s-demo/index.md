@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 2 is active: answer the deployment input questions, confirm which infrastructure defaults stay unchanged, and prepare the first deployment-ready `terraform.tfvars` values.
+Step 2 is active: finish the remaining deployment-input decisions, then prepare the first deployment-ready `terraform.tfvars` values.
 
 ## Key Links
 
@@ -55,12 +55,19 @@ Current status: **active**
 
 Blocking external inputs:
 
-- Hetzner Cloud API token source
-- SSH public key to upload
-- Admin CIDR(s)
-- Git repo URL and revision to bootstrap from
-- Base domain, ACME email, and DNS control path
-- PostgreSQL password
+- Hetzner Cloud API token access through a working 1Password CLI session
+- Final `admin_cidrs` choice
+- Final public Git repo URL for cloud-init and Argo CD
+- Final hostname choice (`demo.k3s.scapegoat.com` vs `k3s.scapegoat.com`)
+- ACME email address
+
+Inputs already resolved or proposed:
+
+- SSH public key path: `~/.ssh/id_ed25519.pub`
+- Current public IP candidate for `admin_cidrs`: `98.175.153.62/32`
+- Git revision: `main`
+- Server type override: `cpx31`
+- Base domain candidate from user input: `scapegoat.com`
 
 ## Topics
 

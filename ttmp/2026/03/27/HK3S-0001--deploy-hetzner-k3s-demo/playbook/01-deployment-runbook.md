@@ -93,6 +93,12 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   - `acme_server`
   - `allow_kube_api`
 
+### Input Notes From Current Discovery
+
+- `repo_url` must be a clone URL the Hetzner server can read non-interactively during cloud-init. The current local Git remote is SSH (`git@github.com:...`), which will not work for bootstrap unless we add credentials on the server. The simplest path is a public HTTPS URL such as `https://github.com/wesen/2026-03-27--hetzner-k3s.git`.
+- `base_domain` and `app_subdomain` combine into the final hostname as `<app_subdomain>.<base_domain>`. If the desired hostname is `k3s.scapegoat.com`, use `base_domain = "scapegoat.com"` and `app_subdomain = "k3s"`.
+- DNS is configured after Terraform outputs the server IP. The hostname choice should still be decided before apply because it is embedded into the bootstrap manifests.
+
 ## Exit Criteria
 
 - Terraform finishes without errors.
