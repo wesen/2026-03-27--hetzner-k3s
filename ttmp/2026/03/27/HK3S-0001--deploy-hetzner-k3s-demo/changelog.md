@@ -87,3 +87,12 @@ Step 8: fixed the repo bootstrap defect by adding the missing pq checksum, pushe
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/app/go.sum — Added the missing module checksum that broke the on-node Docker build
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the cloud-init root cause
 
+
+## 2026-03-27
+
+Step 9: added the DigitalOcean DNS records for k3s.scapegoat.dev and *.yolo.scapegoat.dev via the separate Terraform repo; authoritative DNS is correct and the remaining blocker is recursive propagation for ACME.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the external Terraform DNS apply and narrowed the blocker to propagation
+

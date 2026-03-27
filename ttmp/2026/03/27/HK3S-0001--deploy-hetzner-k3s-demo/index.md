@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 5 is active: create and propagate DNS for `k3s.scapegoat.dev`, then let cert-manager complete the HTTP-01 challenge and issue the TLS certificate.
+Step 6 is active: wait for recursive DNS propagation and cert-manager certificate issuance for `k3s.scapegoat.dev`, then verify HTTPS end to end.
 
 ## Key Links
 
@@ -55,7 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- DNS record creation and propagation for `k3s.scapegoat.dev`
+- Recursive DNS propagation for `k3s.scapegoat.dev`
 
 Inputs already resolved or proposed:
 
@@ -77,11 +77,14 @@ Inputs already resolved or proposed:
 - K3s node status: `Ready`
 - App is reachable over HTTP via Traefik when the `Host: k3s.scapegoat.dev` header is supplied
 - Argo CD application health: `Healthy`
-- cert-manager challenge is pending because `k3s.scapegoat.dev` does not resolve yet
+- DigitalOcean authoritative DNS now serves:
+  - `k3s.scapegoat.dev -> 91.98.46.169`
+  - `*.yolo.scapegoat.dev -> 91.98.46.169`
+- cert-manager challenge is still pending while recursive DNS catches up
 
 Next operator action:
 
-- Create an `A` record: `k3s.scapegoat.dev -> 91.98.46.169`
+- Wait for public resolvers to see `k3s.scapegoat.dev -> 91.98.46.169`
 
 ## Topics
 

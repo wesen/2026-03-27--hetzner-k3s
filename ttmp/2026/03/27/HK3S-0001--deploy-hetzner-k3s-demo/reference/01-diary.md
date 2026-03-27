@@ -562,3 +562,65 @@ At this point the deployment is operational inside the cluster: the node is `Rea
   - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl get nodes -o wide`
   - `curl -H 'Host: k3s.scapegoat.dev' http://91.98.46.169/`
   - `ssh root@91.98.46.169 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && kubectl -n demo describe challenge demo-app-tls-1-2437261689-271864726'`
+
+## Step 9: Apply the DigitalOcean DNS records and reduce the blocker to propagation
+
+I applied the missing DNS change in the separate Terraform infrastructure repository at `~/code/wesen/terraform`, because that repo already owns the `scapegoat.dev` DigitalOcean zone. The change added the exact host record needed for this deployment, `k3s.scapegoat.dev -> 91.98.46.169`, and also the requested wildcard `*.yolo.scapegoat.dev -> 91.98.46.169` on the same server.
+
+The authoritative DigitalOcean nameserver is already serving both records, which means the Terraform change itself is complete and correct. The remaining blocker is narrower now: recursive DNS and cert-manager’s self-check need a bit of time to observe the new `k3s` record so the ACME HTTP-01 challenge can complete and TLS can be issued.
+
+### Prompt Context
+
+**User prompt (verbatim):** "catn you add the IP to DO dns I think the setup is in ~/code/wesen/terraform? 91.98.46.169"
+
+**Follow-up user prompt (verbatim):** "also add a wildcard for *.yolo.scapegoat.dev for this server"
+
+**Assistant interpretation:** Modify the existing DigitalOcean DNS Terraform zone to point `k3s.scapegoat.dev` and `*.yolo.scapegoat.dev` at the Hetzner server, then apply and verify the change.
+
+**Inferred user intent:** Finish the external DNS dependency directly in the existing infrastructure-as-code repo so certificate issuance can proceed.
+
+### What I did
+- Located the managed DigitalOcean zone in `~/code/wesen/terraform/dns/zones/scapegoat-dev/envs/prod`.
+- Added Terraform-managed `A` records for:
+  - `k3s.scapegoat.dev -> 91.98.46.169`
+  - `*.yolo.scapegoat.dev -> 91.98.46.169`
+- Ran Terraform `init`, `plan`, and `apply` in that DNS workspace.
+- Verified the authoritative DigitalOcean nameserver returns both new records.
+- Committed and pushed the DNS repo change so the zone update is durable in source control.
+
+### Why
+- The DNS zone is already owned by Terraform in a separate repo, so the right fix was to extend that source of truth instead of creating an out-of-band record manually.
+- The wildcard `*.yolo` request can be satisfied cleanly in the same change.
+
+### What worked
+- Terraform created both DigitalOcean DNS records successfully.
+- `@ns1.digitalocean.com` resolves both `k3s.scapegoat.dev` and `foo.yolo.scapegoat.dev` to `91.98.46.169`.
+- The DNS repo change is committed and pushed as `c24b1f1`.
+
+### What didn't work
+- My local default recursive resolver did not return `k3s.scapegoat.dev` immediately after the apply, even though the authoritative DigitalOcean nameserver already had the new record.
+
+### What I learned
+- The remaining blocker is no longer “DNS record missing”; it is “recursive DNS propagation not complete enough for cert-manager’s HTTP-01 self-check.”
+
+### What was tricky to build
+- The subtlety here was verifying the right layer of DNS. A normal `dig` against the default resolver still returned nothing for `k3s.scapegoat.dev`, which could have looked like a failed apply. Querying `@ns1.digitalocean.com` showed the authoritative zone was already correct, so the right interpretation is propagation delay rather than Terraform drift or a bad zone change.
+
+### What warrants a second pair of eyes
+- None on the Terraform DNS side; the authoritative zone state is already correct.
+
+### What should be done in the future
+- Wait for recursive DNS propagation.
+- Recheck the cert-manager challenge, certificate, and order resources.
+- Verify `https://k3s.scapegoat.dev` end to end.
+
+### Code review instructions
+- Review the DNS repo change at `~/code/wesen/terraform/dns/zones/scapegoat-dev/envs/prod/main.tf`.
+- Validate authoritative DNS with:
+  - `dig +short @ns1.digitalocean.com k3s.scapegoat.dev`
+  - `dig +short @ns1.digitalocean.com foo.yolo.scapegoat.dev`
+
+### Technical details
+- Terraform DNS apply created:
+  - `digitalocean_record.records["k3s_a"]` with record id `1813844261`
+  - `digitalocean_record.records["wildcard_yolo_a"]` with record id `1813844262`
