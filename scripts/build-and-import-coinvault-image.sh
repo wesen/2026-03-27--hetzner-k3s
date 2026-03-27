@@ -46,6 +46,7 @@ prepare_build_context() {
     cd "${temp_build_root}"
     go mod edit -dropreplace=github.com/go-go-golems/geppetto
     go mod edit -dropreplace=github.com/go-go-golems/pinocchio
+    go mod tidy
   )
 }
 
