@@ -13,6 +13,8 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: /home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml
+      Note: Implemented GitHub Actions workflow that builds and publishes the mysql-ide image to GHCR
     - Path: /home/manuel/code/wesen/2026-03-27--mysql-ide/Dockerfile
       Note: Current build input for the future GitHub Actions workflow
     - Path: /home/manuel/code/wesen/2026-03-27--mysql-ide/README.md
@@ -25,11 +27,12 @@ ExternalSources:
     - https://docs.github.com/en/actions/use-cases-and-examples/publishing-packages/publishing-docker-images
     - https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
     - https://argocd-image-updater.readthedocs.io/en/latest/
-Summary: "Design ticket for moving mysql-ide from manual node-local image imports to GitHub Actions builds, GHCR image storage, and registry-backed Argo CD deployment."
-LastUpdated: 2026-03-27T18:02:00-04:00
+Summary: Design ticket for moving mysql-ide from manual node-local image imports to GitHub Actions builds, GHCR image storage, and registry-backed Argo CD deployment.
+LastUpdated: 2026-03-27T18:18:00-04:00
 WhatFor: Use this ticket to design the long-term image build and deployment path for mysql-ide, moving from manual node-local imports to GitHub Actions plus GHCR feeding the existing Argo CD GitOps workflow.
 WhenToUse: Read this when implementing or reviewing the registry-backed image delivery path for mysql-ide or using it as the template for later K3s workloads.
 ---
+
 
 
 # Build mysql-ide images with GitHub Actions and GHCR for Argo CD deployment
@@ -55,7 +58,7 @@ The purpose of this ticket is to design the long-term replacement:
 
 ## Current Step
 
-Step 2 is active: the design ticket is written, validated, and published, and the next concrete move is opening the follow-up implementation slice that adds the workflow to the `mysql-ide` repo and switches the K3s deployment to GHCR-backed images.
+Step 4 is active: the implementation is complete in both repos, the live cluster is on the GHCR-backed image, and the remaining work is ticket closeout, validation, and publication.
 
 ## Key Links
 
@@ -67,6 +70,8 @@ Step 2 is active: the design ticket is written, validated, and published, and th
   - [01-github-actions-ghcr-implementation-plan.md](./playbooks/01-github-actions-ghcr-implementation-plan.md)
 - Investigation diary:
   - [01-image-pipeline-investigation-diary.md](./reference/01-image-pipeline-investigation-diary.md)
+- Implementation diary:
+  - [02-image-pipeline-implementation-diary.md](./reference/02-image-pipeline-implementation-diary.md)
 
 ## Status
 
@@ -90,6 +95,14 @@ Current outcome:
   - a detailed architecture and tradeoff document
   - a phased implementation plan
   - a chronological investigation diary
+- a separate implementation diary now records the actual rollout sequence, GitHub Actions run IDs, Argo refresh behavior, and authenticated browser verification
+- the `mysql-ide` app repo now has a working GitHub Actions workflow that publishes to:
+  - `ghcr.io/wesen/2026-03-27--mysql-ide`
+- the live `mysql-ide` deployment now pulls:
+  - `ghcr.io/wesen/2026-03-27--mysql-ide:sha-2c3003f`
+- Argo reports the `coinvault` application as:
+  - `Synced Healthy`
+- `https://coinvault-sql.yolo.scapegoat.dev/healthz` still returns the expected DB and OIDC contract
 - `docmgr doctor --ticket HK3S-0011 --stale-after 30` passes
 - the bundle is uploaded to reMarkable under `/ai/2026/03/27/HK3S-0011`
 

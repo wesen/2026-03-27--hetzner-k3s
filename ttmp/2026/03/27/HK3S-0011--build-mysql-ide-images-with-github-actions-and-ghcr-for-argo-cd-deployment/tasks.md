@@ -54,8 +54,51 @@
 
 ## Phase 5: Future implementation tasks after this design ticket
 
-- [ ] Add a GitHub Actions workflow to `/home/manuel/code/wesen/2026-03-27--mysql-ide`
-- [ ] Push `mysql-ide` images to GHCR on `main`
-- [ ] Update the K3s deployment to pull from GHCR
-- [ ] Remove `imagePullPolicy: Never` and the manual node-import requirement from the normal path
+## Phase 5: Implement the app-repo CI pipeline
+
+- [x] Add `.github/workflows/publish-image.yaml` to `/home/manuel/code/wesen/2026-03-27--mysql-ide`
+- [x] Add the CI trigger model:
+  - `pull_request`
+  - `push` to `main`
+  - `workflow_dispatch`
+- [x] Configure GitHub Actions permissions for GHCR publishing
+- [x] Configure a stable image naming scheme under `ghcr.io`
+- [x] Configure immutable SHA tags plus convenience branch tags
+- [x] Add OCI metadata labels that tie the published package back to the source repo
+- [x] Update the app repo README with the new release workflow
+- [x] Run local validation before pushing:
+  - `go test ./...`
+  - `docker build`
+
+## Phase 6: Publish the first GHCR-backed image
+
+- [x] Commit and push the app repo workflow to `main`
+- [x] Watch the first GitHub Actions run to completion
+- [x] Confirm the first package appears in GHCR
+- [x] Confirm the published image can be pulled
+- [x] Confirm whether package visibility is already usable for the cluster pull path
+
+## Phase 7: Cut the K3s deployment over to the registry image
+
+- [x] Update the K3s GitOps manifests to use the GHCR image
+- [x] Remove `imagePullPolicy: Never`
+- [x] Remove the manual node-import requirement from the normal path
+- [x] Choose the initial GitOps image update style:
+  - manual tag pin in Git
+- [x] Push the K3s manifest changes
+- [x] Let Argo CD reconcile the new image source
+
+## Phase 8: Validate the live cluster deployment
+
+- [x] Confirm the `mysql-ide` pod rolls out successfully from the registry image
+- [x] Confirm Argo reports `Synced Healthy`
+- [x] Confirm `https://coinvault-sql.yolo.scapegoat.dev/healthz`
+- [x] Confirm authenticated browser behavior still works after the image-source change
+
+## Phase 9: Ticket closeout and future follow-up
+
+- [x] Record the implementation diary and exact commands used
+- [x] Update the ticket index/changelog/tasks to reflect the real rollout
+- [x] Validate the ticket with `docmgr doctor`
+- [x] Upload the refreshed bundle to reMarkable
 - [ ] Decide whether to keep tag bumps manual, CI-driven through PRs, or automated with Argo CD Image Updater
