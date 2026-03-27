@@ -22,12 +22,12 @@
 
 ## Phase 4: Live migration
 
-- [ ] Seed the required Vault secrets
-- [ ] Deploy the app on K3s
-- [ ] Validate health, login/user flow, and secret consumption
-- [ ] Compare behavior to the current deployment
+- [x] Seed the required Vault secrets
+- [x] Deploy the app on K3s
+- [x] Validate health, login/user flow, and secret consumption
+- [x] Compare behavior to the current deployment
 
 ## Phase 5: Handoff
 
 - [ ] Record cutover options and rollback boundaries
-- [ ] Validate the ticket with `docmgr doctor`
+- [x] Validate the ticket with `docmgr doctor`
