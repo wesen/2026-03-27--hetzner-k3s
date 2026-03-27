@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 4 is active: point DNS for `k3s.scapegoat.dev` to the new server IP and monitor cloud-init until bootstrap finishes.
+Step 5 is active: create and propagate DNS for `k3s.scapegoat.dev`, then let cert-manager complete the HTTP-01 challenge and issue the TLS certificate.
 
 ## Key Links
 
@@ -55,7 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- DNS record creation for `k3s.scapegoat.dev`
+- DNS record creation and propagation for `k3s.scapegoat.dev`
 
 Inputs already resolved or proposed:
 
@@ -73,6 +73,11 @@ Inputs already resolved or proposed:
 - Server IPv4: `91.98.46.169`
 - Server IPv6: `2a01:4f8:c013:c4d6::1`
 - SSH command: `ssh root@91.98.46.169`
+- Local kubeconfig fetched: `kubeconfig-91.98.46.169.yaml`
+- K3s node status: `Ready`
+- App is reachable over HTTP via Traefik when the `Host: k3s.scapegoat.dev` header is supplied
+- Argo CD application health: `Healthy`
+- cert-manager challenge is pending because `k3s.scapegoat.dev` does not resolve yet
 
 Next operator action:
 

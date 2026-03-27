@@ -11,7 +11,7 @@
 - [x] Run `terraform apply`
 - [ ] Create or update the DNS record for the app hostname
 - [ ] Watch cloud-init complete successfully on the server
-- [ ] Fetch kubeconfig and verify the K3s node is Ready
+- [x] Fetch kubeconfig and verify the K3s node is Ready
 - [ ] Verify Argo CD bootstrapped and the `demo-stack` application is healthy
 - [ ] Verify HTTPS reaches the demo application successfully
 - [ ] Record final outputs, validation results, and follow-up risks

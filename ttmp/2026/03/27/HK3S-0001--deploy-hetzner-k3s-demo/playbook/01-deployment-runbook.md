@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 4: create the DNS record and monitor the node until cloud-init finishes.
+Step 5: create the DNS record and wait for cert-manager to complete the ACME HTTP-01 challenge.
 
 ## Environment Assumptions
 
@@ -126,7 +126,15 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 - Create the DNS `A` record:
   - `k3s.scapegoat.dev -> 91.98.46.169`
-- After DNS is in place, keep watching cloud-init until K3s, cert-manager, Argo CD, and the app bootstrap complete.
+- After DNS is in place, wait for cert-manager to finish the challenge and issue `demo-app-tls`.
+
+### Current Runtime Status
+
+- `kubectl get nodes` reports the node as `Ready`.
+- The app responds successfully over HTTP when addressed by IP with `Host: k3s.scapegoat.dev`.
+- cert-manager reports the challenge reason:
+  - `Waiting for HTTP-01 challenge propagation ... lookup k3s.scapegoat.dev ... no such host`
+- The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria
 

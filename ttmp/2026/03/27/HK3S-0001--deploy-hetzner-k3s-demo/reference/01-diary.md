@@ -486,3 +486,79 @@ The node was not yet accepting SSH connections on the first immediate probe afte
   - `terraform output -no-color`
   - `ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 root@91.98.46.169 'cloud-init status --wait && echo CLOUD_INIT_DONE'`
   - `ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 root@91.98.46.169 'tail -n 120 /var/log/cloud-init-output.log'`
+
+## Step 8: Fix the repo-driven bootstrap failure and narrow the deployment blocker to DNS
+
+The cloud-init failure turned out to be caused by the repository itself, not by Kubernetes or Hetzner. The server-side Docker build failed because `app/go.sum` was missing the module checksum for `github.com/lib/pq`. I fixed that locally, pushed the corrected `main` branch to GitHub, and reran the bootstrap script directly on the node. The rerun passed the build stage, imported the image into K3s, created the Argo CD application, and allowed the cluster to converge much further.
+
+At this point the deployment is operational inside the cluster: the node is `Ready`, PostgreSQL is healthy, the app pod is running, the app responds through Traefik over plain HTTP when the correct Host header is used, and cert-manager has created the HTTP-01 solver resources. The only remaining blocker is external DNS propagation for `k3s.scapegoat.dev`, which is preventing the ACME self-check from succeeding.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 7)
+
+**Assistant interpretation:** Continue the rollout after successful server creation, diagnose the cloud-init error, fix the underlying repo issue, and resume bootstrap until the remaining blocker is truly external.
+
+**Inferred user intent:** Get the environment as close to fully working as possible inside the current turn, not just stop at “server created.”
+
+### What I did
+- Inspected `cloud-init` logs and identified the exact failing command on the server-side Docker build.
+- Confirmed that `app/go.sum` was missing the checksum entry for `github.com/lib/pq`.
+- Ran `go mod tidy` in `app/` to repair the module metadata.
+- Committed the fix and pushed local `main` to GitHub so the public repo matched the bootstrap target.
+- Reran `/usr/local/bin/bootstrap-k3s-demo.sh` on the server and tailed `/root/bootstrap-rerun.log`.
+- Verified cluster readiness from both the server and a fetched local kubeconfig.
+- Confirmed the app responds correctly via Traefik over HTTP using `Host: k3s.scapegoat.dev`.
+- Confirmed the ACME challenge is pending specifically because DNS does not resolve yet.
+
+### Why
+- The server clones from the public GitHub repo, so a local-only fix would not have unblocked the bootstrap.
+- Once the internal app path was healthy, the remaining blocker could be isolated to DNS and certificate issuance.
+
+### What worked
+- The `go.sum` fix resolved the Docker build failure on the server.
+- The bootstrap rerun completed the image build/import and created the Argo CD application successfully.
+- `kubectl get nodes` reports the node as `Ready`.
+- PostgreSQL, the app pod, Traefik ingress, and the ACME solver pod are all running.
+- The app is reachable at `http://91.98.46.169/` when using `Host: k3s.scapegoat.dev`.
+
+### What didn't work
+- The original `cloud-init` run failed with:
+  - `main.go:13:2: missing go.sum entry for module providing package github.com/lib/pq`
+- The TLS challenge is currently blocked with:
+  - `Waiting for HTTP-01 challenge propagation ... lookup k3s.scapegoat.dev ... no such host`
+
+### What I learned
+- The deployment repo and the deployment target repo must stay in sync; local commits are not enough when cloud-init clones from GitHub.
+- The remaining blocker is fully external now: DNS propagation for the chosen hostname.
+
+### What was tricky to build
+- The sharp edge was that the failure surfaced on the server during cloud-init, but the real fix had to happen locally, be committed, and be pushed before any retry on the node would matter. Treating it as a pure server-side failure would have led to useless reruns against the same broken revision. I handled that by tracing the failing build output back to the repo contents, fixing the source of truth, and only then rerunning bootstrap.
+
+### What warrants a second pair of eyes
+- `demo-stack` currently reports `Healthy` but `OutOfSync` in Argo CD. The workload itself is functioning, and the next important thing is DNS/TLS, but the sync status should be checked again after the certificate settles.
+- The task “Watch cloud-init complete successfully” remains unchecked because the original cloud-init service did fail, even though the manual rerun recovered the environment operationally.
+
+### What should be done in the future
+- Create and propagate the DNS `A` record for `k3s.scapegoat.dev`.
+- Wait for cert-manager to complete the HTTP-01 challenge and issue the certificate.
+- Recheck Argo CD sync status and HTTPS reachability.
+- Record the final validation state.
+
+### Code review instructions
+- Start with `app/go.sum` and the Step 8 diary entry to understand the bootstrap failure and fix.
+- Validate the current runtime with:
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl get nodes -o wide`
+  - `ssh root@91.98.46.169 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && kubectl -n demo get pods,svc,ingress,certificate,challenge,order'`
+  - `curl -H 'Host: k3s.scapegoat.dev' http://91.98.46.169/`
+
+### Technical details
+- Commands run:
+  - `go mod tidy`
+  - `git push origin main`
+  - `ssh root@91.98.46.169 'nohup /usr/local/bin/bootstrap-k3s-demo.sh >/root/bootstrap-rerun.log 2>&1 &'`
+  - `ssh root@91.98.46.169 'tail -n 200 /root/bootstrap-rerun.log'`
+  - `./scripts/get-kubeconfig.sh 91.98.46.169`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl get nodes -o wide`
+  - `curl -H 'Host: k3s.scapegoat.dev' http://91.98.46.169/`
+  - `ssh root@91.98.46.169 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && kubectl -n demo describe challenge demo-app-tls-1-2437261689-271864726'`

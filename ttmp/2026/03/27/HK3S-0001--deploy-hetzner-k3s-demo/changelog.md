@@ -77,3 +77,13 @@ Step 7: switched to cpx32 in fsn1, applied successfully, obtained server IP 91.9
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Promoted DNS and cloud-init monitoring to the active step
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded successful apply and immediate SSH refusal
 
+
+## 2026-03-27
+
+Step 8: fixed the repo bootstrap defect by adding the missing pq checksum, pushed the public repo, reran bootstrap on the server, and reduced the remaining blocker to DNS propagation for k3s.scapegoat.dev.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/app/go.sum — Added the missing module checksum that broke the on-node Docker build
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the cloud-init root cause
+
