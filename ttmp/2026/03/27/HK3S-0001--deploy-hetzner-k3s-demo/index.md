@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 3 is active: inspect the Terraform plan and, if it looks correct, apply it to create the Hetzner resources.
+Step 3 is active but blocked: choose an orderable Hetzner server type or location, then re-run `terraform apply`.
 
 ## Key Links
 
@@ -55,7 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- None for Terraform planning.
+- Replacement for `cpx31` in `fsn1`, or confirmation to keep `cpx31` and switch location
 
 Inputs already resolved or proposed:
 
@@ -69,6 +69,13 @@ Inputs already resolved or proposed:
 - Local `terraform.tfvars` created and excluded from git
 - `terraform init` completed successfully
 - `terraform validate` completed successfully
+- `terraform apply` created the firewall and updated the existing SSH key name, but server creation failed because `cpx31` is unavailable in `fsn1`
+
+Closest orderable alternatives discovered:
+
+- `cpx32` in `fsn1` for 11.99/month
+- `cpx42` in `fsn1` for 21.99/month
+- keep `cpx31` and move location to `nbg1` or `hel1` for 14.99/month
 
 ## Topics
 

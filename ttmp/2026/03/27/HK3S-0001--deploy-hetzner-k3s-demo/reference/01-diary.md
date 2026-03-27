@@ -351,3 +351,75 @@ One important correction landed during this step: the base domain is `scapegoat.
   - `openssl rand -base64 30`
   - `terraform init`
   - `terraform validate`
+
+## Step 6: Recover from Hetzner apply-time constraints
+
+The first live Terraform apply did not fail generically; it exposed two concrete Hetzner account/runtime constraints. First, the SSH public key already existed in the account, which required importing that key into Terraform state and normalizing the local key value so Terraform would stop trying to replace it. After that recovery, the next apply attempt got further but failed because `cpx31` is no longer orderable in `fsn1`.
+
+This is now a genuine operator choice, not a tooling issue. The deployment can continue immediately once a replacement server type or location is selected, and the partial infrastructure state is stable: the firewall exists, the SSH key is managed in state, and no server resource was created.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 5)
+
+**Assistant interpretation:** Continue the deployment after local preparation, recover from any Terraform apply errors, and keep the ticket synchronized with the actual Hetzner-side state.
+
+**Inferred user intent:** Get the infrastructure created even if the first apply surfaces real provider constraints that require adaptation.
+
+### What I did
+- Ran `terraform plan` and confirmed the intended firewall, SSH key, and server shape.
+- Ran `terraform apply`, which created the firewall but failed on duplicate SSH key creation.
+- Queried Hetzner for existing SSH keys, identified the matching key ID `109828147`, and imported it into Terraform state.
+- Corrected the local `ssh_public_key` value to remove the trailing comment so Terraform would stop forcing key replacement.
+- Re-ran `terraform plan`, confirming the SSH key was now only an in-place rename.
+- Re-ran `terraform apply`, which updated the SSH key name and then failed during server creation because `cpx31` is unavailable in `fsn1`.
+- Queried Hetzner server type availability to collect concrete replacement options.
+
+### Why
+- The apply failures were provider-specific and recoverable; the right move was to adapt state and inputs rather than abandon the run.
+- Asking the operator to choose from concrete available options is better than asking for another blind guess.
+
+### What worked
+- The duplicate SSH key issue was resolved cleanly by importing the existing Hetzner key.
+- The firewall was created successfully.
+- The SSH key is now managed in Terraform state with the desired resource name.
+- Hetzner availability data provided clear next-step options.
+
+### What didn't work
+- `terraform apply -auto-approve -no-color` first failed with:
+  - `SSH key not unique`
+  - `Error code: uniqueness_error`
+  - `Status code: 409`
+- After importing the key and correcting the local key format, `terraform apply -auto-approve -no-color` failed again with:
+  - `Server Type "cpx31" is unavailable in "fsn1" and can no longer be ordered`
+
+### What I learned
+- The local key comment matters because Hetzner stores the imported public key without it, and Terraform treats that mismatch as a replacement-level diff.
+- `cpx31` still appears in pricing catalogs for several locations, but Hetzner rejects ordering it in `fsn1` for this account/region combination.
+
+### What was tricky to build
+- The tricky part was separating mutable local config issues from hard provider constraints. The SSH key problem looked like a create failure, but the underlying fix was state reconciliation plus public-key normalization. The server-type problem is different: Terraform and the repo config are both structurally fine, but the chosen SKU/location pair is no longer orderable. Treating those as the same kind of failure would have obscured the correct recovery path.
+
+### What warrants a second pair of eyes
+- If preserving the original `cpx31` performance profile matters more than staying in `fsn1`, choose a different location such as `nbg1` or `hel1`.
+- If staying in `fsn1` matters more, `cpx32` is the closest currently orderable replacement in the same broad family.
+
+### What should be done in the future
+- Choose one of the available server type/location combinations.
+- Update local deployment values accordingly.
+- Re-run `terraform apply`.
+- Capture the server IP and continue with DNS and cloud-init monitoring.
+
+### Code review instructions
+- Review the current step notes in `index.md` and `playbook/01-deployment-runbook.md`.
+- Reproduce the recovered Terraform state with `terraform state list` and `terraform show -no-color`.
+
+### Technical details
+- Commands run:
+  - `terraform plan -no-color`
+  - `terraform apply -auto-approve -no-color`
+  - `terraform state list`
+  - `terraform show -no-color`
+  - `curl -fsSL -H "Authorization: Bearer $TOKEN" https://api.hetzner.cloud/v1/ssh_keys`
+  - `terraform import hcloud_ssh_key.default 109828147`
+  - `curl -fsSL -H "Authorization: Bearer $TOKEN" 'https://api.hetzner.cloud/v1/server_types?per_page=100'`

@@ -57,3 +57,13 @@ Step 5: created local terraform.tfvars, retrieved the Hetzner token from 1Passwo
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Promoted Terraform planning to the active step
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded local secret creation and Terraform initialization
 
+
+## 2026-03-27
+
+Step 6: recovered from duplicate SSH key creation by importing the existing key, then hit a Hetzner availability blocker because cpx31 cannot currently be ordered in fsn1.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Updated the active blocker and proposed orderable alternatives
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded both apply failures and recovery steps
+
