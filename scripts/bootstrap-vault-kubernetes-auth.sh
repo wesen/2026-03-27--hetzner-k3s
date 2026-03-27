@@ -73,6 +73,11 @@ seed_smoke_secrets() {
     password="smoke-secret" \
     source="bootstrap-vault-kubernetes-auth.sh" >/dev/null
 
+  vault kv put "${kv_mount_path}/apps/vso-smoke/dev/demo" \
+    username="vso-smoke" \
+    password="vso-secret" \
+    source="bootstrap-vault-kubernetes-auth.sh" >/dev/null
+
   vault kv put "${kv_mount_path}/apps/vault-auth-other/dev/demo" \
     username="vault-auth-other" \
     password="deny-me" \

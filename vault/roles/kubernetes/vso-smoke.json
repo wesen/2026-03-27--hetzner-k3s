@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["vso-smoke"],
+  "bound_service_account_namespaces": ["vault-secrets-operator-smoke"],
+  "policies": ["vso-smoke"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}

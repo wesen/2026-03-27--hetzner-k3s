@@ -6,7 +6,6 @@ Topics:
     - vault
     - k3s
     - kubernetes
-    - security
     - gitops
 DocType: playbook
 Intent: long-term
@@ -16,7 +15,7 @@ ExternalSources:
     - https://developer.hashicorp.com/vault/docs/platform/k8s/vso/sources/vault
     - https://developer.hashicorp.com/vault/docs/deploy/kubernetes/vso/sources/vault/auth
 Summary: "Implementation plan for deploying Vault Secrets Operator on the K3s cluster and proving the first Vault-to-Kubernetes secret sync."
-LastUpdated: 2026-03-27T13:34:00-04:00
+LastUpdated: 2026-03-27T14:42:00-04:00
 WhatFor: "Use this to implement the controller-based secret sync path after Kubernetes auth exists."
 WhenToUse: "Read this when preparing the operator/controller secret-consumption layer."
 ---
@@ -60,3 +59,26 @@ Keep the first implementation narrow:
 - prefer `VaultStaticSecret`
 - use a non-production smoke namespace
 - do not bundle app migration into the same ticket
+
+## Chosen implementation shape
+
+- Argo application `vault-secrets-operator` installs the official HashiCorp Helm chart from `https://helm.releases.hashicorp.com`
+- Argo application `vault-secrets-operator-smoke` manages the local smoke namespace and CRs from `gitops/kustomize/vault-secrets-operator-smoke`
+- the first smoke auth path uses:
+  - namespace: `vault-secrets-operator-smoke`
+  - service account: `vso-smoke`
+  - Vault role/policy: `vso-smoke`
+  - source path: `kv/apps/vso-smoke/dev/demo`
+
+## Commands used for the scaffold step
+
+```bash
+bash -n scripts/bootstrap-vault-kubernetes-auth.sh
+bash -n scripts/validate-vault-secrets-operator.sh
+kubectl kustomize gitops/kustomize/vault-secrets-operator-smoke
+```
+
+## Observed implementation notes
+
+- The local environment does not have `helm`, so chart/version confirmation came from the official HashiCorp Helm repository index and docs rather than local Helm inspection.
+- The first `VaultConnection` intentionally points at the in-cluster Vault service `http://vault.vault.svc.cluster.local:8200` so the initial proof does not depend on ingress or public TLS.
