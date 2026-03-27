@@ -56,18 +56,16 @@ Current status: **active**
 Blocking external inputs:
 
 - Hetzner Cloud API token access through a working 1Password CLI session
-- Final `admin_cidrs` choice
-- Final public Git repo URL for cloud-init and Argo CD
-- Final hostname choice (`demo.k3s.scapegoat.com` vs `k3s.scapegoat.com`)
 - ACME email address
 
 Inputs already resolved or proposed:
 
 - SSH public key path: `~/.ssh/id_ed25519.pub`
-- Current public IP candidate for `admin_cidrs`: `98.175.153.62/32`
+- Confirmed `admin_cidrs`: `98.175.153.62/32`
+- Confirmed repo URL candidate: `https://github.com/wesen/2026-03-27--hetzner-k3s.git`
 - Git revision: `main`
 - Server type override: `cpx31`
-- Base domain candidate from user input: `scapegoat.com`
+- Confirmed hostname: `k3s.scapegoat.com`
 
 ## Topics
 

@@ -36,3 +36,14 @@ Step 3: resolved local SSH key and current public IP, identified SSH Git remote 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/playbook/01-deployment-runbook.md — Documented repo URL and hostname composition constraints
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded partial answers and the 1Password CLI failure
 
+
+## 2026-03-27
+
+Step 4: confirmed public HTTPS repo path, admin CIDR, and final hostname mapping; only ACME email and exact 1Password vault remain unresolved.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Reduced blockers to ACME email and token access
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/playbook/01-deployment-runbook.md — Recorded confirmed repo URL and hostname variable mapping
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded user-confirmed deployment values
+

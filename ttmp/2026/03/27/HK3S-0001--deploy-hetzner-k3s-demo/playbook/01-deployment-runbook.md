@@ -99,6 +99,16 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `base_domain` and `app_subdomain` combine into the final hostname as `<app_subdomain>.<base_domain>`. If the desired hostname is `k3s.scapegoat.com`, use `base_domain = "scapegoat.com"` and `app_subdomain = "k3s"`.
 - DNS is configured after Terraform outputs the server IP. The hostname choice should still be decided before apply because it is embedded into the bootstrap manifests.
 
+### Confirmed Values So Far
+
+- `ssh_public_key = ~/.ssh/id_ed25519.pub`
+- `admin_cidrs = ["98.175.153.62/32"]`
+- `repo_url = "https://github.com/wesen/2026-03-27--hetzner-k3s.git"`
+- `repo_revision = "main"`
+- `base_domain = "scapegoat.com"`
+- `app_subdomain = "k3s"`
+- `server_type = "cpx31"`
+
 ## Exit Criteria
 
 - Terraform finishes without errors.

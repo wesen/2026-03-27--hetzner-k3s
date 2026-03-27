@@ -232,3 +232,58 @@ git: github.com/wesen/2026-03-27--hetzner-k3s
   - `curl -fsSL https://api.ipify.org`
   - `git remote -v`
   - `op item get 'hetzner k3s deploy' --vault 'api credential' --format json | jq -r '.title, (.fields[] | [.id, .label, .type] | @tsv)'`
+
+## Step 4: Convert the operator answers into concrete deployment values
+
+The input set is now mostly fixed. The user confirmed the local SSH key path, accepted the current public IP as the admin firewall CIDR, made the repository public, chose the final hostname `k3s.scapegoat.com`, and kept the `cpx31` server type. That narrows the unresolved inputs to only two items: the ACME email and successful token retrieval through 1Password.
+
+This is the point where the variable model becomes concrete. `k3s.scapegoat.com` maps cleanly to `base_domain = "scapegoat.com"` and `app_subdomain = "k3s"`, and the Git bootstrap path can now use the public HTTPS clone URL instead of the local SSH remote.
+
+### Prompt Context
+
+**User prompt (verbatim):** "op is running, git is public now. ips are fine, k3s.scapegoat.com. what's an ACME email?"
+
+**Assistant interpretation:** Record the confirmed deployment choices, retry token access through 1Password, and explain the remaining ACME email field before asking for the final value.
+
+**Inferred user intent:** Finish the last ambiguous setup details so `terraform.tfvars` can be created with minimal friction.
+
+### What I did
+- Marked the admin CIDR, hostname, public repo path, and `cpx31` server type as confirmed ticket inputs.
+- Mapped `k3s.scapegoat.com` onto the Terraform variables `base_domain = "scapegoat.com"` and `app_subdomain = "k3s"`.
+- Retried the 1Password item access after the user indicated that `op` is running.
+
+### Why
+- These confirmations remove the main remaining ambiguity from `terraform.tfvars`.
+- The ACME email field is easy to answer once its purpose is explicit.
+
+### What worked
+- The hostname choice is now settled and consistent with the repo’s variable model.
+- The Git bootstrap path can use a public HTTPS URL, which matches the simplest supported deployment path.
+
+### What didn't work
+- `op item get 'hetzner k3s deploy' --vault 'api credential' --format json | jq -r '.title, (.fields[] | [.id, .label, .type] | @tsv)'` is still pending on interactive 1Password access at the time of this diary update.
+
+### What I learned
+- The last user-facing ambiguity is not DNS timing but the purpose of the ACME contact email.
+
+### What was tricky to build
+- The subtlety here is that the hostname answer looked like a base domain at first glance, but it is actually the final host. I resolved that by mapping the final host back into the repo’s two-part variable model instead of treating the whole string as `base_domain`.
+
+### What warrants a second pair of eyes
+- If `scapegoat.com` has other automation around ACME or DNS, use an email address that the operator actually monitors rather than a throwaway personal address.
+
+### What should be done in the future
+- Provide the ACME email.
+- Complete the 1Password token retrieval.
+- Generate the PostgreSQL password and write local `terraform.tfvars`.
+
+### Code review instructions
+- Review `variables.tf` and `playbook/01-deployment-runbook.md` to confirm the final host mapping and confirmed values are correct.
+
+### Technical details
+- Confirmed values:
+  - `admin_cidrs = ["98.175.153.62/32"]`
+  - `repo_url = "https://github.com/wesen/2026-03-27--hetzner-k3s.git"`
+  - `base_domain = "scapegoat.com"`
+  - `app_subdomain = "k3s"`
+  - `server_type = "cpx31"`
