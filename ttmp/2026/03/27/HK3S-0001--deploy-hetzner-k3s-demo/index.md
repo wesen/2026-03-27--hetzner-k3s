@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 12 is active: repo hygiene is cleaned up after the Argo CD exposure work, and the next operational task is to inspect the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet before making any more infrastructure changes.
+Step 13 is active: Argo CD public exposure has been moved out of Terraform bootstrap and into GitOps-managed cluster state, and the next operational task is to inspect the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet.
 
 ## Key Links
 
@@ -86,13 +86,12 @@ Inputs already resolved or proposed:
 - `https://k3s.scapegoat.dev` returns `HTTP/2 200`
 - `argocd-server-public-tls` certificate is `Ready=True`
 - `https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
+- `terraform plan -no-color` returns `No changes`
 - Residual note: Argo CD still reports `demo-stack` as `OutOfSync` while `Healthy`, with the PostgreSQL StatefulSet shown as the unsynced resource
-- Operational note: a fresh `terraform apply` would currently replace the server because `hcloud_server.user_data` changed; the live Argo CD exposure was applied directly to the cluster as well as committed to the bootstrap config
 
 Next operator action:
 
 - Log into `https://argocd.yolo.scapegoat.dev` with the `admin` account and inspect the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
-- Avoid running `terraform apply` on this environment unless you intentionally want to replace the current server
 
 ## Topics
 

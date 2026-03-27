@@ -812,3 +812,90 @@ At this point the deployment path is no longer blocked on bootstrap or reachabil
 ### Technical details
 - Files changed:
   - `.gitignore`
+
+## Step 13: Reconcile Terraform by moving Argo CD exposure into GitOps
+
+This step closed the design problem introduced in Step 11. The user correctly challenged why the Argo CD hostname lived in `cloud-init` at all, since the actual ingress is a Kubernetes concern. The right fix was to move ownership of the Argo CD config and ingress into GitOps-managed cluster resources, then remove the bootstrap-level `user_data` changes so Terraform would stop trying to replace the server.
+
+I implemented that by extending the existing `gitops/charts/demo-stack` chart with three Argo CD resources in the `argocd` namespace: a managed `argocd-cmd-params-cm` containing `server.insecure: "true"`, a partial `Deployment` manifest for `argocd-server` that adds a rollout-triggering pod-template annotation, and the `argocd-server-public` ingress for `argocd.yolo.scapegoat.dev`. After pushing that commit, Argo CD picked up the new revision, adopted those resources, rolled `argocd-server`, and kept the public UI working. Most importantly, `terraform plan -no-color` returned `No changes`, which proves the current server can be kept without reprovisioning.
+
+### Prompt Context
+
+**User prompt (verbatim):** "would we need to reprovision the server in any case? Or could we reconcile the terraform and keep the current server?"
+
+**Follow-up user prompt (verbatim):** "ok, do this"
+
+**Assistant interpretation:** Remove the bootstrap-driven Argo CD hostname path, make Kubernetes own the behavior, verify Terraform no longer wants replacement, and keep documenting each step.
+
+**Inferred user intent:** Preserve the working server while repairing the architecture so cluster-facing config lives in the cluster.
+
+### What I did
+- Added GitOps-managed Argo CD resources under `gitops/charts/demo-stack`:
+  - `templates/argocd-server-config.yaml`
+  - `templates/argocd-server-rollout.yaml`
+  - `templates/argocd-server-ingress.yaml`
+- Added default chart values for the Argo CD public endpoint in `gitops/charts/demo-stack/values.yaml`.
+- Removed the Argo CD hostname path from:
+  - `cloud-init.yaml.tftpl`
+  - `main.tf`
+  - `variables.tf`
+  - `terraform.tfvars.example`
+- Removed the now-unused local `argocd_host` value from the ignored `terraform.tfvars`.
+- Validated Terraform and confirmed `terraform plan -no-color` returned `No changes`.
+- Forced an Argo CD refresh and watched it adopt the GitOps-managed Argo CD resources.
+- Verified that `argocd.yolo.scapegoat.dev` still returns `HTTP/2 200`.
+
+### Why
+- Argo CD ingress and Argo server runtime flags belong to cluster state, not to machine bootstrap.
+- Keeping them in `user_data` made Terraform replacement the only way to reconcile an otherwise healthy running node.
+- Moving them into GitOps preserves the current server and gives the cluster the correct source of truth.
+
+### What worked
+- Terraform reconciliation succeeded without replacement.
+- Argo CD picked up revision `8c71af1` and now tracks:
+  - `ConfigMap/argocd-cmd-params-cm`
+  - `Deployment/argocd-server`
+  - `Ingress/argocd-server-public`
+- `argocd-server` rolled successfully from the chart-managed deployment patch.
+- `argocd.yolo.scapegoat.dev` remained reachable throughout the migration.
+
+### What didn't work
+- `helm template` could not be used locally because `helm` is not installed in this environment, so validation had to rely on Terraform, Kubernetes, and live Argo CD reconciliation instead of a local chart render.
+
+### What I learned
+- The current server can be preserved cleanly as long as Terraform is reconciled back to the original bootstrap shape and the Argo CD exposure logic is moved into GitOps.
+- A small partial `Deployment` manifest is enough to make Argo manage the rollout-triggering annotation on `argocd-server`.
+
+### What warrants a second pair of eyes
+- The fact that the `demo-stack` chart now manages resources in both the `demo` and `argocd` namespaces. It is effective here, but it is a deliberate coupling that may be worth untangling later into a dedicated Argo CD chart or a second `Application`.
+- The remaining `demo-stack-postgres` `OutOfSync` state, which is now the last visible drift in the application.
+
+### What should be done in the future
+- Inspect the `demo-stack-postgres` diff in the Argo CD UI.
+- Decide whether to keep Argo CD resources inside `demo-stack` or split them into a dedicated GitOps package.
+- After that, decide whether to codify the CoreDNS workaround in repo-managed state.
+
+### Code review instructions
+- Review:
+  - `gitops/charts/demo-stack/values.yaml`
+  - `gitops/charts/demo-stack/templates/argocd-server-config.yaml`
+  - `gitops/charts/demo-stack/templates/argocd-server-rollout.yaml`
+  - `gitops/charts/demo-stack/templates/argocd-server-ingress.yaml`
+  - `cloud-init.yaml.tftpl`
+  - `main.tf`
+- Validate with:
+  - `terraform validate -no-color`
+  - `terraform plan -no-color`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get applications`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get ingress,configmap,deployment`
+  - `curl -I https://argocd.yolo.scapegoat.dev`
+
+### Technical details
+- Key verification results:
+  - `terraform plan -no-color` -> `No changes. Your infrastructure matches the configuration.`
+  - `kubectl -n argocd get application demo-stack -o jsonpath='{.status.sync.revision}'` -> `8c71af1...`
+  - `kubectl -n argocd get application demo-stack -o json` showed:
+    - `ConfigMap/argocd-cmd-params-cm` = `Synced`
+    - `Deployment/argocd-server` = `Synced`
+    - `Ingress/argocd-server-public` = `Synced`
+    - `StatefulSet/demo-stack-postgres` = `OutOfSync`
