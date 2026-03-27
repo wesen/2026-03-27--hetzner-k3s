@@ -8,7 +8,7 @@
 - [x] Confirm deployment inputs and defaults with the operator
 - [x] Create a deployment-ready `terraform.tfvars` locally
 - [x] Run `terraform init`
-- [ ] Run `terraform apply`
+- [x] Run `terraform apply`
 - [ ] Create or update the DNS record for the app hostname
 - [ ] Watch cloud-init complete successfully on the server
 - [ ] Fetch kubeconfig and verify the K3s node is Ready

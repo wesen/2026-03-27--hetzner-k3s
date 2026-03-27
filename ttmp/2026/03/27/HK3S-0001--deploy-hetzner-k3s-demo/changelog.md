@@ -67,3 +67,13 @@ Step 6: recovered from duplicate SSH key creation by importing the existing key,
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Updated the active blocker and proposed orderable alternatives
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded both apply failures and recovery steps
 
+
+## 2026-03-27
+
+Step 7: switched to cpx32 in fsn1, applied successfully, obtained server IP 91.98.46.169, and moved to DNS plus cloud-init monitoring; SSH is not accepting connections yet.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Promoted DNS and cloud-init monitoring to the active step
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded successful apply and immediate SSH refusal
+

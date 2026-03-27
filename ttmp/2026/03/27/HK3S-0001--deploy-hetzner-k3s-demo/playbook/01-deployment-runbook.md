@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 3: resolve the server type/location availability mismatch, then re-run `terraform apply`.
+Step 4: create the DNS record and monitor the node until cloud-init finishes.
 
 ## Environment Assumptions
 
@@ -115,20 +115,18 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `terraform.tfvars` has been created locally and is ignored by git.
 - `terraform init` succeeded with provider `hetznercloud/hcloud v1.60.1`.
 - `terraform validate` succeeded.
-- A first `terraform apply` partially succeeded:
-  - firewall created
-  - existing SSH key imported and renamed
-  - server creation failed because `cpx31` is no longer orderable in `fsn1`
+- `terraform apply` now succeeded after changing `server_type` to `cpx32`.
+- Current server details:
+  - IPv4: `91.98.46.169`
+  - IPv6: `2a01:4f8:c013:c4d6::1`
+  - SSH: `ssh root@91.98.46.169`
+  - App URL target: `https://k3s.scapegoat.dev`
 
-### Current Hetzner Ordering Options Relevant To This Ticket
+### Immediate Next Action
 
-- Keep location `fsn1` and use:
-  - `cpx32` at 11.99/month
-  - `cpx42` at 21.99/month
-- Keep server type family intent closer to the original and move location:
-  - `cpx31` at `nbg1` for 14.99/month
-  - `cpx31` at `hel1` for 14.99/month
-  - `cpx31` at `ash` for 17.99/month
+- Create the DNS `A` record:
+  - `k3s.scapegoat.dev -> 91.98.46.169`
+- After DNS is in place, keep watching cloud-init until K3s, cert-manager, Argo CD, and the app bootstrap complete.
 
 ## Exit Criteria
 

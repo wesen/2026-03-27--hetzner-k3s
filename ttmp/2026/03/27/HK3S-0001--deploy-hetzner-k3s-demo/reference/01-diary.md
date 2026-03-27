@@ -423,3 +423,66 @@ This is now a genuine operator choice, not a tooling issue. The deployment can c
   - `curl -fsSL -H "Authorization: Bearer $TOKEN" https://api.hetzner.cloud/v1/ssh_keys`
   - `terraform import hcloud_ssh_key.default 109828147`
   - `curl -fsSL -H "Authorization: Bearer $TOKEN" 'https://api.hetzner.cloud/v1/server_types?per_page=100'`
+
+## Step 7: Create the server after choosing an orderable Hetzner SKU
+
+Once the user picked `cpx32` in `fsn1`, the blocked Terraform phase became straightforward again. I updated the local deployment values, re-ran `terraform apply`, and Hetzner successfully created the server. Terraform now reports the concrete SSH command and both public IPs, which makes DNS and cloud-init monitoring the active deployment phase.
+
+The node was not yet accepting SSH connections on the first immediate probe after creation, which is normal during very early boot. That means the deployment is no longer blocked on infrastructure provisioning, but it is not yet ready for Kubernetes validation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cpx32 fsn1"
+
+**Assistant interpretation:** Use `cpx32` in `fsn1` as the replacement for the unavailable `cpx31` offering and continue the Hetzner apply.
+
+**Inferred user intent:** Unblock infrastructure creation with the smallest practical change.
+
+### What I did
+- Updated the local `server_type` override from `cpx31` to `cpx32`.
+- Re-ran `terraform apply`.
+- Captured the resulting Terraform outputs:
+  - app URL: `https://k3s.scapegoat.dev`
+  - IPv4: `91.98.46.169`
+  - IPv6: `2a01:4f8:c013:c4d6::1`
+  - SSH command: `ssh root@91.98.46.169`
+- Attempted immediate SSH access to the server and observed that port 22 was not yet accepting connections.
+
+### Why
+- The `cpx31`/`fsn1` combination was a hard provider-side blocker; changing to `cpx32` preserved location while restoring orderability.
+- Capturing the IP and SSH details is necessary for the next operational steps.
+
+### What worked
+- `terraform apply` completed successfully after the server type change.
+- The Hetzner server now exists and Terraform outputs are populated.
+
+### What didn't work
+- Immediate SSH attempts right after apply returned:
+  - `ssh: connect to host 91.98.46.169 port 22: Connection refused`
+
+### What I learned
+- The deployment is now in the post-provision bootstrap phase rather than the infrastructure creation phase.
+- DNS can and should be configured now because the final server IPv4 is known.
+
+### What was tricky to build
+- The main subtlety was knowing when an apply success still does not mean the node is operationally ready. Terraform returning successfully only confirms the resource exists; it does not guarantee that SSH or cloud-init are ready. I handled that by probing SSH immediately and carrying the “connection refused” result forward as part of the active step instead of assuming bootstrap had begun cleanly.
+
+### What warrants a second pair of eyes
+- None on the Terraform side right now; the next risk surface is bootstrap timing and application-level readiness on the node.
+
+### What should be done in the future
+- Create the DNS record for `k3s.scapegoat.dev`.
+- Retry SSH until the node is reachable.
+- Watch cloud-init to completion.
+- Continue with kubeconfig and Argo CD validation.
+
+### Code review instructions
+- Review `terraform output -no-color` and the updated current-step sections in the ticket docs.
+- Retry the SSH and cloud-init commands once the node starts accepting connections.
+
+### Technical details
+- Commands run:
+  - `terraform apply -auto-approve -no-color`
+  - `terraform output -no-color`
+  - `ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 root@91.98.46.169 'cloud-init status --wait && echo CLOUD_INIT_DONE'`
+  - `ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 root@91.98.46.169 'tail -n 120 /var/log/cloud-init-output.log'`

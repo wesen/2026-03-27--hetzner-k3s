@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 3 is active but blocked: choose an orderable Hetzner server type or location, then re-run `terraform apply`.
+Step 4 is active: point DNS for `k3s.scapegoat.dev` to the new server IP and monitor cloud-init until bootstrap finishes.
 
 ## Key Links
 
@@ -55,7 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- Replacement for `cpx31` in `fsn1`, or confirmation to keep `cpx31` and switch location
+- DNS record creation for `k3s.scapegoat.dev`
 
 Inputs already resolved or proposed:
 
@@ -69,13 +69,14 @@ Inputs already resolved or proposed:
 - Local `terraform.tfvars` created and excluded from git
 - `terraform init` completed successfully
 - `terraform validate` completed successfully
-- `terraform apply` created the firewall and updated the existing SSH key name, but server creation failed because `cpx31` is unavailable in `fsn1`
+- `terraform apply` succeeded after switching to `cpx32`
+- Server IPv4: `91.98.46.169`
+- Server IPv6: `2a01:4f8:c013:c4d6::1`
+- SSH command: `ssh root@91.98.46.169`
 
-Closest orderable alternatives discovered:
+Next operator action:
 
-- `cpx32` in `fsn1` for 11.99/month
-- `cpx42` in `fsn1` for 21.99/month
-- keep `cpx31` and move location to `nbg1` or `hel1` for 14.99/month
+- Create an `A` record: `k3s.scapegoat.dev -> 91.98.46.169`
 
 ## Topics
 
