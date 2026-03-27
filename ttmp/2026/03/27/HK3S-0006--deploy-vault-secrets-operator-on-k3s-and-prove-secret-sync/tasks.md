@@ -15,18 +15,19 @@
 
 ## Phase 3: Live deployment
 
-- [ ] Deploy VSO into the cluster through Argo CD
-- [ ] Apply the first `VaultConnection` and `VaultAuth`
-- [ ] Seed or verify the source secret path in Vault
-- [ ] Apply the smoke `VaultStaticSecret`
+- [x] Deploy VSO into the cluster through Argo CD
+- [x] Apply the first `VaultConnection` and `VaultAuth`
+- [x] Seed or verify the source secret path in Vault
+- [x] Apply the smoke `VaultStaticSecret`
 
 ## Phase 4: Validation
 
-- [ ] Confirm the destination Kubernetes `Secret` is created
-- [ ] Confirm updates in Vault propagate to the destination secret
-- [ ] Confirm auth failures and policy denials are legible when misconfigured
+- [x] Confirm the destination Kubernetes `Secret` is created
+- [x] Confirm updates in Vault propagate to the destination secret
+- [x] Confirm auth failures and policy denials are legible when misconfigured
 
 ## Phase 5: Handoff
 
-- [ ] Record the VSO operating model and next limitations
-- [ ] Validate the ticket with `docmgr doctor`
+- [x] Record the VSO operating model and next limitations
+- [x] Validate the ticket with `docmgr doctor`
+- [x] Upload the ticket bundle to reMarkable

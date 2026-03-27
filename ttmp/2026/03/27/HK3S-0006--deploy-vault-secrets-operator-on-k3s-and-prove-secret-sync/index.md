@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implementation ticket for deploying Vault Secrets Operator on the K3s cluster and proving the first Vault-to-Kubernetes secret sync path."
-LastUpdated: 2026-03-27T14:42:00-04:00
+LastUpdated: 2026-03-27T15:26:00-04:00
 WhatFor: "Use this ticket to deploy Vault Secrets Operator on K3s and prove the first GitOps-friendly secret sync path from Vault into Kubernetes."
 WhenToUse: "Read this when preparing the operator/controller layer that will bridge Vault secrets into Kubernetes-native objects."
 ---
@@ -33,12 +33,14 @@ The ticket should leave behind:
 
 ## Current Step
 
-Step 2 is active: the repo-managed scaffold now exists for the VSO Helm-chart Argo application, the local smoke resources, the `vso-smoke` Vault role/policy, and the validation helper scripts. The next step is to apply the controller and smoke apps live, then validate sync behavior.
+Step 5 is complete: the controller and smoke applications are live and validated, the intern-facing design guide is written, `docmgr doctor` passes, and the ticket bundle is uploaded to reMarkable.
 
 ## Key Links
 
 - Implementation plan:
   - [01-vault-secrets-operator-plan.md](./playbooks/01-vault-secrets-operator-plan.md)
+- Architecture and implementation guide:
+  - [01-vault-secrets-operator-architecture-and-implementation-guide.md](./design-doc/01-vault-secrets-operator-architecture-and-implementation-guide.md)
 - Implementation diary:
   - [01-vault-secrets-operator-diary.md](./reference/01-vault-secrets-operator-diary.md)
 
