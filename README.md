@@ -100,7 +100,9 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
 
 - `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`: Hetzner infra
 - `cloud-init.yaml.tftpl`: first-boot bootstrap logic
-- `gitops/charts/demo-stack`: Helm chart deployed by Argo CD
+- `gitops/kustomize/demo-stack`: Kustomize package deployed by Argo CD
+- `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
+- `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
 - `app/`: demo Go app source + Dockerfile
 - `scripts/get-kubeconfig.sh`: helper to fetch a usable kubeconfig
 
