@@ -30,6 +30,6 @@
 ## Phase 5: GitOps packaging and validation
 
 - [x] Add the Argo CD applications and manifests for the chosen shared services
-- [ ] Validate health, persistence, and restart behavior
-- [ ] Validate one application consumption path for each selected shared service
+- [x] Validate health, persistence, and restart behavior
+- [x] Validate one application consumption path for each selected shared service
 - [x] Validate the ticket with `docmgr doctor`

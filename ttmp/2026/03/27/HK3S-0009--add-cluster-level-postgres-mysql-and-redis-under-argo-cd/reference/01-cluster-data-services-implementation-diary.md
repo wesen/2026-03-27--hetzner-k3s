@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Chronological diary for introducing the first shared cluster data service on K3s, starting with MySQL.
-LastUpdated: 2026-03-27T16:24:00-04:00
+LastUpdated: 2026-03-27T16:34:00-04:00
 WhatFor: Use this to review the exact implementation trail for the MySQL-first cluster data-services slice.
 WhenToUse: Read this when continuing or reviewing HK3S-0009.
 ---
@@ -220,3 +220,104 @@ One final GitOps detail appeared immediately after the pivot. I updated the live
 ### What should be done in the future
 - Commit and push the Kustomize pivot immediately so Argo can fetch the new path.
 - Re-run the application refresh and validate the live MySQL StatefulSet and service.
+
+## Step 5: Push the Kustomize source, reconcile the live app, and fix the final Argo drift
+
+Once the repo-managed Kustomize manifests existed, the next requirement was obvious but easy to overlook in the middle of live debugging: Argo CD cannot reconcile a path that only exists on my laptop. I committed and pushed the Kustomize pivot so the application source path actually existed in GitHub, then forced a refresh.
+
+That moved the failure forward again in a useful way. Argo could now read the repo, but it still could not update the existing MySQL StatefulSet in place because the original failed chart deployment had created a different StatefulSet shape. Kubernetes reported:
+
+- updates to forbidden StatefulSet spec fields
+
+This was not a reason to back out the new design. It only meant the old failed object needed to be replaced. Because the pod had never become a working database and the PVC was already retained, I deleted the failed StatefulSet and let Argo recreate it from the desired repo-owned manifest. That worked.
+
+The recreated MySQL pod came up on `mysql:8.4`, but Argo still reported the StatefulSet `OutOfSync`. I compared the desired manifest to the live object and found the same class of problem we had already seen on the demo PostgreSQL slice: Kubernetes had defaulted fields that were not declared in Git. I added those defaults explicitly:
+
+- `updateStrategy`
+- `dnsPolicy`
+- `restartPolicy`
+- `schedulerName`
+- `securityContext`
+- `serviceAccount`
+- container termination-message fields
+- `apiVersion` and `kind` on the PVC template
+
+After that revision was pushed, Argo reported:
+
+- `sync=Synced`
+- `health=Healthy`
+
+### What I did
+- Pushed the repo-managed Kustomize source so Argo could fetch it.
+- Deleted the failed chart-created StatefulSet.
+- Compared the live and desired StatefulSet specs.
+- Added Kubernetes-defaulted fields to the manifest.
+
+### Why
+- Argo can only reconcile Git-published state.
+- StatefulSet immutability prevented morphing the old chart object into the new repo-owned shape.
+- Explicit defaults are necessary when Argo compares live objects strictly.
+
+### What worked
+- Recreating the StatefulSet from the repo-owned spec cleanly moved the pod to `mysql:8.4`.
+- The default-field alignment cleared the last Argo drift.
+
+### What didn't work
+- Simply changing the Application source was not enough because the old failed StatefulSet shape was still present.
+
+### What I learned
+- For stateful services, the cleanest migration between packaging models is often “replace the controller while retaining the volume,” not “mutate everything in place.”
+
+### What should be done in the future
+- Run the database validation and a consumer-path smoke test, then close the ticket and resume the blocked CoinVault migration.
+
+## Step 6: Validate the final MySQL service from both the server and consumer perspectives
+
+Once Argo was `Synced Healthy`, I ran the validation script:
+
+- [`validate-cluster-mysql.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-mysql.sh)
+
+That confirmed:
+
+- the Argo application was healthy
+- the StatefulSet had rolled out
+- the `mysql-auth` secret existed
+- SQL worked inside the pod
+- the database `gec` existed
+- the user `coinvault_ro` existed
+
+I then added one more smoke test aimed at the eventual application contract rather than the server internals. I launched a one-shot client pod using the official `mysql:8.4` image, connected to:
+
+- `mysql.mysql.svc.cluster.local`
+
+and executed:
+
+- `SELECT CURRENT_USER(), DATABASE();`
+
+The result showed:
+
+- current user `coinvault_ro@%`
+- current database `gec`
+
+That is the key proof that later app migrations can consume the service through cluster DNS and the VSO-synced credentials, not just that “the database container is running.”
+
+### What I did
+- Ran the scripted MySQL validation.
+- Ran a one-shot in-cluster client smoke test against the shared service DNS name.
+- Deleted the temporary client pod after capturing the result.
+
+### Why
+- A healthy StatefulSet is not enough; the ticket needs to prove the actual application-facing contract.
+
+### What worked
+- The server validation passed cleanly.
+- The application user could connect through the stable service DNS name and reach the expected database.
+
+### What didn't work
+- The first version of the smoke test used `kubectl run --rm` in a non-interactive way that Kubernetes rejected, so I switched to a create, wait, log, delete pattern.
+
+### What I learned
+- The consumer-path smoke test is worth keeping because it validates DNS, credentials, image pull, and SQL reachability all at once.
+
+### What should be done in the future
+- Resume the CoinVault migration and replace its Coolify-only MySQL host with `mysql.mysql.svc.cluster.local`.

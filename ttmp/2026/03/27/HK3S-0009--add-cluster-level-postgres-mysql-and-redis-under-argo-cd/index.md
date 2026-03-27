@@ -21,7 +21,7 @@ RelatedFiles:
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
 Summary: "MySQL-first implementation ticket for introducing the first shared cluster data service under Argo CD so CoinVault and later applications can consume a stable in-cluster MySQL endpoint."
-LastUpdated: 2026-03-27T16:24:00-04:00
+LastUpdated: 2026-03-27T16:34:00-04:00
 WhatFor: "Use this ticket to implement the first shared cluster data-service slice on K3s, starting with MySQL because it is the active blocker for the CoinVault migration."
 WhenToUse: "Read this when an application migration needs a stable in-cluster MySQL endpoint and the Vault/VSO path is already available."
 ---
@@ -48,7 +48,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 4 is active: the first live rollout exposed broken upstream Bitnami chart dependencies, so the ticket has pivoted to a repo-managed Kustomize MySQL deployment that keeps the same Vault/VSO contract. The next step is to push that source and finish the live reconciliation.
+Step 5 is active: the repo-managed Kustomize MySQL deployment is live and validated. The next step is to use it from the blocked application-migration ticket.
 
 ## Key Links
 
@@ -69,12 +69,14 @@ Current decision:
 
 - implement MySQL now as the first shared cluster data service
 - continue deferring PostgreSQL and Redis until after the first shared-service pattern is proven
+- keep MySQL on repo-managed Kustomize manifests instead of the external Bitnami chart
 
 Why:
 
 - CoinVault is blocked on a MySQL host that only exists inside Coolify networking
 - MySQL is the smallest cluster data-service slice that solves a real migration blocker today
 - proving one shared data-service pattern first is still better than building all three at once
+- the external Bitnami chart path proved brittle during live rollout, while repo-managed manifests gave a stable and reviewable operational surface
 
 ## Topics
 
