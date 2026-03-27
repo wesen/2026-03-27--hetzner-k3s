@@ -23,8 +23,8 @@ spec:
       serviceAccountName: coinvault
       containers:
         - name: mysql-ide
-          image: mysql-ide:hk3s-0010
-          imagePullPolicy: Never
+          image: ghcr.io/wesen/2026-03-27--mysql-ide:sha-2c3003f
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
