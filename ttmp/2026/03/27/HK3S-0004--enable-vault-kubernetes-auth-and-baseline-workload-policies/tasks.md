@@ -1,0 +1,40 @@
+# Tasks
+
+## Phase 1: Scope and design confirmation
+
+- [ ] Confirm the auth design for this cluster:
+  Vault uses its own in-cluster service account token as the reviewer JWT source; workloads do not need `system:auth-delegator`
+- [ ] Confirm the first baseline role set:
+  smoke test, `coinvault-prod`, and `hair-booking-prod`
+- [ ] Confirm the secret path convention for K3s workloads:
+  `kv/apps/<app>/<env>/...`
+
+## Phase 2: Repo-managed bootstrap scaffold
+
+- [ ] Add the Vault policy files for the smoke workload and the first baseline application roles
+- [ ] Add the operator bootstrap script that enables/configures Kubernetes auth and writes policies and roles
+- [ ] Add the validation script that logs in with a Kubernetes service account JWT and proves both allow and deny behavior
+- [ ] Add the Kubernetes manifests for the Vault reviewer RBAC and the smoke-test namespace/service account
+- [ ] Update ticket docs and top-level repo docs so the operator flow is discoverable
+
+## Phase 3: Live cluster and Vault configuration
+
+- [ ] Apply the Kubernetes RBAC/manifests needed for Vault Kubernetes auth
+- [ ] Enable or verify the `kv/` secrets engine at the intended path
+- [ ] Enable and configure `auth/kubernetes` on the live Vault instance
+- [ ] Write the baseline policies and roles to the live Vault instance
+- [ ] Seed at least one smoke secret under the new path convention
+
+## Phase 4: Validation
+
+- [ ] Validate a smoke service account can authenticate against `auth/kubernetes/login`
+- [ ] Validate the smoke workload can read only its allowed secret path
+- [ ] Validate access is denied outside the assigned policy subtree
+- [ ] Record the exact commands and expected outputs in the diary
+
+## Phase 5: Handoff
+
+- [ ] Record the next-ticket dependencies:
+  OIDC operator login, Vault Secrets Operator, and first app recreation
+- [ ] Validate the ticket with `docmgr doctor`
+- [ ] Commit the work in focused checkpoints

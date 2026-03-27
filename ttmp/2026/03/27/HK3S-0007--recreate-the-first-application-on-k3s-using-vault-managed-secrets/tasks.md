@@ -1,0 +1,33 @@
+# Tasks
+
+## Phase 1: Choose the first app intentionally
+
+- [ ] Compare migration candidates:
+  CoinVault, hair-booking, and any smaller internal service that depends on fewer external systems
+- [ ] Score the candidates by:
+  secret complexity, data dependencies, auth complexity, blast radius, and validation ease
+- [ ] Pick the first migration target and record why
+
+## Phase 2: Application secret and runtime contract
+
+- [ ] Inventory the chosen app’s current runtime env and Vault dependencies
+- [ ] Decide whether the app should consume Vault via VSO-backed Kubernetes `Secret`, direct Vault API login, or another path
+- [ ] Map current secrets to the new `kv/apps/<app>/<env>/...` convention
+
+## Phase 3: Repo-managed deployment work
+
+- [ ] Add the Argo CD application and Kubernetes manifests for the chosen app
+- [ ] Add the service account and Vault role/policy bindings the app needs
+- [ ] Add ingress, persistence, and dependency wiring as needed
+
+## Phase 4: Live migration
+
+- [ ] Seed the required Vault secrets
+- [ ] Deploy the app on K3s
+- [ ] Validate health, login/user flow, and secret consumption
+- [ ] Compare behavior to the current deployment
+
+## Phase 5: Handoff
+
+- [ ] Record cutover options and rollback boundaries
+- [ ] Validate the ticket with `docmgr doctor`
