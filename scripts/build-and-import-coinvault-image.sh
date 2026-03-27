@@ -25,8 +25,33 @@ require_env K3S_NODE_HOST
 coinvault_repo="${COINVAULT_REPO_DIR:-/home/manuel/code/gec/2026-03-16--gec-rag}"
 image_name="${COINVAULT_IMAGE_NAME:-coinvault:hk3s-0007}"
 ssh_target="${K3S_NODE_USER:-root}@${K3S_NODE_HOST}"
+temp_build_root="$(mktemp -d)"
 
-docker build -t "${image_name}" "${coinvault_repo}"
+cleanup() {
+  rm -rf "${temp_build_root}"
+}
+
+trap cleanup EXIT
+
+prepare_build_context() {
+  rsync -a --delete \
+    --exclude '.git' \
+    --exclude 'node_modules' \
+    --exclude 'web/node_modules' \
+    --exclude 'tmp' \
+    --exclude 'var' \
+    "${coinvault_repo}/" "${temp_build_root}/"
+
+  (
+    cd "${temp_build_root}"
+    go mod edit -dropreplace=github.com/go-go-golems/geppetto
+    go mod edit -dropreplace=github.com/go-go-golems/pinocchio
+  )
+}
+
+prepare_build_context
+
+docker build -t "${image_name}" "${temp_build_root}"
 docker save "${image_name}" | ssh "${ssh_target}" 'k3s ctr images import - >/dev/null'
 ssh "${ssh_target}" "k3s ctr images ls | grep '${image_name%%:*}'"
 
