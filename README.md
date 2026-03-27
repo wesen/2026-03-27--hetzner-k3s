@@ -4,6 +4,8 @@ This repo provisions **one Hetzner Cloud VM** with **Terraform**, bootstraps **K
 
 The demo app is exposed to the public internet over **HTTPS** through the **K3s-packaged Traefik ingress controller**. PostgreSQL uses K3s **local-path** storage, so its data lives on the node's local disk.
 
+Argo CD can also be exposed on its own HTTPS hostname by setting the optional `argocd_host` variable.
+
 ## What this stack does
 
 - Terraform creates:
@@ -30,6 +32,7 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
 - A Hetzner Cloud project + API token
 - A domain you control
 - DNS for `demo.<your-domain>` pointing to the server's public IP after Terraform creates it
+- Optional DNS for `argocd.<something>.<your-domain>` if you set `argocd_host`
 - An SSH public key
 - A **Git repository URL for this repo**
   - easiest path: push this repo to a **public** GitHub repo first
@@ -81,6 +84,8 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
    kubectl -n argocd get secret argocd-initial-admin-secret \
      -o jsonpath='{.data.password}' | base64 -d && echo
    ```
+
+   If `argocd_host` is set, you can open Argo CD on that public hostname instead of using port-forward.
 
 9. Open the demo app:
 

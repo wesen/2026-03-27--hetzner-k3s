@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 10 is active: final validation and residual cleanup. The deployment is working end to end; the main remaining follow-ups are the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet and the runtime CoreDNS override that is not yet codified in the repo.
+Step 11 is active: Argo CD public access is now enabled at `argocd.yolo.scapegoat.dev`, and the remaining follow-ups are the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet and the runtime CoreDNS override that is not yet codified in the repo.
 
 ## Key Links
 
@@ -65,6 +65,7 @@ Inputs already resolved or proposed:
 - Git revision: `main`
 - Server type override: `cpx32`
 - Confirmed hostname: `k3s.scapegoat.dev`
+- Confirmed Argo CD hostname: `argocd.yolo.scapegoat.dev`
 - Confirmed ACME email: `wesen@ruinwesen.com`
 - Local `terraform.tfvars` created and excluded from git
 - `terraform init` completed successfully
@@ -83,11 +84,14 @@ Inputs already resolved or proposed:
 - Public recursive DNS resolves `k3s.scapegoat.dev -> 91.98.46.169`
 - `demo-app-tls` certificate is `Ready=True`
 - `https://k3s.scapegoat.dev` returns `HTTP/2 200`
+- `argocd-server-public-tls` certificate is `Ready=True`
+- `https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
 - Residual note: Argo CD still reports `demo-stack` as `OutOfSync` while `Healthy`, with the PostgreSQL StatefulSet shown as the unsynced resource
+- Operational note: a fresh `terraform apply` would currently replace the server because `hcloud_server.user_data` changed; the live Argo CD exposure was applied directly to the cluster as well as committed to the bootstrap config
 
 Next operator action:
 
-- Optional: inspect and clean up the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
+- Log into `https://argocd.yolo.scapegoat.dev` with the `admin` account and inspect the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
 
 ## Topics
 

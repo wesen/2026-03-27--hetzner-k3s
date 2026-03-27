@@ -14,4 +14,5 @@
 - [x] Fetch kubeconfig and verify the K3s node is Ready
 - [x] Verify Argo CD bootstrapped and the `demo-stack` application is healthy
 - [x] Verify HTTPS reaches the demo application successfully
+- [x] Expose Argo CD publicly on `argocd.yolo.scapegoat.dev`
 - [x] Record final outputs, validation results, and follow-up risks

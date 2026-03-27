@@ -54,6 +54,38 @@ write_files:
       kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
       kubectl wait --for=condition=Available deployment/argocd-repo-server -n argocd --timeout=300s
       kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=300s
+%{ if argocd_host != "" ~}
+      kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"server.insecure":"true"}}'
+      kubectl rollout restart deployment/argocd-server -n argocd
+      kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
+      cat >/tmp/argocd-public-ingress.yaml <<'EOARGO'
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: argocd-server-public
+        namespace: argocd
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+      spec:
+        ingressClassName: traefik
+        tls:
+          - hosts:
+              - ${argocd_host}
+            secretName: argocd-server-public-tls
+        rules:
+          - host: ${argocd_host}
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: argocd-server
+                      port:
+                        name: http
+      EOARGO
+      kubectl apply -f /tmp/argocd-public-ingress.yaml
+%{ endif ~}
 
       rm -rf /opt/bootstrap-repo
       git clone "${repo_url}" /opt/bootstrap-repo

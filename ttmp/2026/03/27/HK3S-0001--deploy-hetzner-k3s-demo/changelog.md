@@ -105,3 +105,13 @@ Step 10: public DNS propagation completed, cert-manager issued the certificate, 
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded final HTTPS success and residual risks
 
+
+## 2026-03-27
+
+Step 11: exposed Argo CD publicly at https://argocd.yolo.scapegoat.dev, issued a certificate for that host, and codified the optional public ingress path in Terraform and cloud-init.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/cloud-init.yaml.tftpl — Added optional Argo CD public ingress bootstrap logic
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/variables.tf — Added the optional `argocd_host` input
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the public Argo CD exposure step

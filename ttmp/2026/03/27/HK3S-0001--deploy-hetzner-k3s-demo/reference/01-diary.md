@@ -687,3 +687,82 @@ One operational wrinkle remains: Argo CD reports the `demo-stack` application as
   - `curl -I https://k3s.scapegoat.dev`
   - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n demo get pods,svc,ingress,certificate`
   - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get application demo-stack -o yaml`
+
+## Step 11: Expose Argo CD publicly on argocd.yolo.scapegoat.dev
+
+The user asked for a real Argo CD hostname instead of relying on local port-forwarding. The wildcard DNS record `*.yolo.scapegoat.dev -> 91.98.46.169` was already in place, so the remaining work was inside the cluster: make `argocd-server` safe to run behind an ingress, create a Traefik ingress for `argocd.yolo.scapegoat.dev`, and let cert-manager issue a certificate for that host.
+
+I also treated this as a durability issue, not just a live-cluster tweak. The repo now has an optional `argocd_host` variable, and cloud-init applies the Argo CD ingress automatically when that value is set. That means a rebuild of the node can preserve the public Argo CD endpoint instead of losing it on the next reprovision.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we expose it as argocd.yolo.scapegoat.dev ?"
+
+**Assistant interpretation:** Add a proper public HTTPS ingress for Argo CD on the existing wildcard DNS instead of telling the user to keep using port-forward.
+
+**Inferred user intent:** Make Argo CD usable from the browser like the app itself, with a stable hostname and certificate.
+
+### What I did
+- Added an optional Terraform variable `argocd_host`.
+- Passed that value into `cloud-init.yaml.tftpl`.
+- Updated cloud-init so that, when `argocd_host` is set, it:
+  - patches `argocd-cmd-params-cm` with `server.insecure: "true"`
+  - restarts `argocd-server`
+  - creates an `Ingress` named `argocd-server-public` in the `argocd` namespace
+  - requests TLS from the existing `letsencrypt-prod` `ClusterIssuer`
+- Set the local deployment value to `argocd.yolo.scapegoat.dev`.
+- Applied the same patch and ingress directly to the running cluster so the current server matches the repo state immediately.
+- Verified the certificate and public HTTPS response.
+
+### Why
+- Port-forward is fine for bootstrap but poor as the steady-state operator path.
+- The wildcard DNS record already covered `argocd.yolo.scapegoat.dev`, so this could be implemented without any further external DNS work.
+- Making the behavior part of Terraform plus cloud-init avoids configuration drift on future reprovisioning.
+
+### What worked
+- `argocd-server` accepted the `server.insecure` change and came back healthy after restart.
+- Traefik routed `argocd.yolo.scapegoat.dev` to the Argo CD UI.
+- cert-manager issued `certificate/argocd-server-public-tls`.
+- `curl -I https://argocd.yolo.scapegoat.dev` returned `HTTP/2 200`.
+
+### What didn't work
+- The first long-running shell that combined the restart, apply, and waits was not the best way to observe progress; checking the resulting resources directly was more reliable than waiting on the bundled command stream.
+
+### What I learned
+- The existing wildcard DNS record was enough to expose additional operator endpoints on the same node without another round trip to the DNS repo.
+- For this upstream Argo CD install path, explicitly forcing insecure-behind-ingress mode is the safer way to avoid redirect or protocol confusion at the ingress layer.
+- Because `hcloud_server.user_data` is part of the Terraform-managed server definition, codifying this bootstrap change means a future `terraform apply` would replace the current node unless that replacement is intentionally accepted.
+
+### What was tricky to build
+- The subtlety was not the ingress object itself but the Argo CD server mode behind that ingress. Exposing Argo CD without changing `server.insecure` risks awkward redirect and protocol behavior. I handled that by codifying the server-mode change together with the ingress rather than treating the hostname as a Traefik-only concern.
+
+### What warrants a second pair of eyes
+- Whether you want to keep Argo CD publicly exposed long term, or later restrict it with additional auth controls, IP filtering, or SSO.
+- The residual `demo-stack-postgres` drift in Argo CD, which is easier to inspect now that the UI is directly reachable.
+
+### What should be done in the future
+- Log into `https://argocd.yolo.scapegoat.dev` and inspect the `demo-stack-postgres` diff.
+- Decide whether the public Argo CD ingress should stay open as-is or be tightened with additional controls.
+- Consider codifying the CoreDNS resolver workaround next, since that remains a manual cluster-side adjustment.
+
+### Code review instructions
+- Review:
+  - `variables.tf`
+  - `main.tf`
+  - `cloud-init.yaml.tftpl`
+  - `README.md`
+- Validate with:
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get ingress,certificate`
+  - `curl -I https://argocd.yolo.scapegoat.dev`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get configmap argocd-cmd-params-cm -o yaml`
+
+### Technical details
+- Live cluster commands:
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd patch configmap argocd-cmd-params-cm --type merge -p '{"data":{"server.insecure":"true"}}'`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd rollout restart deployment/argocd-server`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl apply -f -` with the `argocd-server-public` ingress manifest
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd wait --for=condition=Ready certificate/argocd-server-public-tls --timeout=300s`
+  - `curl -I https://argocd.yolo.scapegoat.dev`
+- Terraform validation:
+  - `terraform validate -no-color`
+  - `terraform plan -no-color` showed `hcloud_server.node` replacement because `user_data` changed

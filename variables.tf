@@ -72,6 +72,12 @@ variable "app_subdomain" {
   default     = "demo"
 }
 
+variable "argocd_host" {
+  description = "Optional public hostname for the Argo CD UI. Leave empty to keep it internal-only."
+  type        = string
+  default     = ""
+}
+
 variable "acme_email" {
   description = "Email address for Let's Encrypt ACME registration"
   type        = string
