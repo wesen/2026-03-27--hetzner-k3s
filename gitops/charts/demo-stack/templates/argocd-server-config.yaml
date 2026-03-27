@@ -1,0 +1,14 @@
+{{- if .Values.argocd.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: {{ .Values.argocd.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    {{- include "demo-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: argocd
+data:
+  server.insecure: {{ .Values.argocd.server.insecure | quote }}
+{{- end }}

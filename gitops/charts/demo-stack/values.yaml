@@ -14,6 +14,16 @@ ingress:
   pathType: Prefix
   annotations: {}
 
+argocd:
+  enabled: true
+  namespace: argocd
+  host: argocd.yolo.scapegoat.dev
+  tlsSecretName: argocd-server-public-tls
+  ingressClassName: traefik
+  ingressAnnotations: {}
+  server:
+    insecure: true
+
 postgres:
   existingSecret: postgres-app
   storageClassName: local-path

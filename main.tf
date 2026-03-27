@@ -4,7 +4,6 @@ provider "hcloud" {
 
 locals {
   app_host              = "${var.app_subdomain}.${var.base_domain}"
-  argocd_host           = var.argocd_host
   postgres_user_b64     = base64encode(var.postgres_user)
   postgres_password_b64 = base64encode(var.postgres_password)
   postgres_db_b64       = base64encode(var.postgres_db)
@@ -79,7 +78,6 @@ resource "hcloud_server" "node" {
     postgres_password_b64 = local.postgres_password_b64
     postgres_db_b64       = local.postgres_db_b64
     app_host              = local.app_host
-    argocd_host           = local.argocd_host
     acme_email            = var.acme_email
     acme_server           = var.acme_server
     k3s_version           = var.k3s_version

@@ -1,0 +1,14 @@
+{{- if .Values.argocd.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+  namespace: {{ .Values.argocd.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  template:
+    metadata:
+      annotations:
+        demo-stack.argocd-server-config-hash: {{ printf "%t" .Values.argocd.server.insecure | sha256sum | quote }}
+{{- end }}
