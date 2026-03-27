@@ -21,7 +21,7 @@ RelatedFiles:
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
 Summary: "MySQL-first implementation ticket for introducing the first shared cluster data service under Argo CD so CoinVault and later applications can consume a stable in-cluster MySQL endpoint."
-LastUpdated: 2026-03-27T16:02:00-04:00
+LastUpdated: 2026-03-27T16:24:00-04:00
 WhatFor: "Use this ticket to implement the first shared cluster data-service slice on K3s, starting with MySQL because it is the active blocker for the CoinVault migration."
 WhenToUse: "Read this when an application migration needs a stable in-cluster MySQL endpoint and the Vault/VSO path is already available."
 ---
@@ -48,7 +48,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 3 is active: the MySQL-first scaffold has been statically validated, the ticket documentation has been refreshed, and the next step is the live rollout into the cluster.
+Step 4 is active: the first live rollout exposed broken upstream Bitnami chart dependencies, so the ticket has pivoted to a repo-managed Kustomize MySQL deployment that keeps the same Vault/VSO contract. The next step is to push that source and finish the live reconciliation.
 
 ## Key Links
 

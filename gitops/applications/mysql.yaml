@@ -11,82 +11,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: mysql
   source:
-    repoURL: https://charts.bitnami.com/bitnami
-    chart: mysql
-    targetRevision: 14.0.5
-    helm:
-      releaseName: mysql
-      values: |
-        fullnameOverride: mysql
-        architecture: standalone
-
-        auth:
-          existingSecret: mysql-auth
-          createDatabase: true
-          database: gec
-          username: coinvault_ro
-
-        serviceAccount:
-          create: true
-          name: mysql
-
-        primary:
-          persistence:
-            enabled: true
-            storageClass: local-path
-            size: 20Gi
-          resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              memory: 1Gi
-
-        metrics:
-          enabled: false
-
-        extraDeploy:
-          - apiVersion: secrets.hashicorp.com/v1beta1
-            kind: VaultConnection
-            metadata:
-              name: vault-connection
-              namespace: {{ .Release.Namespace }}
-              annotations:
-                argocd.argoproj.io/sync-wave: "-1"
-            spec:
-              address: http://vault.vault.svc.cluster.local:8200
-              skipTLSVerify: true
-          - apiVersion: secrets.hashicorp.com/v1beta1
-            kind: VaultAuth
-            metadata:
-              name: mysql
-              namespace: {{ .Release.Namespace }}
-              annotations:
-                argocd.argoproj.io/sync-wave: "-1"
-            spec:
-              vaultConnectionRef: vault-connection
-              method: kubernetes
-              mount: kubernetes
-              kubernetes:
-                role: mysql
-                serviceAccount: mysql
-          - apiVersion: secrets.hashicorp.com/v1beta1
-            kind: VaultStaticSecret
-            metadata:
-              name: mysql-auth
-              namespace: {{ .Release.Namespace }}
-              annotations:
-                argocd.argoproj.io/sync-wave: "-1"
-            spec:
-              vaultAuthRef: mysql
-              mount: kv
-              type: kv-v2
-              path: infra/mysql/cluster
-              refreshAfter: 30s
-              destination:
-                name: mysql-auth
-                create: true
-                overwrite: true
+    repoURL: https://github.com/wesen/2026-03-27--hetzner-k3s.git
+    targetRevision: main
+    path: gitops/kustomize/mysql
   syncPolicy:
     automated:
       prune: true

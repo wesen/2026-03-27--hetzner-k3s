@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Chronological diary for introducing the first shared cluster data service on K3s, starting with MySQL.
-LastUpdated: 2026-03-27T16:02:00-04:00
+LastUpdated: 2026-03-27T16:24:00-04:00
 WhatFor: Use this to review the exact implementation trail for the MySQL-first cluster data-services slice.
 WhenToUse: Read this when continuing or reviewing HK3S-0009.
 ---
@@ -142,3 +142,81 @@ Everything passed. That gave me a clean base for the next commit and for the liv
 
 ### What should be done in the future
 - Commit the MySQL scaffold as its own checkpoint, then perform the live Vault bootstrap and Argo rollout.
+
+## Step 4: Start the live rollout, hit real upstream chart failures, and pivot to repo-managed Kustomize manifests
+
+After the scaffold checkpoint was committed and pushed, I moved into the live rollout. The first part worked as intended. I fetched the K3s Vault root token from 1Password, re-ran [`bootstrap-vault-kubernetes-auth.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-kubernetes-auth.sh), and wrote the MySQL secret payload into `kv/infra/mysql/cluster`.
+
+That part was not completely smooth. The first run failed with:
+
+- `zsh: permission denied: ./scripts/bootstrap-cluster-mysql-secrets.sh`
+
+The mistake was simple: I had committed the helper scripts without the executable bit. I fixed that locally and re-ran the secret bootstrap using `bash`, which succeeded.
+
+Then I created the Argo CD application and hit the more important failure. Argo reported:
+
+- chart version `14.0.5` was not found in the published Bitnami repository
+
+I checked the published Bitnami `index.yaml` and confirmed that the repository Argo actually uses currently publishes `mysql` chart version `14.0.3`, even though the GitHub chart tree already showed `14.0.5`. I corrected the target revision and retried.
+
+That exposed the next issue:
+
+- the `extraDeploy` values used `namespace: {{ .Release.Namespace }}` without quoting
+- Argo failed YAML parsing before Helm could render the template
+
+I fixed the quoting and retried again. That got farther: VSO reconciled cleanly, the `mysql-auth` secret appeared, and the MySQL StatefulSet was created. But the pod then failed with:
+
+- `ErrImagePull`
+- `docker.io/bitnami/mysql:9.4.0-debian-12-r1: not found`
+
+At that point the right engineering conclusion changed. This was no longer “a tiny version mismatch.” The external chart path was operationally brittle in a way this repo should not inherit:
+
+- GitHub chart metadata was ahead of the published chart repository
+- the published chart’s default image tag was no longer present in the referenced container registry
+
+So I pivoted the runtime packaging while preserving the larger platform contract. I replaced the external chart source with repo-managed Kustomize manifests under [`gitops/kustomize/mysql`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/mysql), using the official `mysql:8.4` image and keeping:
+
+- namespace `mysql`
+- service account `mysql`
+- Vault Kubernetes auth role `mysql`
+- `VaultConnection`, `VaultAuth`, and `VaultStaticSecret`
+- service name `mysql.mysql.svc.cluster.local`
+- single-node persistent StatefulSet semantics
+
+This is a better fit for the current cluster anyway because:
+
+- the runtime is now fully reviewable in this repo
+- image selection is explicit
+- future debugging does not depend on a third-party chart release path behaving sanely
+
+One final GitOps detail appeared immediately after the pivot. I updated the live Argo application to point at `gitops/kustomize/mysql`, and Argo correctly complained that the path did not exist yet. That is expected because the new Kustomize directory only exists locally until the next commit and push.
+
+### What I did
+- Bootstrapped the live Vault policy, role, and MySQL secret path.
+- Fixed the missing executable bit on the helper scripts.
+- Investigated and confirmed the chart version mismatch between GitHub and the published Bitnami repo.
+- Investigated and confirmed the broken `docker.io/bitnami/mysql` image tag.
+- Replaced the external-chart application source with repo-managed Kustomize manifests using `mysql:8.4`.
+
+### Why
+- The Vault/VSO model worked and should be kept.
+- The external chart path introduced unnecessary runtime risk and debugging ambiguity.
+- Repo-managed manifests are easier to review, fix, and keep stable in a small single-cluster platform.
+
+### What worked
+- Vault bootstrap and VSO secret delivery worked exactly as intended.
+- The new Kustomize manifests rendered locally without errors.
+- The official `mysql:8.4` image resolved successfully during local verification.
+
+### What didn't work
+- The helper scripts initially lacked the executable bit.
+- The Bitnami GitHub tree version did not match the published chart repo version.
+- The published chart referenced a container image tag that no longer existed.
+
+### What I learned
+- External charts can fail in multiple layers at once: chart version availability, Helm templating behavior, and image publication lifecycle.
+- Once a stateful service becomes a real migration dependency, owning the manifests in-repo is often the simpler and more reliable path.
+
+### What should be done in the future
+- Commit and push the Kustomize pivot immediately so Argo can fetch the new path.
+- Re-run the application refresh and validate the live MySQL StatefulSet and service.

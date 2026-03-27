@@ -18,9 +18,10 @@ RelatedFiles:
 ExternalSources:
     - https://raw.githubusercontent.com/bitnami/charts/main/bitnami/mysql/Chart.yaml
     - https://raw.githubusercontent.com/bitnami/charts/main/bitnami/mysql/values.yaml
+    - https://charts.bitnami.com/bitnami/index.yaml
 Summary: Design record for implementing shared MySQL first on K3s, leaving PostgreSQL and Redis for later slices.
-LastUpdated: 2026-03-27T15:15:00-04:00
-WhatFor: Explain why MySQL is being implemented first, which packaging model it uses, and how Vault/VSO should deliver credentials into the chart.
+LastUpdated: 2026-03-27T16:26:00-04:00
+WhatFor: Explain why MySQL is being implemented first, which packaging model it uses, and how Vault/VSO should deliver credentials into the deployment.
 WhenToUse: Read this before scaffolding or reviewing the shared MySQL deployment.
 ---
 
@@ -28,7 +29,7 @@ WhenToUse: Read this before scaffolding or reviewing the shared MySQL deployment
 
 ## Executive Summary
 
-We should implement MySQL first, not all three planned data services. CoinVault exposed an immediate need for a stable in-cluster MySQL endpoint because its current host is a Coolify-internal alias that K3s cannot resolve. The cleanest first slice is a shared MySQL deployment under Argo CD using the Bitnami MySQL chart, with credentials delivered from Vault through VSO into the chart’s `auth.existingSecret` contract.
+We should implement MySQL first, not all three planned data services. CoinVault exposed an immediate need for a stable in-cluster MySQL endpoint because its current host is a Coolify-internal alias that K3s cannot resolve. The cleanest dependable first slice is a shared MySQL deployment under Argo CD using repo-managed Kustomize manifests and the official `mysql:8.4` image, with credentials delivered from Vault through VSO into a normal Kubernetes `Secret`.
 
 ## Problem Statement
 
@@ -45,7 +46,7 @@ So we need one shared MySQL service now, not a speculative multi-database platfo
 Implement one Argo CD-managed MySQL deployment with these properties:
 
 - namespace: `mysql`
-- packaging: Bitnami MySQL chart
+- packaging: repo-managed Kustomize manifests
 - architecture: standalone
 - persistence: `local-path` PVC
 - secret delivery: VSO-synced destination secret named `mysql-auth`
@@ -65,28 +66,30 @@ Those values should come from Vault, not be committed in Git.
 
 We are choosing MySQL because it solves a live blocker for the current application migration. Postgres and Redis can wait until they have equally concrete consumers.
 
-### Decision 2: Use the Bitnami chart instead of writing raw StatefulSet manifests
+### Decision 2: Use repo-managed Kustomize manifests instead of the external Bitnami chart
 
-The official Bitnami chart already provides:
+I initially tried the Bitnami chart because it looked like the smallest path and its documented `auth.existingSecret` support fit the Vault/VSO model. But the live rollout exposed two concrete supply-chain problems:
 
-- persistence handling
-- authentication bootstrapping
-- service wiring
-- health probes
-- upgrade surface that is better documented than a hand-rolled StatefulSet
+- the GitHub chart tree version and the published Bitnami chart repository version diverged
+- the published chart referenced a `docker.io/bitnami/mysql` image tag that no longer existed
 
-The current chart metadata from the official sources shows:
+Those are not design-time concerns. They are operational failures on the path Argo CD would actually use. So the better engineering choice for this cluster is to own the MySQL manifests in this repo.
 
-- chart version `14.0.5`
-- app version `9.4.0`
+The repo-managed Kustomize approach still provides:
 
-### Decision 3: Use `auth.existingSecret` with VSO
+- explicit persistence handling
+- explicit service wiring
+- explicit health probes
+- explicit image pinning
+- a smaller debugging surface when something breaks
 
-The chart’s official `values.yaml` documents `auth.existingSecret` and the required secret keys. That is a good fit for VSO because:
+### Decision 3: Keep VSO as the secret-delivery boundary
+
+Even though the runtime packaging changed, the secret model did not. VSO is still the right fit because:
 
 - Vault remains the secret source of truth
 - Kubernetes still gets a native `Secret`
-- the chart consumes a normal Kubernetes interface
+- the StatefulSet consumes a normal Kubernetes interface
 
 ### Decision 4: Accept a single shared MySQL instance with the first app-specific database/user
 
@@ -106,16 +109,16 @@ Rejected because the host is not routable from K3s.
 
 Rejected because that would widen the scope without solving a current blocker faster.
 
-### Alternative 3: Hand-write a raw StatefulSet and Secret
+### Alternative 3: Use the Bitnami chart anyway and override around the broken image path
 
-Rejected because the chart already encodes the basic operational contract and supports the secret interface we want.
+Rejected because by the time the chart, repository, and image publication issues showed up together, the repo-owned manifest path had become simpler and more reliable than trying to outsmart the broken external dependency chain.
 
 ## Implementation Plan
 
 1. Add the MySQL-first design and diary artifacts.
 2. Add a Vault Kubernetes-auth policy and role for the MySQL service account.
-3. Add an Argo CD application for the Bitnami MySQL chart.
-4. Configure the chart to consume a VSO-managed `mysql-auth` secret.
+3. Add an Argo CD application that points at `gitops/kustomize/mysql`.
+4. Configure the repo-managed manifests to consume a VSO-managed `mysql-auth` secret.
 5. Add helper scripts to seed Vault and validate the deployment.
 6. Deploy and validate the shared MySQL instance.
 7. Update CoinVault to consume the in-cluster MySQL host.
