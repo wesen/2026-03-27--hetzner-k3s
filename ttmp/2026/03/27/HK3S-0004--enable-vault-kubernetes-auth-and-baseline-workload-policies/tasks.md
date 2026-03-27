@@ -2,19 +2,19 @@
 
 ## Phase 1: Scope and design confirmation
 
-- [ ] Confirm the auth design for this cluster:
+- [x] Confirm the auth design for this cluster:
   Vault uses its own in-cluster service account token as the reviewer JWT source; workloads do not need `system:auth-delegator`
-- [ ] Confirm the first baseline role set:
+- [x] Confirm the first baseline role set:
   smoke test, `coinvault-prod`, and `hair-booking-prod`
-- [ ] Confirm the secret path convention for K3s workloads:
+- [x] Confirm the secret path convention for K3s workloads:
   `kv/apps/<app>/<env>/...`
 
 ## Phase 2: Repo-managed bootstrap scaffold
 
-- [ ] Add the Vault policy files for the smoke workload and the first baseline application roles
-- [ ] Add the operator bootstrap script that enables/configures Kubernetes auth and writes policies and roles
-- [ ] Add the validation script that logs in with a Kubernetes service account JWT and proves both allow and deny behavior
-- [ ] Add the Kubernetes manifests for the Vault reviewer RBAC and the smoke-test namespace/service account
+- [x] Add the Vault policy files for the smoke workload and the first baseline application roles
+- [x] Add the operator bootstrap script that enables/configures Kubernetes auth and writes policies and roles
+- [x] Add the validation script that logs in with a Kubernetes service account JWT and proves both allow and deny behavior
+- [x] Add the Kubernetes manifests for the smoke-test namespace/service account and verify the Vault reviewer RBAC already exists
 - [ ] Update ticket docs and top-level repo docs so the operator flow is discoverable
 
 ## Phase 3: Live cluster and Vault configuration

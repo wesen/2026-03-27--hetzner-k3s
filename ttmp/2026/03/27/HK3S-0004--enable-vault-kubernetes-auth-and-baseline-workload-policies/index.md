@@ -13,8 +13,8 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: ""
-LastUpdated: 2026-03-27T13:28:09.388120377-04:00
+Summary: "Implementation ticket for enabling Vault Kubernetes auth on the K3s cluster, bootstrapping baseline workload policies and roles, and proving the first service-account login path."
+LastUpdated: 2026-03-27T13:43:00-04:00
 WhatFor: "Use this ticket to enable Vault machine auth for Kubernetes workloads, define the first baseline app policies and roles, and validate the pattern that later GitOps apps will rely on."
 WhenToUse: "Read this when implementing or reviewing how Kubernetes service accounts should authenticate to the K3s-hosted Vault instance."
 ---
@@ -35,7 +35,7 @@ The scope is intentionally practical rather than abstract. The ticket should lea
 
 ## Current Step
 
-Step 1 is active: finalize the implementation plan and start the repo-managed Kubernetes-auth bootstrap scaffold.
+Step 3 is active: apply the smoke namespace/service account through Argo CD, bootstrap the live Vault auth backend and policies, and validate allow/deny behavior with a real service account token.
 
 ## Key Links
 
