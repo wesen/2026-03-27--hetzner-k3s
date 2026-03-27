@@ -5,8 +5,7 @@ Status: active
 Topics:
     - vault
     - k3s
-    - keycloak
-    - oidc
+    - infra
 DocType: playbook
 Intent: long-term
 Owners: []

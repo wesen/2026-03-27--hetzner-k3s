@@ -5,8 +5,7 @@ Status: active
 Topics:
     - vault
     - k3s
-    - keycloak
-    - oidc
+    - infra
 DocType: reference
 Intent: long-term
 Owners: []
@@ -23,7 +22,7 @@ RelatedFiles:
       Note: Read-only operator policy copied into the K3s repo for reviewable ownership
 ExternalSources: []
 Summary: Chronological diary for recreating the Keycloak-backed human operator login path on the K3s Vault instance.
-LastUpdated: 2026-03-27T14:30:00-04:00
+LastUpdated: 2026-03-27T14:10:00-04:00
 WhatFor: Use this to review the implementation trail, including the shared Keycloak change, Vault-side bootstrap, and operator-login validation.
 WhenToUse: Read this when continuing or reviewing the K3s Vault OIDC implementation ticket.
 ---
@@ -158,3 +157,148 @@ In parallel, I added the K3s-side repo artifacts that will own the new OIDC conf
 ### Technical details
 - Shared Terraform commit:
   - `666f4be` `feat(keycloak): allow k3s vault oidc callback`
+
+## Step 3: Apply the Vault-side OIDC auth backend and validate the static config
+
+Once the shared Keycloak client allowed the new callback URI, I configured the K3s Vault instance itself. The bootstrap script enabled `oidc/`, wrote the backend config using the existing `vault-oidc` client credentials, wrote the `operators` role, copied in the `admin` and `ops-readonly` policies, and created the external identity groups and aliases for `infra-admins` and `infra-readonly`. After that, I ran the config validation helper to verify both the Vault-side shape and that Keycloak no longer rejected the K3s UI redirect URI.
+
+This step is where the migration actually became real. Before it, the K3s Vault had only machine auth through Kubernetes. After it, the cluster had a human-auth control plane again, with the same operator groups as the old Vault deployment but fully wired into the new hostname.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Apply the operator-login slice live, not just in documentation.
+
+**Inferred user intent:** Make the K3s Vault practically operable by humans through Keycloak.
+
+### What I did
+- Ran [bootstrap-vault-oidc.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-oidc.sh) against `https://vault.yolo.scapegoat.dev`.
+- Reused the shared Keycloak `vault-oidc` client secret from:
+  - `/home/manuel/code/wesen/terraform/keycloak/apps/infra-access/envs/hosted/terraform.tfvars`
+- Confirmed live Vault state:
+  - `oidc/` exists in `vault auth list`
+  - `auth/oidc/role/operators` has the expected redirect URIs and group mapping
+  - external group aliases exist for `infra-admins` and `infra-readonly`
+- Ran [validate-vault-oidc-config.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-vault-oidc-config.sh).
+
+### Why
+- Human operator auth needs to exist on the live K3s Vault before later tickets can assume the root token is break-glass only.
+- Config validation should happen immediately so callback and alias mistakes are caught before browser testing.
+
+### What worked
+- The bootstrap script applied cleanly on the first run.
+- Keycloak accepted the new K3s UI callback URI.
+- The `operators` role and group aliases matched the old control-plane design.
+
+### What didn't work
+- Nothing failed in this step after the earlier Keycloak callback change landed.
+
+### What I learned
+- The old operator-login model ports cleanly when the shared IdP side is already in place.
+- The shared Keycloak client plus repo-local Vault bootstrap is the right ownership split.
+
+### What was tricky to build
+- The only subtle piece was carrying the client secret across repos without drifting into ad hoc one-off commands. Reusing the existing shared Terraform secret source kept that manageable.
+
+### What warrants a second pair of eyes
+- Whether the client secret should eventually move out of the shared Terraform tfvars file into Vault or 1Password to reduce local secret sprawl.
+
+### What should be done in the future
+- Validate real browser and CLI login with temporary test users.
+
+### Code review instructions
+- Re-run:
+  - `export VAULT_ADDR=https://vault.yolo.scapegoat.dev`
+  - `export VAULT_TOKEN=<k3s-vault-root-token>`
+  - `export VAULT_OIDC_CLIENT_SECRET="$(sed -n 's/^vault_oidc_client_secret  = \"\\(.*\\)\"$/\\1/p' /home/manuel/code/wesen/terraform/keycloak/apps/infra-access/envs/hosted/terraform.tfvars)"`
+  - `./scripts/bootstrap-vault-oidc.sh`
+  - `./scripts/validate-vault-oidc-config.sh`
+
+### Technical details
+- Bootstrap summary:
+  - auth path: `oidc/`
+  - default role: `operators`
+  - admin group alias: `infra-admins`
+  - readonly group alias: `infra-readonly`
+
+## Step 4: Prove positive and negative login outcomes with temporary Keycloak users
+
+The final technical proof in this ticket was real human-style login, not just reading Vault config back. I used the shared Keycloak admin API to create two temporary users in the `infra` realm:
+
+- `vault-oidc-admin-smoke-20260327` in `infra-admins`
+- `vault-oidc-deny-smoke-20260327` in no Vault-authorized group
+
+That gave me a clean validation split. The admin user should be admitted and receive the `admin` identity policy. The ungrouped user should be denied before Vault issues a token.
+
+The positive browser validation worked after I stopped treating the OIDC popup as a normal manually-driven browser tab. Vault’s UI expects the popup flow to remain attached to its parent page so it can hand the login result back through window state. My first manual tab interaction broke that assumption and produced a misleading `Expired or missing OAuth state` error. Re-running the UI flow as one scripted parent-plus-popup interaction succeeded and landed the operator on the Vault dashboard.
+
+The CLI validation was even cleaner. Using `vault login -method=oidc role=operators skip_browser=true no-store=true -format=json`, I let Vault print the auth URL, opened it in a browser, and let the localhost callback complete. For the allowed user, Vault returned a token carrying the `admin` identity policy. For the ungrouped user, Vault rejected the callback with `failed to fetch groups: "groups" claim not found in token`, which is a deny result before token issuance.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Leave behind real proof that the OIDC login path works for the right humans and fails for the wrong ones.
+
+**Inferred user intent:** Validate the operational path, not just the config shape.
+
+### What I did
+- Created temporary validation users in the `infra` realm through the Keycloak admin API.
+- Validated browser login to `https://vault.yolo.scapegoat.dev` for the admin-group user.
+- Validated CLI login for the admin-group user and captured the returned identity policy set.
+- Validated CLI rejection for the ungrouped user.
+- Deleted both temporary users after the test completed.
+
+### Why
+- Human-auth tickets are not credible unless both the allow path and the deny path are exercised.
+- Temporary users let the validation happen without depending on an existing human operator account.
+
+### What worked
+- Browser login landed on the Vault dashboard for the `infra-admins` test user.
+- CLI login returned a token carrying:
+  - `identity_policies: ["admin"]`
+- Negative CLI login failed before token issuance for the ungrouped user.
+
+### What didn't work
+- My first manual browser attempt broke Vault’s popup state handoff and produced:
+
+```text
+Authentication failed: Vault login failed. Expired or missing OAuth state.
+```
+
+- That was a test-harness problem, not a platform problem. A single scripted popup flow fixed it.
+
+### What I learned
+- The Vault UI popup flow is sensitive to how the popup window is controlled during testing.
+- In the current Keycloak setup, an ungrouped user gets no `groups` claim at all, so Vault denies earlier than a classic bound-claims mismatch.
+
+### What was tricky to build
+- The hardest part here was not the IdP or Vault config. It was getting a real browser validation path that exercised the same popup semantics the Vault UI expects.
+
+### What warrants a second pair of eyes
+- Whether it would be worth later adding a realm-level default group or a dedicated test-only outsider group so the negative path yields a more explicit bound-claims mismatch instead of a missing-claim error.
+
+### What should be done in the future
+- Move to `HK3S-0006` so in-cluster controllers can consume Vault through the now-working human/operator control plane.
+
+### Code review instructions
+- Positive CLI re-run:
+  - `export VAULT_ADDR=https://vault.yolo.scapegoat.dev`
+  - `vault login -method=oidc role=operators skip_browser=true no-store=true -format=json`
+- Confirm the resulting token carries `identity_policies: ["admin"]` for an `infra-admins` test user.
+- Negative CLI re-run:
+  - perform the same command as a user not in `infra-admins` or `infra-readonly`
+- Confirm Vault rejects the callback and issues no token.
+
+### Technical details
+- Positive CLI result:
+  - `identity_policies: ["admin"]`
+  - `metadata.role: "operators"`
+- Negative CLI result:
+
+```text
+Code: 400. Errors:
+
+* failed to fetch groups: "groups" claim not found in token
+```
