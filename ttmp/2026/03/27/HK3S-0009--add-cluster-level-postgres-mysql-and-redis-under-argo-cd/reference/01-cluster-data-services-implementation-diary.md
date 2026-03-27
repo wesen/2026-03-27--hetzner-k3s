@@ -1,0 +1,144 @@
+---
+Title: Cluster data services implementation diary
+Ticket: HK3S-0009
+Status: active
+Topics:
+    - k3s
+    - infra
+    - gitops
+    - migration
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles: []
+ExternalSources: []
+Summary: Chronological diary for introducing the first shared cluster data service on K3s, starting with MySQL.
+LastUpdated: 2026-03-27T16:02:00-04:00
+WhatFor: Use this to review the exact implementation trail for the MySQL-first cluster data-services slice.
+WhenToUse: Read this when continuing or reviewing HK3S-0009.
+---
+
+# Cluster data services implementation diary
+
+## Goal
+
+Introduce the first shared cluster data service on K3s in a way that solves a real application blocker immediately and establishes a repeatable pattern for later Postgres or Redis work.
+
+## Step 1: Reactivate the ticket around a concrete MySQL blocker instead of the original abstract three-service plan
+
+This ticket originally existed as a future placeholder for “someday we should add Postgres, MySQL, and Redis.” That was the right shape when the platform itself was still being built. Once the CoinVault migration started, the ticket stopped being theoretical. CoinVault’s current MySQL host turned out to be a Coolify-internal Docker alias, which K3s cannot resolve. That makes shared MySQL a real blocker, not a premature optimization.
+
+I re-read the ticket, confirmed the original deferral rationale, and then narrowed the scope deliberately. The right move is not “build all three services now.” The right move is “prove one shared service cleanly, starting with MySQL, because that unblocks the active application migration.” This keeps the scope disciplined while still solving the real operational problem in front of us.
+
+### What I did
+- Re-opened the deferred data-services ticket as an active MySQL-first implementation slice.
+- Updated the ticket index, task list, and changelog to reflect the new scope.
+- Added a dedicated diary and a MySQL-first design document so the work is no longer buried in ad hoc terminal history.
+
+### Why
+- The active CoinVault migration exposed a real runtime dependency mismatch between Coolify networking and K3s networking.
+- MySQL now has a concrete consumer, which makes the design easier to judge.
+
+### What worked
+- The blocker translated cleanly into a smaller and more defensible service-platform slice.
+
+### What didn't work
+- The original deferred framing was now too vague to guide implementation, so I had to tighten it before doing real work.
+
+### What I learned
+- Shared services become much easier to justify once a real application has a concrete dependency mismatch.
+
+### What should be done in the future
+- Choose the MySQL packaging and secret model next, then scaffold the GitOps deployment.
+
+## Step 2: Choose the chart-plus-VSO model and scaffold shared MySQL
+
+Once I switched the ticket from “someday all three services” to “MySQL first,” the next decision was packaging. I wanted the smallest path that still looked like the long-term platform, not a one-off hand-built StatefulSet. I checked the official Bitnami MySQL chart sources directly because `helm` is not installed locally. The current official chart metadata showed chart version `14.0.5`, app version `9.4.0`, and, more importantly, documented support for `auth.existingSecret`.
+
+That was the key fit with the platform we already built. VSO can render a Kubernetes `Secret` with the keys the chart expects, and the chart can consume that secret without inventing a second secret-management pattern. So I added:
+
+- [`gitops/applications/mysql.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/mysql.yaml)
+  - Argo CD application for the Bitnami MySQL chart
+- [`vault/policies/kubernetes/mysql.hcl`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/mysql.hcl)
+  - least-privilege Vault policy for the MySQL service account
+- [`vault/roles/kubernetes/mysql.json`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/roles/kubernetes/mysql.json)
+  - Kubernetes auth role bound to service account `mysql` in namespace `mysql`
+- [`bootstrap-cluster-mysql-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-mysql-secrets.sh)
+  - generates or preserves the passwords at `kv/infra/mysql/cluster`
+- [`validate-cluster-mysql.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-mysql.sh)
+  - validates the Argo app, the StatefulSet rollout, and a real SQL login inside the pod
+
+I kept this slice intentionally narrow:
+
+- standalone MySQL only
+- one first database `gec`
+- one first user `coinvault_ro`
+- no Redis or Postgres changes yet
+
+One important limitation remains visible on purpose: the Bitnami chart’s simple built-in user bootstrap does not encode a true read-only permission model for `coinvault_ro`. For this first slice, the value name stays `coinvault_ro` because that matches the current app contract, but the stricter grant model should be revisited with init SQL or a follow-up hardening pass.
+
+### What I did
+- Checked the official Bitnami chart metadata and values using primary sources.
+- Chose the chart-plus-VSO model.
+- Added the MySQL Argo application.
+- Added the Vault policy and Kubernetes role for the MySQL service account.
+- Added the Vault secret bootstrap and deployment validation scripts.
+
+### Why
+- The chart already exposes the exact secret interface we need through `auth.existingSecret`.
+- Reusing VSO keeps Vault as the source of truth without inventing a second pattern.
+
+### What worked
+- The chart contract and the VSO contract fit together cleanly.
+- The needed Vault policy surface is tiny and easy to review.
+
+### What didn't work
+- `helm` is not installed locally, so I had to inspect the official GitHub chart sources directly instead of using local chart tooling.
+
+### What I learned
+- The chart’s `auth.existingSecret` support is the main reason this can be cleanly integrated into the existing GitOps plus Vault setup.
+
+### What should be done in the future
+- Validate the scaffold locally, then bootstrap the Vault secret path, write the new Vault role/policy into the live K3s Vault, and deploy the chart.
+
+## Step 3: Validate the scaffold and isolate unrelated carry-over changes before the first MySQL checkpoint
+
+Before committing the MySQL scaffold, I needed to make sure I was not accidentally mixing together three separate threads of work:
+
+- the new shared-MySQL slice in this ticket
+- the still-unfinished CoinVault deployment adjustments
+- the separate Keycloak change sitting in the Terraform repo for the CoinVault hostname
+
+That distinction matters because this ticket should stay reviewable as “shared MySQL for K3s,” not “random leftovers from the larger migration.” I checked the local Git state and confirmed there was one unrelated CoinVault change still present in this repo: a pending `COINVAULT_SKIP_DB_CHECK=true` line in the CoinVault deployment. I also confirmed the Terraform repo still had a separate uncommitted Keycloak modification. I left both out of the MySQL checkpoint on purpose.
+
+Then I ran the static validation pass for the MySQL scaffold itself:
+
+- `bash -n scripts/bootstrap-cluster-mysql-secrets.sh`
+- `bash -n scripts/validate-cluster-mysql.sh`
+- `ruby -e 'require "yaml"; YAML.load_file("gitops/applications/mysql.yaml"); puts "yaml ok"'`
+- `git diff --check`
+- `docmgr doctor --ticket HK3S-0009 --stale-after 30`
+
+Everything passed. That gave me a clean base for the next commit and for the live rollout that follows it.
+
+### What I did
+- Checked the working tree in the K3s repo and in the shared Terraform repo.
+- Confirmed the MySQL scaffold is the only thing that should enter the next ticket checkpoint.
+- Validated shell syntax, YAML parsing, Git whitespace checks, and `docmgr` health.
+
+### Why
+- The ticket needs a clean review boundary.
+- Static validation is the cheapest place to catch bad scripts or malformed manifests before touching the live cluster.
+
+### What worked
+- The MySQL scaffold passed validation without edits.
+- The unrelated CoinVault and Terraform changes were easy to identify and keep separate.
+
+### What didn't work
+- The earlier CoinVault pivot left behind partially completed changes in two repos, so I had to explicitly fence them off before continuing.
+
+### What I learned
+- Even when the technical design is straightforward, scoping discipline is what keeps GitOps tickets understandable and safe to review.
+
+### What should be done in the future
+- Commit the MySQL scaffold as its own checkpoint, then perform the live Vault bootstrap and Argo rollout.

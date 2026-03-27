@@ -20,17 +20,17 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "Deferred platform ticket for introducing cluster-level Postgres, MySQL, and Redis deployments under Argo CD so later applications can consume shared data services on K3s."
-LastUpdated: 2026-03-27T14:20:00-04:00
-WhatFor: "Use this ticket to plan the future introduction of cluster-level Postgres, MySQL, and Redis on K3s under GitOps management."
-WhenToUse: "Read this when the base secrets path and first app migrations are stable enough that it makes sense to centralize stateful data services instead of continuing with per-app databases."
+Summary: "MySQL-first implementation ticket for introducing the first shared cluster data service under Argo CD so CoinVault and later applications can consume a stable in-cluster MySQL endpoint."
+LastUpdated: 2026-03-27T16:02:00-04:00
+WhatFor: "Use this ticket to implement the first shared cluster data-service slice on K3s, starting with MySQL because it is the active blocker for the CoinVault migration."
+WhenToUse: "Read this when an application migration needs a stable in-cluster MySQL endpoint and the Vault/VSO path is already available."
 ---
 
 # Add cluster-level Postgres MySQL and Redis under Argo CD
 
 ## Overview
 
-This is a deferred platform ticket for introducing reusable cluster-level data services on K3s:
+This started as a deferred platform ticket for introducing reusable cluster-level data services on K3s:
 
 - PostgreSQL
 - MySQL
@@ -48,29 +48,33 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Deferred follow-up. Do not implement shared cluster databases yet; first finish the Vault Secrets Operator and at least one real application migration.
+Step 3 is active: the MySQL-first scaffold has been statically validated, the ticket documentation has been refreshed, and the next step is the live rollout into the cluster.
 
 ## Key Links
 
 - Implementation plan:
   - [01-cluster-data-services-plan.md](./playbooks/01-cluster-data-services-plan.md)
+- MySQL-first design:
+  - [01-mysql-first-cluster-data-services-design.md](./design-doc/01-mysql-first-cluster-data-services-design.md)
+- Implementation diary:
+  - [01-cluster-data-services-implementation-diary.md](./reference/01-cluster-data-services-implementation-diary.md)
 
 ## Status
 
 Current status: **active**
 
-## Deferred Decision
+## Current Decision
 
 Current decision:
 
-- do not add shared cluster Postgres, MySQL, or Redis yet
-- keep using the current app-local Postgres pattern where needed during the first migration slices
+- implement MySQL now as the first shared cluster data service
+- continue deferring PostgreSQL and Redis until after the first shared-service pattern is proven
 
 Why:
 
-- the current migration priority is secrets delivery and first-application recreation
-- shared stateful services introduce storage, upgrade, backup, and multi-tenant design questions that are not required to prove the first platform path
-- it is better to centralize data services after at least one real app has clarified the actual consumption pattern
+- CoinVault is blocked on a MySQL host that only exists inside Coolify networking
+- MySQL is the smallest cluster data-service slice that solves a real migration blocker today
+- proving one shared data-service pattern first is still better than building all three at once
 
 ## Topics
 

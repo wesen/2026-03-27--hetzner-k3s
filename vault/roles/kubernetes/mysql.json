@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["mysql"],
+  "bound_service_account_namespaces": ["mysql"],
+  "policies": ["mysql"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}
