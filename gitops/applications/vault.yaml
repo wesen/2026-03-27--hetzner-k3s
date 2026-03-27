@@ -1,0 +1,96 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault
+    targetRevision: 0.32.0
+    helm:
+      releaseName: vault
+      values: |
+        global:
+          tlsDisable: true
+
+        injector:
+          enabled: false
+
+        csi:
+          enabled: false
+
+        server:
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            activeService: false
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+            hosts:
+              - host: vault.yolo.scapegoat.dev
+                paths:
+                  - /
+            tls:
+              - secretName: vault-server-tls
+                hosts:
+                  - vault.yolo.scapegoat.dev
+          dataStorage:
+            enabled: true
+            storageClass: local-path
+            size: 20Gi
+          extraSecretEnvironmentVars:
+            - envName: AWS_ACCESS_KEY_ID
+              secretName: vault-aws-kms
+              secretKey: AWS_ACCESS_KEY_ID
+            - envName: AWS_SECRET_ACCESS_KEY
+              secretName: vault-aws-kms
+              secretKey: AWS_SECRET_ACCESS_KEY
+            - envName: AWS_REGION
+              secretName: vault-aws-kms
+              secretKey: AWS_REGION
+          ha:
+            enabled: true
+            replicas: 1
+            apiAddr: https://vault.yolo.scapegoat.dev
+            raft:
+              enabled: true
+              setNodeId: true
+              config: |
+                ui = true
+
+                listener "tcp" {
+                  tls_disable = 1
+                  address = "[::]:8200"
+                  cluster_address = "[::]:8201"
+                }
+
+                storage "raft" {
+                  path = "/vault/data"
+                }
+
+                service_registration "kubernetes" {}
+
+                seal "awskms" {
+                  region     = "us-east-1"
+                  kms_key_id = "alias/vault-scapegoat-dev-unseal"
+                }
+
+        ui:
+          enabled: true
+          activeVaultPodOnly: false
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

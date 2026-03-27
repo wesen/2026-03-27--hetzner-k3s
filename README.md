@@ -4,6 +4,8 @@ This repo provisions **one Hetzner Cloud VM** with **Terraform**, bootstraps **K
 
 The demo app is exposed to the public internet over **HTTPS** through the **K3s-packaged Traefik ingress controller**. PostgreSQL uses K3s **local-path** storage, so its data lives on the node's local disk.
 
+The same cluster now also carries a repo-managed **Vault** application definition under Argo CD, with AWS KMS auto-unseal bootstrapped through a local operator secret step rather than committed credentials.
+
 ## What this stack does
 
 - Terraform creates:
@@ -24,6 +26,7 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
   - PostgreSQL as a single-replica `StatefulSet`
   - the demo Go app as a `Deployment`
   - a `Service` and `Ingress`
+  - optionally, additional repo-managed platform apps such as Vault
 
 ## Requirements
 
@@ -110,9 +113,29 @@ The demo app is exposed to the public internet over **HTTPS** through the **K3s-
 - `docs/`: long-form intern-facing operational guides in Glazed help-page format
 - `gitops/kustomize/demo-stack`: Kustomize package deployed by the live Argo CD application
 - `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
+- `gitops/applications/vault.yaml`: Argo CD `Application` for the K3s-hosted Vault deployment
 - `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
 - `app/`: demo Go app source + Dockerfile
 - `scripts/get-kubeconfig.sh`: helper to fetch a usable kubeconfig
+- `scripts/bootstrap-vault-aws-kms-secret.sh`: local helper to create the non-git Kubernetes secret for Vault AWS KMS auto-unseal
+
+## Vault bootstrap notes
+
+Vault is intentionally bootstrapped in two layers:
+
+- Git manages the Argo CD `Application` in `gitops/applications/vault.yaml`
+- the operator creates the AWS KMS credential `Secret` locally with `scripts/bootstrap-vault-aws-kms-secret.sh`
+
+That split keeps AWS credentials out of git while still making the actual Vault deployment declarative and reviewable.
+
+Example:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+export AWS_PROFILE=manuel
+./scripts/bootstrap-vault-aws-kms-secret.sh
+kubectl apply -f gitops/applications/vault.yaml
+```
 
 ## Suggested first changes
 
