@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 13: Argo CD public access is now GitOps-managed at `argocd.yolo.scapegoat.dev`; the next follow-up is to investigate the residual Argo CD `OutOfSync` status and codify the runtime CoreDNS workaround.
+Step 14: the application is now fully `Synced` and `Healthy`; the next follow-up is deciding whether to codify the runtime CoreDNS workaround.
 
 ## Environment Assumptions
 
@@ -141,7 +141,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `certificate/argocd-server-public-tls` is `Ready=True`.
 - `curl -I https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`.
 - `terraform plan -no-color` returns `No changes`.
-- Argo CD reports `demo-stack` as `Healthy` but still `OutOfSync`, with `demo-stack-postgres` shown as the remaining unsynced resource.
+- Argo CD reports `demo-stack` as `Synced` and `Healthy`.
 - The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria

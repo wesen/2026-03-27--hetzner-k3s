@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 13 is active: Argo CD public exposure has been moved out of Terraform bootstrap and into GitOps-managed cluster state, and the next operational task is to inspect the residual Argo CD `OutOfSync` status on the PostgreSQL StatefulSet.
+Step 14 is active: the residual Argo CD drift has been resolved, the application is now `Synced` and `Healthy`, and the main remaining follow-up is whether to codify the runtime CoreDNS workaround.
 
 ## Key Links
 
@@ -87,11 +87,11 @@ Inputs already resolved or proposed:
 - `argocd-server-public-tls` certificate is `Ready=True`
 - `https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
 - `terraform plan -no-color` returns `No changes`
-- Residual note: Argo CD still reports `demo-stack` as `OutOfSync` while `Healthy`, with the PostgreSQL StatefulSet shown as the unsynced resource
+- Argo CD application status: `Synced` and `Healthy`
 
 Next operator action:
 
-- Log into `https://argocd.yolo.scapegoat.dev` with the `admin` account and inspect the residual Argo CD `OutOfSync` state for `demo-stack-postgres`
+- Optional: codify the runtime CoreDNS resolver workaround in repo-managed cluster state
 
 ## Topics
 

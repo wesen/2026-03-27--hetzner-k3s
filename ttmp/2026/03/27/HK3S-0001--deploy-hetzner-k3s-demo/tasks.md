@@ -16,4 +16,5 @@
 - [x] Verify HTTPS reaches the demo application successfully
 - [x] Expose Argo CD publicly on `argocd.yolo.scapegoat.dev`
 - [x] Reconcile Terraform and move Argo CD exposure ownership into GitOps without replacing the server
+- [x] Resolve the residual Argo CD `OutOfSync` status on `demo-stack-postgres`
 - [x] Record final outputs, validation results, and follow-up risks

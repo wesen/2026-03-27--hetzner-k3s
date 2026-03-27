@@ -899,3 +899,64 @@ I implemented that by extending the existing `gitops/charts/demo-stack` chart wi
     - `Deployment/argocd-server` = `Synced`
     - `Ingress/argocd-server-public` = `Synced`
     - `StatefulSet/demo-stack-postgres` = `OutOfSync`
+
+## Step 14: Resolve the remaining PostgreSQL drift in Argo CD
+
+After Step 13, the only remaining inconsistency in the whole deployment was the PostgreSQL StatefulSet reporting `OutOfSync` while still healthy. The live workload was fine, so this was a pure compare problem. I inspected the live StatefulSet spec and compared it to the chart template. The issue was not application logic but omitted Kubernetes-defaulted fields: the API server had persisted defaults like `podManagementPolicy`, `persistentVolumeClaimRetentionPolicy`, several probe defaults, PVC `volumeMode`, and the `RollingUpdate.partition` value, while the chart left them implicit.
+
+I fixed this by declaring those defaults explicitly in `gitops/charts/demo-stack/templates/postgres-statefulset.yaml`. After the first pass, Argo CD was still `OutOfSync`, which narrowed the remaining difference to a smaller set. A second pass added the remaining `updateStrategy.rollingUpdate.partition: 0` and the explicit PVC template `apiVersion`/`kind`. Once that commit landed, Argo CD refreshed to revision `e24979b` and the application went fully `Synced` and `Healthy`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue from the Terraform reconciliation step into the remaining Argo CD drift investigation and resolve it if possible.
+
+**Inferred user intent:** Finish the deployment to a clean GitOps state instead of stopping at a partially explained drift.
+
+### What I did
+- Read the live `demo-stack-postgres` StatefulSet from the cluster.
+- Compared its stored spec to the chart template.
+- Added explicit defaulted fields to the chart template in two passes.
+- Pushed the fixes and hard-refreshed the Argo CD application.
+- Verified that all managed resources, including the PostgreSQL StatefulSet, are now `Synced`.
+
+### Why
+- A healthy but `OutOfSync` StatefulSet is still operational debt.
+- The cleanest fix was to make the chart match the actual API-server persisted spec instead of teaching Argo to ignore the drift.
+
+### What worked
+- The first commit removed most of the compare drift by declaring common StatefulSet defaults explicitly.
+- The second commit removed the last remaining diff by adding `updateStrategy.rollingUpdate.partition: 0` and explicit PVC template `apiVersion`/`kind`.
+- Argo CD moved to revision `e24979b` and now reports `demo-stack` as `Synced` and `Healthy`.
+
+### What didn't work
+- The first attempt was not sufficient by itself; it reduced the drift but did not eliminate it completely.
+- `helm template` still could not be used locally because `helm` is not installed in this environment, so validation stayed live-cluster based.
+
+### What I learned
+- The PostgreSQL drift was caused by compare-time defaulting behavior, not by any dangerous runtime mismatch.
+- Making the defaulted StatefulSet fields explicit is enough to get a clean Argo CD sync state without changing the running workload behavior.
+
+### What warrants a second pair of eyes
+- Whether you want to keep encoding all of these Kubernetes defaults explicitly in the chart, or later switch to a different packaging approach such as Kustomize once the deployment shape is more stable.
+
+### What should be done in the future
+- Decide whether to codify the runtime CoreDNS workaround in repo-managed state.
+- If you revisit packaging later, consider whether the chart should stay Helm-based or be simplified to Kustomize/plain manifests.
+
+### Code review instructions
+- Review:
+  - `gitops/charts/demo-stack/templates/postgres-statefulset.yaml`
+- Validate with:
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get applications`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get application demo-stack -o json | jq -r '.status.resources[] | [.kind,.namespace,.name,.status,.health.status] | @tsv'`
+
+### Technical details
+- Commits:
+  - `eef53c7` — `fix: align postgres statefulset with kubernetes defaults`
+  - `e24979b` — `fix: declare remaining postgres statefulset defaults`
+- Final verification:
+  - `kubectl -n argocd get applications` -> `demo-stack   Synced   Healthy`
+  - `kubectl -n argocd get application demo-stack -o json | jq -r '.status.resources[] | [.kind,.namespace,.name,.status,.health.status] | @tsv'`
+    - `StatefulSet    demo    demo-stack-postgres    Synced`

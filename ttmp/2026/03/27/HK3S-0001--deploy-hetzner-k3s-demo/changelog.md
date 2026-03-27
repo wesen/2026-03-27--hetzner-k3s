@@ -137,3 +137,13 @@ Step 13: moved Argo CD public exposure out of Terraform bootstrap and into GitOp
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/charts/demo-stack/templates/argocd-server-ingress.yaml — GitOps-managed Argo CD ingress
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/cloud-init.yaml.tftpl — Removed the Argo CD hostname bootstrap path
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the Terraform reconciliation step
+
+
+## 2026-03-27
+
+Step 14: resolved the remaining Argo CD drift by aligning the PostgreSQL StatefulSet template with Kubernetes defaulted fields; `demo-stack` is now `Synced` and `Healthy`.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/charts/demo-stack/templates/postgres-statefulset.yaml — Declared the defaulted StatefulSet fields Argo CD was comparing against
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the drift analysis and resolution
