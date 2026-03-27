@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implementation ticket for recreating Vault on the Hetzner K3s cluster via Argo CD, starting with the deployment scaffold and live bring-up rather than Coolify cutover."
-LastUpdated: 2026-03-27T11:27:48.431883396-04:00
+LastUpdated: 2026-03-27T13:13:00-04:00
 WhatFor: "Use this as the execution ticket for the first concrete Vault-on-K3s implementation work."
 WhenToUse: "Read this when carrying out the K3s Vault deployment tasks or reviewing what has been completed so far."
 ---
@@ -29,7 +29,7 @@ The immediate goal is to get a repo-managed Argo CD application plus the minimal
 
 ## Current Step
 
-Step 1 is active: task breakdown and deployment scaffold creation for the first K3s Vault implementation slice.
+Step 3 is active: bootstrap the live `vault-aws-kms` secret in the cluster, apply the new Argo CD `Application`, and observe the first Vault rollout.
 
 ## Key Links
 

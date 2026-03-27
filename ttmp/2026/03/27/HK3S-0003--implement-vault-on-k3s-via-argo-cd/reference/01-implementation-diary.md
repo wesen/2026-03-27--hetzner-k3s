@@ -11,13 +11,20 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: README.md
+      Note: Top-level operator discovery docs for the Vault bootstrap path (commit ec36585)
+    - Path: gitops/applications/vault.yaml
+      Note: Repo-managed Argo CD Application for the first Vault deployment scaffold (commit ec36585)
+    - Path: scripts/bootstrap-vault-aws-kms-secret.sh
+      Note: Local helper for the non-git AWS KMS bootstrap secret (commit ec36585)
 ExternalSources: []
-Summary: "Chronological implementation diary for recreating Vault on the K3s cluster via Argo CD."
+Summary: Chronological implementation diary for recreating Vault on the K3s cluster via Argo CD.
 LastUpdated: 2026-03-27T11:38:00-04:00
-WhatFor: "Use this to review each implementation step, the exact commands run, and why the repo and cluster changed the way they did."
-WhenToUse: "Read this when continuing implementation or reviewing the execution trail after the fact."
+WhatFor: Use this to review each implementation step, the exact commands run, and why the repo and cluster changed the way they did.
+WhenToUse: Read this when continuing implementation or reviewing the execution trail after the fact.
 ---
+
 
 # Implementation diary
 
@@ -125,3 +132,100 @@ Code: 403. Errors:
   - `ssh -o BatchMode=yes root@89.167.52.236 "docker exec vault-o1354vyfl0wveue81q9mroc8 sh -lc 'cat /vault/config/vault.hcl'"`
   - `python - <<'PY' ... urllib.request.urlopen('https://helm.releases.hashicorp.com/index.yaml') ... PY`
   - `curl -sSL https://helm.releases.hashicorp.com/vault-0.32.0.tgz | tar -xzO vault/values.yaml`
+
+## Step 2: Add the Vault scaffold to the repo and keep secrets out of git
+
+This step turned the plan into actual repo state. I added a repo-managed Argo CD `Application` for Vault, using the official HashiCorp Helm chart directly from the Helm repository, and encoded the first-pass deployment choices inline so they are reviewable in one place. The first deploy stays intentionally narrow: one Vault server pod, Raft on `local-path`, Traefik ingress, cert-manager TLS, and AWS KMS auto-unseal via environment variables read from a Kubernetes `Secret`.
+
+I also added a local bootstrap script for that AWS secret rather than baking credentials into Git or into the chart values. That keeps the deployment declarative where it should be declarative, while preserving a clean operational boundary around secrets. The validation story for this step was mixed: the shell script and YAML both validated locally, but live `kubectl` checks against the Hetzner cluster hung, so I recorded that as an environmental issue instead of pretending the cluster-side validation was complete.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement the first executable Vault deployment slice, starting with the repo-managed scaffold and documenting the work as it happens.
+
+**Inferred user intent:** Make visible, reviewable progress toward a real K3s Vault deployment without smuggling credentials into git or collapsing planning and implementation together.
+
+**Commit (code):** ec36585 — "feat: add vault argocd deployment scaffold"
+
+### What I did
+- Added [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml) as the repo-managed Argo CD `Application` for Vault.
+- Chose the first-pass chart values:
+  - chart `vault` version `0.32.0`
+  - single replica in HA+Raft mode
+  - `local-path` data PVC
+  - ingress on `vault.yolo.scapegoat.dev`
+  - Traefik + cert-manager TLS
+  - AWS KMS seal stanza for `alias/vault-scapegoat-dev-unseal`
+  - injector disabled
+  - CSI disabled
+- Added [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh) to create or update the non-git `vault-aws-kms` secret in namespace `vault`.
+- Updated [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/README.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/README.md) so the new Vault application and bootstrap path are discoverable.
+- Validated:
+  - `bash -n scripts/bootstrap-vault-aws-kms-secret.sh`
+  - `git diff --check`
+  - `ruby -e 'require "yaml"; YAML.load_file("gitops/applications/vault.yaml")'`
+
+### Why
+- Vault needs a durable GitOps definition before the live rollout is touched.
+- The AWS credential material must stay outside git, but the operator flow for creating it should still be reproducible.
+- Using the official chart directly is the shortest path to a correct first deployment while keeping room for later refactoring if we decide to replace Helm with a Kustomize-owned rendered package.
+
+### What worked
+- The shell helper validated cleanly.
+- The new `Application` manifest parses as YAML and has the expected chart/source shape.
+- The repo now has a clear split between declarative deployment state and non-git secret bootstrap.
+
+### What didn't work
+- A plain `kubectl` validation attempt initially used the wrong local context and failed against `kubernetes.docker.internal:6443`:
+
+```text
+E0327 13:09:01.349755 1578252 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"https://kubernetes.docker.internal:6443/api?timeout=32s\": dial tcp 127.0.0.1:6443: connect: connection refused"
+error: unable to recognize "gitops/applications/vault.yaml": Get "https://kubernetes.docker.internal:6443/api?timeout=32s": dial tcp 127.0.0.1:6443: connect: connection refused
+```
+
+- After forcing the right kubeconfig, cluster-side checks still hung and timed out instead of returning quickly:
+
+```text
+timeout 15s env KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl cluster-info
+```
+
+returned exit code `124` with no usable output.
+
+### What I learned
+- The repo-side scaffold is small enough to keep straightforward if the secret contract is explicit.
+- It is safer to keep the AWS credential bootstrap as a separate local script than to over-abstract it into Terraform or cloud-init for this ticket.
+- Live cluster validation is currently blocked by API responsiveness, not by obvious local manifest problems.
+
+### What was tricky to build
+- The main design tension was how much of Vault’s eventual shape to encode in the first deploy. Using HA mode with a single replica looks odd at first, but it keeps the integrated Raft configuration aligned with the long-term intended Vault mode without introducing multi-node scheduling requirements on a one-node cluster. The narrower alternative would have been standalone mode, but that would have changed the storage and service model we expect to carry forward.
+
+### What warrants a second pair of eyes
+- Whether the ingress should continue targeting the general server service (`activeService: false`) for pre-init reachability, or whether we should switch to an active-only path after the deployment is stable.
+- Whether enabling `auditStorage` belongs in the first deploy or should stay deferred until after initialization and auth setup.
+
+### What should be done in the future
+- Bootstrap the live `vault-aws-kms` secret in the cluster.
+- Apply the Vault `Application` and observe the first rollout.
+- Re-check cluster API responsiveness before relying on `kubectl`-side validation results.
+
+### Code review instructions
+- Review:
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml)
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh)
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/README.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/README.md)
+- Validate locally with:
+  - `bash -n scripts/bootstrap-vault-aws-kms-secret.sh`
+  - `ruby -e 'require "yaml"; YAML.load_file("gitops/applications/vault.yaml")'`
+- Validate against the cluster once the API responds again:
+  - `export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml`
+  - `kubectl apply --dry-run=server -f gitops/applications/vault.yaml`
+
+### Technical details
+- Commands run:
+  - `chmod +x scripts/bootstrap-vault-aws-kms-secret.sh`
+  - `bash -n scripts/bootstrap-vault-aws-kms-secret.sh`
+  - `kubectl apply --dry-run=client --validate=false -f gitops/applications/vault.yaml`
+  - `timeout 15s env KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl cluster-info`
+  - `ruby -e 'require "yaml"; data = YAML.load_file("gitops/applications/vault.yaml"); abort("wrong kind") unless data["kind"] == "Application"; puts data.dig("spec", "source", "chart")'`

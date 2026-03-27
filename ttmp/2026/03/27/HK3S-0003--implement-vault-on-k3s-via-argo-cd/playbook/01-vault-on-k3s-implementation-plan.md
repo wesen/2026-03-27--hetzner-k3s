@@ -47,6 +47,18 @@ Deliverables:
 - bootstrap helper for the non-git AWS secret
 - ticket docs updated to reflect the new task breakdown
 
+Current implementation choices for this first pass:
+
+- official HashiCorp Helm chart `vault` version `0.32.0`
+- Argo CD owns the `Application`; the chart itself is fetched from the Helm repo
+- single-replica HA mode with integrated Raft so the config shape still matches the intended long-term Vault mode
+- `local-path` PVC for the Raft data volume
+- Traefik ingress on `vault.yolo.scapegoat.dev`
+- cert-manager issuer `letsencrypt-prod`
+- Vault listener TLS disabled internally, with TLS terminated at Traefik
+- AWS KMS auto-unseal credentials injected from a non-git Kubernetes `Secret`
+- injector and CSI disabled for the first deploy to keep the surface area narrow
+
 Success criteria:
 
 - the repo contains a reviewable Argo CD application manifest,
@@ -64,6 +76,14 @@ Success criteria:
 
 - the secret exists in the cluster,
 - no credentials are committed to git.
+
+Operator path:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+export AWS_PROFILE=manuel
+./scripts/bootstrap-vault-aws-kms-secret.sh
+```
 
 ## Task 3: Apply the Vault Argo CD application
 

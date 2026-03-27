@@ -9,11 +9,11 @@
 
 ## Phase 2: Repo-managed Vault deployment scaffold
 
-- [ ] Add a repo-managed Argo CD `Application` for Vault using the official HashiCorp Helm chart
-- [ ] Choose and encode the first-deploy values:
+- [x] Add a repo-managed Argo CD `Application` for Vault using the official HashiCorp Helm chart
+- [x] Choose and encode the first-deploy values:
   single replica, Raft storage, `local-path`, Traefik ingress, cert-manager TLS, AWS KMS auto-unseal env injection
-- [ ] Add a local bootstrap script to create the non-git Kubernetes secret for AWS KMS credentials
-- [ ] Update repo docs so the new Vault application and bootstrap workflow are discoverable
+- [x] Add a local bootstrap script to create the non-git Kubernetes secret for AWS KMS credentials
+- [x] Update repo docs so the new Vault application and bootstrap workflow are discoverable
 
 ## Phase 3: First live deployment
 
