@@ -29,6 +29,12 @@ topics:
       description: Debugging workflows, tooling, and operator diagnosis
     - slug: mysql
       description: MySQL database design, deployment, and tooling
+    - slug: github
+      description: GitHub platform and workflow integration
+    - slug: ghcr
+      description: GitHub Container Registry image publishing and consumption
+    - slug: ci-cd
+      description: Continuous integration and continuous delivery workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
