@@ -23,6 +23,12 @@ topics:
       description: Platform and application migration planning and execution
     - slug: applications
       description: Application deployment and runtime migration work
+    - slug: coinvault
+      description: CoinVault application and related deployment work
+    - slug: debugging
+      description: Debugging workflows, tooling, and operator diagnosis
+    - slug: mysql
+      description: MySQL database design, deployment, and tooling
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
