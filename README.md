@@ -114,10 +114,22 @@ The same cluster now also carries a repo-managed **Vault** application definitio
 - `gitops/kustomize/demo-stack`: Kustomize package deployed by the live Argo CD application
 - `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
 - `gitops/applications/vault.yaml`: Argo CD `Application` for the K3s-hosted Vault deployment
+- `gitops/applications/vault-kubernetes-auth.yaml`: Argo CD `Application` for the Kubernetes-auth smoke namespace/service account
+- `gitops/kustomize/vault-kubernetes-auth`: smoke-test Kubernetes objects for the Vault Kubernetes auth path
 - `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
 - `app/`: demo Go app source + Dockerfile
 - `scripts/get-kubeconfig.sh`: helper to fetch a usable kubeconfig
 - `scripts/bootstrap-vault-aws-kms-secret.sh`: local helper to create the non-git Kubernetes secret for Vault AWS KMS auto-unseal
+- `scripts/bootstrap-vault-kubernetes-auth.sh`: local helper to enable/configure Vault Kubernetes auth and seed baseline policies/roles
+- `scripts/validate-vault-kubernetes-auth.sh`: local helper to prove service-account login and least-privilege behavior
+
+## Vault workload auth notes
+
+The K3s Vault deployment supports a second bootstrap layer for machine auth:
+
+- Git manages the smoke namespace/service account in `gitops/kustomize/vault-kubernetes-auth`
+- the operator configures the Vault-side auth backend, policies, and roles with `scripts/bootstrap-vault-kubernetes-auth.sh`
+- `scripts/validate-vault-kubernetes-auth.sh` proves that a real Kubernetes service account JWT can log into Vault and read only its own subtree
 
 ## Vault bootstrap notes
 

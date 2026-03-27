@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["vault-auth-smoke"],
+  "bound_service_account_namespaces": ["vault-auth-smoke"],
+  "policies": ["vault-auth-smoke"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}

@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["coinvault"],
+  "bound_service_account_namespaces": ["coinvault"],
+  "policies": ["coinvault-prod"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}
