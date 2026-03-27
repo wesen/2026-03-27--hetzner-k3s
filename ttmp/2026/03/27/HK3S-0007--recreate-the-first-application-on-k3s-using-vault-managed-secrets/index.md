@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implement the first real application deployment on K3s using Argo CD, Vault-managed secrets, and the VSO secret-delivery path."
-LastUpdated: 2026-03-27T16:56:00-04:00
+LastUpdated: 2026-03-27T20:30:00-04:00
 WhatFor: "Use this ticket to recreate the first real application deployment on K3s using Vault-managed secrets and the new GitOps platform path."
 WhenToUse: "Read this when choosing and executing the first application migration after the platform secret path is ready."
 ---
@@ -29,7 +29,7 @@ The main design question in this ticket is which app should go first. CoinVault 
 
 ## Current Step
 
-Step 6 is active: CoinVault is live on K3s, `Argo CD` reports `Synced Healthy`, and the public validation passes at `https://coinvault.yolo.scapegoat.dev`. The next step is handoff and cutover planning against the existing Coolify deployment.
+Step 7 is active: post-rollout runtime debugging is complete, the live pod now resolves `profile_registries=/run/secrets/pinocchio/profiles.yaml`, and the next step is handoff plus cutover planning against the existing Coolify deployment.
 
 ## Key Links
 

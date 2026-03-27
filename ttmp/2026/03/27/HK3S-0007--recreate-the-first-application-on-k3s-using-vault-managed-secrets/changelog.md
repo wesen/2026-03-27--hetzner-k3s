@@ -9,3 +9,4 @@
 - Step 4: fixed the CoinVault image-import path so it could build from the app repo on this workstation without depending on local `replace` targets, then built and imported `coinvault:hk3s-0007` into the K3s node
 - Step 5: created the live Argo CD application, resolved an Argo sync-wave deadlock caused by a `WaitForFirstConsumer` PVC, and brought the deployment to `Synced Healthy`
 - Step 6: validated the live K3s deployment at `https://coinvault.yolo.scapegoat.dev`, including VSO secret presence, healthy startup logs, database connectivity, and OIDC login redirect behavior
+- Step 7: debugged post-rollout runtime config drift, disabled Kubernetes service-link env injection for CoinVault, hardened the entrypoint against inherited port variables, fixed CoinVault profile-registry parsing for merged env plus flag values, rebuilt the image, and verified the live pod now reports `profile_registries=/run/secrets/pinocchio/profiles.yaml`

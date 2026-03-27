@@ -19,6 +19,7 @@ spec:
         app.kubernetes.io/name: coinvault
         app.kubernetes.io/component: app
     spec:
+      enableServiceLinks: false
       serviceAccountName: coinvault
       containers:
         - name: coinvault
@@ -28,6 +29,8 @@ spec:
             - containerPort: 8080
               name: http
           env:
+            - name: COINVAULT_SERVE_PORT
+              value: "8080"
             - name: PORT
               value: "8080"
             - name: COINVAULT_BOOTSTRAP_MODE

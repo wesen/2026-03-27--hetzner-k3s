@@ -343,3 +343,104 @@ and functioning against:
 
 ### What should be done in the future
 - Record cutover and rollback boundaries against the existing Coolify deployment, then decide whether and when to switch operators and users to the K3s endpoint.
+
+## Step 7: Fix the post-rollout runtime config drift and verify CoinVault uses the mounted hosted profile registry
+
+After the initial live rollout, the user hit an OpenAI `401 Unauthorized` during a real chat turn. The immediate suspicion was that CoinVault was not actually consuming the hosted Pinocchio config and profile material the way the K3s manifest intended.
+
+The first part of the investigation clarified the runtime shape. The live deployment definitely mounted:
+
+- `/run/secrets/pinocchio/profiles.yaml`
+- `/run/secrets/pinocchio/config.yaml`
+
+and the container process was definitely started with:
+
+- `--profile-registries /run/secrets/pinocchio/profiles.yaml`
+
+So the original “maybe the entrypoint is falling back to XDG and ignoring the mounted profile registry” theory was only half right. The container process was getting the intended CLI argument. But the live `/healthz` payload still reported:
+
+- `chat.profile_registries = "./profile-registry.yaml"`
+
+That meant the real bug was inside the application’s flag/value resolution path, not in the K3s manifest alone.
+
+While reproducing that, a second failure surfaced. During a restart onto the newer CoinVault image, the pod began crashing before startup with:
+
+- `Could not parse argument port as integer: strconv.Atoi: parsing "tcp://10.43.64.129:80": invalid syntax`
+
+That turned out to be a Kubernetes service-link environment collision. Because the Service is named `coinvault`, Kubernetes was auto-injecting env vars such as:
+
+- `COINVAULT_PORT=tcp://...`
+
+CoinVault’s Glazed parser uses the `COINVAULT_*` namespace for app config, so it was accidentally treating that injected service-link value as an application port setting. That was separate from the profile-registry bug, but it had to be fixed first to get a stable pod again.
+
+I fixed the Kubernetes-side collision in the K3s deployment by:
+
+- adding `enableServiceLinks: false`
+- adding an explicit `COINVAULT_SERVE_PORT=8080`
+
+I also hardened the CoinVault entrypoint so it:
+
+- prefers `COINVAULT_SERVE_PORT`
+- does not rely on inherited bare `PORT`
+- unsets inherited `PORT` before `exec`
+
+Once the pod was stable again, I traced the real profile-registry issue more deeply. Running the same CoinVault binary inside the container with `--print-parsed-fields` showed that `profile-settings.profile-registries` was not always a single string. Because the value existed from both:
+
+- env: `COINVAULT_PROFILE_REGISTRIES`
+- cobra flag: `--profile-registries`
+
+Glazed was merging it into a list-like value rather than a plain scalar string. CoinVault’s resolver in [`profile_settings.go`](/home/manuel/code/gec/2026-03-16--gec-rag/cmd/coinvault/cmds/profile_settings.go) still assumed a simple string field, so it silently fell back to the repo-local `./profile-registry.yaml`.
+
+I fixed that by teaching the resolver to:
+
+- read the raw field value from parsed values
+- normalize string and list-backed shapes
+- flatten them into the comma-separated registry-spec string the app expects
+
+I added focused regression tests for:
+
+- fallback from the default section
+- precedence of the dedicated profile-settings section
+- normalization of list-backed raw values
+
+After rebuilding and reimporting the image, I rolled the deployment again and verified all of the following from the live pod:
+
+- the running image ID matches the rebuilt image
+- the process command line still contains `--profile-registries /run/secrets/pinocchio/profiles.yaml`
+- `/healthz` now reports:
+  - `chat.profile_registries = "/run/secrets/pinocchio/profiles.yaml"`
+
+That closes the runtime-config drift loop. The deployment now uses the hosted profile registry source the ticket intended, rather than the repo fallback.
+
+### What I did
+- Inspected the live mounted secret files and compared them to the running process arguments.
+- Used `/healthz` and in-container `--print-parsed-fields` runs to distinguish Kubernetes wiring bugs from CoinVault parser bugs.
+- Disabled Kubernetes service links in the CoinVault pod template.
+- Added `COINVAULT_SERVE_PORT` and hardened the entrypoint against inherited `PORT`.
+- Patched CoinVault’s profile-settings resolver to normalize merged env plus flag values.
+- Rebuilt and reimported the CoinVault image multiple times while isolating the two independent failures.
+- Verified the live pod now reports the mounted hosted registry path.
+
+### Why
+- The app was healthy enough to start, but not healthy enough to trust. Until the runtime clearly consumed the mounted hosted registry, the OpenAI 401 could recur and the deployment would still be semantically wrong.
+
+### What worked
+- `/healthz` plus in-container `--print-parsed-fields` gave a precise way to separate manifest wiring, entrypoint behavior, and parser behavior.
+- Disabling service links removed an entire class of namespace collision bugs for the `coinvault` app.
+- The final rebuilt image and rollout cleanly switched the runtime source of truth to `/run/secrets/pinocchio/profiles.yaml`.
+
+### What didn't work
+- The first post-rollout assumption was too narrow: it looked like an XDG/config mount issue, but the deeper bug was the merged env plus flag field shape inside Glazed parsing.
+- Reusing the generic `PORT` contract was too fragile for Kubernetes, especially with service-link env injection still enabled.
+
+### What I learned
+- In K8s, “the process was started with the correct flag” is not enough proof that the app is actually using the intended value. You need to inspect the app’s own resolved runtime state as well.
+- Auto-injected Service env vars can collide badly with app-specific env prefixes when the Service name matches the app name.
+- Glazed merged-value behavior matters when the same setting comes from both env and Cobra.
+
+### What warrants a second pair of eyes
+- The OpenAI 401 root symptom should still be rechecked with a real authenticated chat turn now that the runtime source path is corrected. The configuration path is fixed; the next verification is behavioral.
+
+### What should be done in the future
+- Record cutover and rollback boundaries.
+- Re-run an authenticated CoinVault chat flow against the fixed runtime path and confirm the OpenAI request succeeds.
