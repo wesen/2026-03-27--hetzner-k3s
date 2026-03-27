@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Chronological diary for choosing and implementing the first real application migration onto K3s using Vault-managed secrets.
-LastUpdated: 2026-03-27T16:56:00-04:00
+LastUpdated: 2026-03-27T21:28:00-04:00
 WhatFor: Use this to review the exact decisions, commands, and reasoning behind the first real application migration after the Vault platform work.
 WhenToUse: Read this when continuing or reviewing HK3S-0007.
 ---
@@ -518,3 +518,79 @@ The public `/api/stats/quick` endpoint now returns `401` when called anonymously
 
 ### What should be done in the future
 - Record cutover and rollback boundaries now that both runtime config and business data are present on K3s.
+
+## Step 9: write durable deployment playbooks for interns and mirror them into the ticket bundle
+
+After the runtime and data migration work, the repo had the deployment scattered across shell history, YAML, app code, and diary steps. That is enough for continuation by the same operator, but it is not enough for onboarding. The user explicitly asked for durable playbooks that teach the system to a new intern, so I switched from implementation mode to explanation mode and wrote two separate guides: one from the CoinVault app-repository perspective and one from the K3s cluster-operator perspective.
+
+The split was important. A single giant deployment guide would blur the ownership boundary between application code and infrastructure code. The app repo needs to explain entrypoint behavior, bootstrap compatibility, profile-registry decoding, and why Argo does not actually live there. The K3s repo needs to explain Argo ownership, Vault/VSO wiring, image import, MySQL dependency handling, ingress, and cluster validation. I also mirrored those guides into the ticket so the operator history and the durable playbooks stay searchable in one place, and so the ticket bundle can be uploaded to reMarkable as a coherent package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, make a playbook in the gec-rag repository about deploying to argocd in very detailed fashion, and in the current repo, add a detailed playbook on how to deploy coinvault. 
+
+reate detailed playbooks that are very detailed for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file
+  references.
+  It should be very clear and detailed. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Write long-form intern-facing deployment playbooks in both repos, then store that knowledge in HK3S-0007 and publish the ticket bundle to reMarkable.
+
+**Inferred user intent:** Turn the now-working CoinVault migration into durable operational documentation that someone new can follow without reconstructing the rollout from Git history or terminal memory.
+
+### What I did
+- Wrote the app-repo guide at [`coinvault-argocd-deployment-playbook.md`](/home/manuel/code/gec/2026-03-16--gec-rag/docs/deployments/coinvault-argocd-deployment-playbook.md).
+- Wrote the K3s cluster guide at [`coinvault-k3s-deployment-playbook.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md).
+- Added two ticket playbooks:
+  - [`02-coinvault-application-repository-argocd-playbook.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/playbooks/02-coinvault-application-repository-argocd-playbook.md)
+  - [`03-coinvault-k3s-cluster-deployment-playbook.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/playbooks/03-coinvault-k3s-cluster-deployment-playbook.md)
+- Updated the ticket index, task list, and changelog so the new docs are discoverable.
+- Added the K3s repo README pointer to the new cluster playbook.
+
+### Why
+- The ticket had enough implementation detail to continue the work, but not enough beginner-friendly structure to teach it.
+- The deployment spans two repositories with different responsibilities, so teaching those boundaries explicitly is part of the actual operator work.
+- The user asked for a reMarkable-ready ticket bundle, which only makes sense if the ticket includes the canonical written playbooks.
+
+### What worked
+- The existing diary and rollout history gave enough concrete material to write guides that are specific, not generic.
+- Splitting the guidance by ownership boundary made the system easier to explain.
+- The new docs now connect the concrete files, the controller graph, and the operator commands in one place.
+
+### What didn't work
+- The app repository does not currently have a root README convention to hang this kind of guide from, so the new playbook lives under `docs/deployments/` without a broader local doc index.
+- The work naturally duplicates some knowledge between the durable repo docs and the ticket copies. That duplication is intentional, but it does mean future contract changes should update both locations.
+
+### What I learned
+- The hardest thing to document cleanly was not Vault or Argo; it was the repo boundary. Interns need to understand that deploying to Argo is partly an application runtime-contract problem and partly an infrastructure GitOps problem.
+- The K3s CoinVault migration now has enough stable shape that a full operator playbook makes sense instead of just a step-by-step diary.
+
+### What was tricky to build
+- The tricky part was deciding how much of the app-side behavior to repeat in the cluster-side guide. Too little, and the reader would not understand why the deployment depends on `entrypoint.sh` and `profile_settings.go`. Too much, and the cluster guide would stop being a cluster guide. I solved that by making the two playbooks explicitly cross-reference one another and by mirroring both perspectives into the ticket rather than forcing one document to do both jobs badly.
+
+### What warrants a second pair of eyes
+- Review whether the K3s cluster guide should also document the exact Keycloak Terraform reconciliation path, or whether that remains better scoped to the Terraform repo.
+- Review whether the app-side guide should grow a short image-release strategy section once the direct node import is replaced by a real registry.
+
+### What should be done in the future
+- Upload the HK3S-0007 bundle to reMarkable and verify the remote document listing.
+- After that, return to the remaining Phase 5 work: explicit cutover and rollback boundaries.
+
+### Code review instructions
+- Start with the repo guides:
+  - [`coinvault-argocd-deployment-playbook.md`](/home/manuel/code/gec/2026-03-16--gec-rag/docs/deployments/coinvault-argocd-deployment-playbook.md)
+  - [`coinvault-k3s-deployment-playbook.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md)
+- Then review the ticket copies and the ticket index links.
+- Validate the ticket metadata with `docmgr doctor --ticket HK3S-0007 --stale-after 30`.
+
+### Technical details
+- The app-repo guide focuses on:
+  - [`serve.go`](/home/manuel/code/gec/2026-03-16--gec-rag/cmd/coinvault/cmds/serve.go)
+  - [`profile_settings.go`](/home/manuel/code/gec/2026-03-16--gec-rag/cmd/coinvault/cmds/profile_settings.go)
+  - [`entrypoint.sh`](/home/manuel/code/gec/2026-03-16--gec-rag/docker/entrypoint.sh)
+  - [`bootstrap.go`](/home/manuel/code/gec/2026-03-16--gec-rag/internal/bootstrap/bootstrap.go)
+- The cluster guide focuses on:
+  - [`coinvault.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/coinvault.yaml)
+  - [`deployment.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/deployment.yaml)
+  - [`seed-coinvault-k3s-vault-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/seed-coinvault-k3s-vault-secrets.sh)
+  - [`build-and-import-coinvault-image.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/build-and-import-coinvault-image.sh)
+  - [`validate-coinvault-k3s.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-coinvault-k3s.sh)

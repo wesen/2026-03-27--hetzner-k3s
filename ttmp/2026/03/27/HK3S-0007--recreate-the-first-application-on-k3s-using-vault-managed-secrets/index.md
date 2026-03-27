@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implement the first real application deployment on K3s using Argo CD, Vault-managed secrets, and the VSO secret-delivery path."
-LastUpdated: 2026-03-27T20:35:00-04:00
+LastUpdated: 2026-03-27T21:28:00-04:00
 WhatFor: "Use this ticket to recreate the first real application deployment on K3s using Vault-managed secrets and the new GitOps platform path."
 WhenToUse: "Read this when choosing and executing the first application migration after the platform secret path is ready."
 ---
@@ -29,7 +29,7 @@ The main design question in this ticket is which app should go first. CoinVault 
 
 ## Current Step
 
-Step 8 is active: the CoinVault data import from the local MySQL source is complete, the cluster `gec` schema now contains the expected application tables, and the next step is handoff plus cutover planning against the existing Coolify deployment.
+Step 9 is active: the detailed intern-facing deployment playbooks for CoinVault have been added to both repos and mirrored into this ticket, and the next remaining work is the explicit cutover plus rollback handoff against the existing parallel deployment.
 
 ## Key Links
 
@@ -39,6 +39,10 @@ Step 8 is active: the CoinVault data import from the local MySQL source is compl
   - [01-first-app-candidate-decision-and-runtime-contract.md](./design-doc/01-first-app-candidate-decision-and-runtime-contract.md)
 - Implementation diary:
   - [01-first-app-migration-diary.md](./reference/01-first-app-migration-diary.md)
+- App-repo deployment playbook:
+  - [02-coinvault-application-repository-argocd-playbook.md](./playbooks/02-coinvault-application-repository-argocd-playbook.md)
+- Cluster deployment playbook:
+  - [03-coinvault-k3s-cluster-deployment-playbook.md](./playbooks/03-coinvault-k3s-cluster-deployment-playbook.md)
 
 ## Status
 

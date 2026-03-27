@@ -29,5 +29,6 @@
 
 ## Phase 5: Handoff
 
+- [x] Write intern-facing deployment playbooks in both the app repo and the K3s repo
 - [ ] Record cutover options and rollback boundaries
 - [x] Validate the ticket with `docmgr doctor`
