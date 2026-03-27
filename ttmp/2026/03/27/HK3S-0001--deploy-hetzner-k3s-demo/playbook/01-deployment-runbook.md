@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 14: the application is now fully `Synced` and `Healthy`; the next follow-up is deciding whether to codify the runtime CoreDNS workaround.
+Step 15: the temporary CoreDNS upstream override has been removed, and the cluster resolves external names correctly through the default `/etc/resolv.conf` path.
 
 ## Environment Assumptions
 
@@ -142,6 +142,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `curl -I https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`.
 - `terraform plan -no-color` returns `No changes`.
 - Argo CD reports `demo-stack` as `Synced` and `Healthy`.
+- CoreDNS again uses `forward . /etc/resolv.conf`.
+- In-cluster `nslookup` against `10.43.0.10` resolves both public hostnames correctly without the temporary override.
 - The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria

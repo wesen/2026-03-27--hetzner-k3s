@@ -960,3 +960,89 @@ I fixed this by declaring those defaults explicitly in `gitops/charts/demo-stack
   - `kubectl -n argocd get applications` -> `demo-stack   Synced   Healthy`
   - `kubectl -n argocd get application demo-stack -o json | jq -r '.status.resources[] | [.kind,.namespace,.name,.status,.health.status] | @tsv'`
     - `StatefulSet    demo    demo-stack-postgres    Synced`
+
+## Step 15: Remove the temporary CoreDNS override and verify it was transient
+
+The remaining operational question was whether the earlier CoreDNS change was actually necessary long term. At the time of certificate issuance, I had changed CoreDNS from `forward . /etc/resolv.conf` to `forward . 1.1.1.1 8.8.8.8` because the in-cluster resolution path was returning NXDOMAIN while public authoritative DNS was already correct. The user asked whether that might have just been a cached or transient resolver problem rather than a permanent flaw in the default setup.
+
+I tested that directly by reverting CoreDNS back to `forward . /etc/resolv.conf`, restarting the deployment, and then checking three things: public HTTPS to both hosts, in-cluster DNS lookups through `10.43.0.10`, and the application sync/health state. All of them continued to work. I also checked the node and CoreDNS resolver paths: the node still uses the `systemd-resolved` stub locally, but inside the CoreDNS pod `/etc/resolv.conf` currently points at Hetzner upstream resolvers directly, not `127.0.0.53`. That makes the earlier failure much more consistent with transient propagation or upstream cache behavior than with a permanent misconfiguration.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do we even still need the workaround? Could it have been caused by a cached resolve or so?"
+
+**Follow-up user prompt (verbatim):** "ok, do that, make sure to document why too"
+
+**Assistant interpretation:** Revert the live CoreDNS override, verify the cluster still works, and document the evidence behind the conclusion instead of just reporting a successful revert.
+
+**Inferred user intent:** Avoid carrying a needless workaround forward if the default DNS path is now healthy.
+
+### What I did
+- Read the live CoreDNS ConfigMap and confirmed it still used the temporary public resolvers.
+- Verified pre-change health for:
+  - `https://k3s.scapegoat.dev`
+  - `https://argocd.yolo.scapegoat.dev`
+  - `kubectl -n argocd get applications`
+- Reverted CoreDNS to:
+  - `forward . /etc/resolv.conf`
+- Restarted the `coredns` deployment and waited for rollout completion.
+- Verified in-cluster DNS resolution for both public hosts through `10.43.0.10`.
+- Verified both public HTTPS endpoints still return `HTTP/2 200`.
+- Verified Argo CD remained `Synced` and `Healthy`.
+- Inspected the resolver path used inside the CoreDNS pod.
+
+### Why
+- A temporary workaround should not stay in place unless it is still justified by current behavior.
+- The right answer here depends on live DNS path verification, not on recollection of the failure.
+
+### What worked
+- CoreDNS rolled back cleanly to the default `/etc/resolv.conf` forwarder path.
+- In-cluster DNS still resolves:
+  - `k3s.scapegoat.dev`
+  - `argocd.yolo.scapegoat.dev`
+- Both public HTTPS endpoints stayed healthy.
+- Argo CD stayed `Synced` and `Healthy`.
+
+### What didn't work
+- One early attempt to inspect the node resolver used `printf` with a leading `---`, which Bash treated as an option. The actual resolver inspection still succeeded after that noisy line.
+- Direct `kubectl exec` into the CoreDNS container failed because the image does not include a normal shell toolset like `cat`. I used an ephemeral debug container to inspect the pod’s resolver context instead.
+
+### What I learned
+- We do not currently need the workaround.
+- The earlier issue was likely transient propagation/cache behavior in the upstream resolver path rather than a permanent requirement to hardcode public resolvers.
+- The CoreDNS pod’s `/etc/resolv.conf` currently contains Hetzner upstream DNS servers directly, which makes the default forwarder path reasonable in the current cluster.
+
+### What warrants a second pair of eyes
+- Only if this DNS issue reappears in future reprovisioning. If it does, the right next step would be to capture timing and resolver answers at failure time before deciding on a permanent override.
+
+### What should be done in the future
+- Nothing required for this deployment.
+- If the problem recurs on a future build, capture the exact resolver answers from:
+  - authoritative DNS
+  - node resolver
+  - CoreDNS
+  before introducing another workaround.
+
+### Code review instructions
+- Validate the live state with:
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}'`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get applications`
+  - `curl -I https://k3s.scapegoat.dev`
+  - `curl -I https://argocd.yolo.scapegoat.dev`
+  - an in-cluster `nslookup` through `10.43.0.10`
+
+### Technical details
+- Live revert:
+  - CoreDNS `Corefile` changed from `forward . 1.1.1.1 8.8.8.8` back to `forward . /etc/resolv.conf`
+  - `kubectl -n kube-system rollout restart deployment/coredns`
+  - `kubectl -n kube-system rollout status deployment/coredns --timeout=300s`
+- Verification:
+  - `kubectl run dns-test ...`
+  - `kubectl exec dns-test -- nslookup k3s.scapegoat.dev 10.43.0.10`
+  - `kubectl exec dns-test -- nslookup argocd.yolo.scapegoat.dev 10.43.0.10`
+  - `curl -I https://k3s.scapegoat.dev`
+  - `curl -I https://argocd.yolo.scapegoat.dev`
+  - `kubectl -n argocd get applications`
+- Resolver observations:
+  - Node `/etc/resolv.conf` points to `127.0.0.53` via `systemd-resolved`
+  - Inside the CoreDNS pod, `/etc/resolv.conf` currently contains Hetzner upstream resolvers such as `2a01:4ff:ff00::add:2` and `185.12.64.2`

@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 14 is active: the residual Argo CD drift has been resolved, the application is now `Synced` and `Healthy`, and the main remaining follow-up is whether to codify the runtime CoreDNS workaround.
+Step 15 is active: the temporary CoreDNS upstream override has been removed and verified unnecessary; the deployment is clean, and there are no remaining required follow-up actions.
 
 ## Key Links
 
@@ -88,10 +88,12 @@ Inputs already resolved or proposed:
 - `https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
 - `terraform plan -no-color` returns `No changes`
 - Argo CD application status: `Synced` and `Healthy`
+- CoreDNS is back on `forward . /etc/resolv.conf`
+- In-cluster DNS resolves both `k3s.scapegoat.dev` and `argocd.yolo.scapegoat.dev` correctly without the temporary public-resolver override
 
 Next operator action:
 
-- Optional: codify the runtime CoreDNS resolver workaround in repo-managed cluster state
+- Optional: none required for this deployment; future cleanup is a packaging/design choice rather than an operational blocker
 
 ## Topics
 

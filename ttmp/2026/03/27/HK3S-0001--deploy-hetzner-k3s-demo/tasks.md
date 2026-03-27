@@ -17,4 +17,5 @@
 - [x] Expose Argo CD publicly on `argocd.yolo.scapegoat.dev`
 - [x] Reconcile Terraform and move Argo CD exposure ownership into GitOps without replacing the server
 - [x] Resolve the residual Argo CD `OutOfSync` status on `demo-stack-postgres`
+- [x] Verify whether the temporary CoreDNS upstream override is still needed
 - [x] Record final outputs, validation results, and follow-up risks

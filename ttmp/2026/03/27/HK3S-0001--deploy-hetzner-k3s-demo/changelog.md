@@ -147,3 +147,12 @@ Step 14: resolved the remaining Argo CD drift by aligning the PostgreSQL Statefu
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/charts/demo-stack/templates/postgres-statefulset.yaml — Declared the defaulted StatefulSet fields Argo CD was comparing against
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the drift analysis and resolution
+
+
+## 2026-03-27
+
+Step 15: removed the temporary CoreDNS public-resolver override, verified in-cluster DNS still works through `/etc/resolv.conf`, and concluded that the earlier issue was likely transient resolver/cache behavior rather than a permanent requirement.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the CoreDNS revert, verification, and rationale
