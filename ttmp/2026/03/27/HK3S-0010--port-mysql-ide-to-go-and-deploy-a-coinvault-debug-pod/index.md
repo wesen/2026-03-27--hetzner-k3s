@@ -13,10 +13,10 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: "Design and planning ticket for porting the MySQL IDE prototype to Go and deploying it as an authenticated CoinVault SQL debug workload on K3s."
-LastUpdated: 2026-03-27T17:24:00-04:00
-WhatFor: "Use this ticket to design the Go port of the MySQL IDE prototype and the GitOps deployment of an authenticated CoinVault SQL debug tool against the cluster MySQL service."
-WhenToUse: "Read this when planning or implementing a browser-based SQL debug tool for CoinVault on K3s."
+Summary: "Implementation ticket for porting the MySQL IDE prototype to Go and deploying it as an authenticated CoinVault SQL debug workload on K3s."
+LastUpdated: 2026-03-27T17:49:00-04:00
+WhatFor: "Use this ticket to implement, operate, and review the Go port of the MySQL IDE prototype plus the GitOps deployment of an authenticated CoinVault SQL debug tool against the cluster MySQL service."
+WhenToUse: "Read this when implementing, operating, or reviewing the browser-based SQL debug tool for CoinVault on K3s."
 ---
 
 # Port MySQL IDE to Go and deploy a CoinVault debug pod
@@ -32,7 +32,7 @@ The main point is not to create a generic database admin tool. The point is to c
 
 ## Current Step
 
-Step 1 is active: the prototype, the CoinVault runtime contract, the current auth story, and the current MySQL service shape have all been analyzed, and the design/implementation plan is now documented in this ticket.
+Step 6 is active: the implementation is deployed and validated, and the final closeout work is publishing the Git history and refreshed ticket bundle while recording the remaining app-repo remote gap.
 
 ## Key Links
 
@@ -42,6 +42,8 @@ Step 1 is active: the prototype, the CoinVault runtime contract, the current aut
   - [01-mysql-ide-implementation-and-deployment-plan.md](./playbook/01-mysql-ide-implementation-and-deployment-plan.md)
 - Investigation diary:
   - [01-mysql-ide-investigation-diary.md](./reference/01-mysql-ide-investigation-diary.md)
+- Rollout and rollback playbook:
+  - [02-mysql-ide-rollout-and-rollback-playbook.md](./playbook/02-mysql-ide-rollout-and-rollback-playbook.md)
 - Related migration tickets:
   - [HK3S-0007](../HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md)
   - [HK3S-0009](../HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md)
@@ -52,12 +54,31 @@ Current status: **active**
 
 Current recommendation:
 
-- build the tool in `/home/manuel/code/wesen/2026-03-27--mysql-ide`
-- deploy it in namespace `coinvault`
-- keep it as a separate `Deployment`/`Service`/`Ingress`, not a sidecar in the main CoinVault pod
-- configure it against the existing CoinVault MySQL read-only contract
-- protect it with OIDC-backed auth
-- restrict the SQL surface to safe read-only queries and server-owned schema endpoints
+- keep the current implementation shape:
+  - Go service in `/home/manuel/code/wesen/2026-03-27--mysql-ide`
+  - separate `Deployment`/`Service`/`Ingress` in namespace `coinvault`
+  - fixed CoinVault MySQL read-only contract
+  - OIDC-backed auth through the existing `coinvault-web` client
+  - narrow read-only SQL plus server-owned schema/sample endpoints
+- finish the remaining repo hygiene and operator documentation work before changing the runtime contract further
+- keep reusing `coinvault-runtime` for the shared read-only DB and OIDC contract unless the service later needs a meaningfully different secret boundary
+
+## Current Outcome
+
+The current implementation is already usable:
+
+- `https://coinvault-sql.yolo.scapegoat.dev/healthz` returns the expected fixed DB/auth contract
+- the root UI redirects anonymous users to Keycloak
+- an authenticated session can browse the CoinVault schema
+- sample reads from `products` succeed
+- unsafe statements such as `DELETE FROM products` are rejected server-side
+- the app repo now has a local README describing env vars, local `dev` auth mode, OIDC mode, and the K3s deployment contract
+- the ticket now has an operator rollout/rollback playbook for rebuilding the image, applying manifests, updating Keycloak, validating behavior, and choosing the smallest safe rollback scope
+- Argo reports the parent `coinvault` application as `Synced Healthy`
+
+The most important implementation detail from the live rollout is that schema inspection needed explicit column aliases for `sqlx` scanning against MySQL metadata responses. That bug only surfaced during the authenticated browser smoke test and is now fixed in the app repo.
+
+The main remaining operational caveat is release hygiene: the app repo currently has no configured Git remote, so the Go implementation can be committed locally but not pushed until a remote is added.
 
 ## Topics
 
