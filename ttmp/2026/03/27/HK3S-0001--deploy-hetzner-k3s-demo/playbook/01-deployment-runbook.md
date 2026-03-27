@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 15: the temporary CoreDNS upstream override has been removed, and the cluster resolves external names correctly through the default `/etc/resolv.conf` path.
+Step 16: the live Argo CD application now deploys from `gitops/kustomize/demo-stack`; the remaining Helm chart is only a bootstrap compatibility layer so Terraform stays reconciled.
 
 ## Environment Assumptions
 
@@ -107,7 +107,6 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `repo_revision = "main"`
 - `base_domain = "scapegoat.dev"`
 - `app_subdomain = "k3s"`
-- `argocd_host = "argocd.yolo.scapegoat.dev"`
 - `server_type = "cpx32"`
 - `acme_email = "wesen@ruinwesen.com"`
 
@@ -125,8 +124,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ### Immediate Next Action
 
-- Optional follow-up: inspect the residual Argo CD drift on `demo-stack-postgres`.
-- Optional follow-up: codify the CoreDNS resolver behavior instead of relying on the runtime ConfigMap adjustment.
+- Optional follow-up: redesign the bootstrap `Application` creation path so first boot also seeds the Kustomize application directly instead of the legacy Helm compatibility layer.
 
 ### Current Runtime Status
 
@@ -142,8 +140,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `curl -I https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`.
 - `terraform plan -no-color` returns `No changes`.
 - Argo CD reports `demo-stack` as `Synced` and `Healthy`.
+- The live `demo-stack` `Application` source path is `gitops/kustomize/demo-stack`.
 - CoreDNS again uses `forward . /etc/resolv.conf`.
 - In-cluster `nslookup` against `10.43.0.10` resolves both public hostnames correctly without the temporary override.
+- `gitops/charts/demo-stack` remains in the repo only for bootstrap compatibility; the live deployment path is Kustomize.
 - The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria

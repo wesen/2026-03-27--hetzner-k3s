@@ -156,3 +156,15 @@ Step 15: removed the temporary CoreDNS public-resolver override, verified in-clu
 ### Related Files
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the CoreDNS revert, verification, and rationale
+
+
+## 2026-03-27
+
+Step 16: moved the live `demo-stack` Argo CD source from Helm templating to Kustomize while keeping the legacy chart only as a bootstrap compatibility path; the live app stayed `Synced` and `Healthy`, and Terraform still reported `No changes`.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/demo-stack/kustomization.yaml — New Kustomize source for the live deployment
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/demo-stack.yaml — Repo-managed Argo CD `Application` manifest for the Kustomize path
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/charts/demo-stack/README.md — Marks the Helm chart as legacy bootstrap compatibility only
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the Kustomize migration and cleanup rationale

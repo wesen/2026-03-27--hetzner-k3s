@@ -1046,3 +1046,79 @@ I tested that directly by reverting CoreDNS back to `forward . /etc/resolv.conf`
 - Resolver observations:
   - Node `/etc/resolv.conf` points to `127.0.0.53` via `systemd-resolved`
   - Inside the CoreDNS pod, `/etc/resolv.conf` currently contains Hetzner upstream resolvers such as `2a01:4ff:ff00::add:2` and `185.12.64.2`
+
+## Step 16: Move the live deployment source from Helm to Kustomize
+
+The user asked to move to Kustomize and clean up the deployment package. The main constraint was preserving the current server and keeping Terraform reconciled. That meant I could not simply change `cloud-init` to seed a different `Application` source path, because changing the embedded bootstrap `Application` in `user_data` would reintroduce the Hetzner server replacement problem. The workable design was a staged migration: move the live `demo-stack` application to a repo-managed Kustomize package now, but keep the old Helm chart in place only as a bootstrap compatibility path so `user_data` stays untouched.
+
+I created a Kustomize package under `gitops/kustomize/demo-stack` with plain Kubernetes manifests matching the current live object names and hosts, plus a repo-managed `Application` manifest under `gitops/applications/demo-stack.yaml`. Then I applied that `Application` manifest to the live cluster, which switched Argo CD from `gitops/charts/demo-stack` to `gitops/kustomize/demo-stack`. Argo reconciled cleanly and the application stayed `Synced` and `Healthy` throughout the migration. `terraform plan -no-color` still returned `No changes`, which is the key proof that the cleanup did not reopen the server-replacement issue.
+
+### Prompt Context
+
+**User prompt (verbatim):** "move to kustomize, and do the cleanup"
+
+**Follow-up user prompt (verbatim):** "make sure it's properly documented in our diary"
+
+**Assistant interpretation:** Replace the live Helm-templated GitOps package with Kustomize, keep the deployment stable, and document the rationale and tradeoffs explicitly.
+
+**Inferred user intent:** Simplify the live deployment packaging without regressing into Terraform drift or losing the current server.
+
+### What I did
+- Created a Kustomize package at `gitops/kustomize/demo-stack` with:
+  - namespace
+  - cluster issuer
+  - PostgreSQL service and StatefulSet
+  - app service and deployment
+  - app ingress
+  - Argo CD configmap, rollout patch, and public ingress
+- Added `gitops/applications/demo-stack.yaml` as the repo-managed current `Application` manifest.
+- Added `gitops/charts/demo-stack/README.md` to mark the Helm chart as legacy bootstrap compatibility only.
+- Updated the live `demo-stack` application to source `gitops/kustomize/demo-stack`.
+- Verified the live app remained `Synced` and `Healthy`.
+- Verified both public HTTPS endpoints still return `HTTP/2 200`.
+- Verified `terraform plan -no-color` still returns `No changes`.
+
+### Why
+- Kustomize matches the actual current use case better: we are deploying a fixed set of manifests with minimal templating needs.
+- Keeping `cloud-init` unchanged avoids reintroducing immutable `user_data` drift on the Hetzner server.
+- A staged migration preserves the current environment while still removing Helm from the live deployment path.
+
+### What worked
+- `kubectl kustomize gitops/kustomize/demo-stack` rendered valid manifests locally.
+- Argo CD switched the live source path from `gitops/charts/demo-stack` to `gitops/kustomize/demo-stack`.
+- The resource names stayed stable, so Argo adopted the existing objects in place.
+- `demo-stack` remained `Synced` and `Healthy`.
+- Terraform remained reconciled.
+
+### What didn't work
+- I could not remove the Helm chart entirely without reopening the `user_data` problem, because the first-boot bootstrap path in `cloud-init` still seeds the original `Application` shape.
+
+### What I learned
+- The cleanest zero-reprovision migration is to separate “live deployment source” from “bootstrap compatibility source.”
+- Kustomize is a good fit here because the live configuration is now mostly static, and `kubectl` already includes the renderer needed for local inspection.
+
+### What warrants a second pair of eyes
+- Whether you want to go one step further later and redesign bootstrap so first boot also seeds `gitops/kustomize/demo-stack` directly. That is a packaging/design decision now, not an operational blocker.
+
+### What should be done in the future
+- Optionally redesign the bootstrap `Application` creation path so the legacy chart can be removed entirely.
+- If that happens, do it with a plan that avoids coupling another bootstrap-format change to Terraform-managed `user_data` on an already-running server.
+
+### Code review instructions
+- Review:
+  - `gitops/kustomize/demo-stack/kustomization.yaml`
+  - `gitops/applications/demo-stack.yaml`
+  - `gitops/charts/demo-stack/README.md`
+  - `README.md`
+- Validate with:
+  - `kubectl kustomize gitops/kustomize/demo-stack`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl -n argocd get application demo-stack -o jsonpath='{.spec.source.path}{"\n"}{.status.sync.status}{"\n"}{.status.health.status}{"\n"}'`
+  - `terraform plan -no-color`
+
+### Technical details
+- Commit:
+  - `3163fa6` — `refactor: add kustomize gitops package`
+- Final live state after migration:
+  - `Application.spec.source.path` = `gitops/kustomize/demo-stack`
+  - `kubectl -n argocd get applications` -> `demo-stack   Synced   Healthy`
+  - `terraform plan -no-color` -> `No changes`

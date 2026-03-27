@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 15 is active: the temporary CoreDNS upstream override has been removed and verified unnecessary; the deployment is clean, and there are no remaining required follow-up actions.
+Step 16 is active: the live `demo-stack` Argo CD application now sources `gitops/kustomize/demo-stack`, while the old Helm chart remains only as a bootstrap compatibility path so Terraform stays reconciled and the current server is kept.
 
 ## Key Links
 
@@ -88,12 +88,14 @@ Inputs already resolved or proposed:
 - `https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
 - `terraform plan -no-color` returns `No changes`
 - Argo CD application status: `Synced` and `Healthy`
+- Argo CD application source path: `gitops/kustomize/demo-stack`
 - CoreDNS is back on `forward . /etc/resolv.conf`
 - In-cluster DNS resolves both `k3s.scapegoat.dev` and `argocd.yolo.scapegoat.dev` correctly without the temporary public-resolver override
+- Legacy note: `gitops/charts/demo-stack` is retained only as a bootstrap compatibility path; the live deployment source is Kustomize
 
 Next operator action:
 
-- Optional: none required for this deployment; future cleanup is a packaging/design choice rather than an operational blocker
+- Optional: redesign bootstrap so first-boot seeding also uses the Kustomize application path, if you want to remove the remaining legacy Helm compatibility layer later
 
 ## Topics
 
