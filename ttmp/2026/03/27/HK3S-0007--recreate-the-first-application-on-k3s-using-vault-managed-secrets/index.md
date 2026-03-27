@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implement the first real application deployment on K3s using Argo CD, Vault-managed secrets, and the VSO secret-delivery path."
-LastUpdated: 2026-03-27T16:05:00-04:00
+LastUpdated: 2026-03-27T16:22:00-04:00
 WhatFor: "Use this ticket to recreate the first real application deployment on K3s using Vault-managed secrets and the new GitOps platform path."
 WhenToUse: "Read this when choosing and executing the first application migration after the platform secret path is ready."
 ---
@@ -29,7 +29,7 @@ The main design question in this ticket is which app should go first. CoinVault 
 
 ## Current Step
 
-Step 1 is active: the candidate review is complete and CoinVault is now the chosen first migration target because it is the only real deployable service among the initial candidates, even though hair-booking has the simpler secret story.
+Step 2 is active: the CoinVault K3s scaffold now exists in Git, including the Argo CD application, Kustomize package, VSO secret sync resources, PVC, ingress, and helper scripts. The next step is the live rollout: seed the K3s Vault, adjust Keycloak callbacks, import the image, and deploy.
 
 ## Key Links
 

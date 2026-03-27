@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coinvault
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: coinvault
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coinvault
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coinvault
+        app.kubernetes.io/component: app
+    spec:
+      serviceAccountName: coinvault
+      containers:
+        - name: coinvault
+          image: coinvault:hk3s-0007
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORT
+              value: "8080"
+            - name: COINVAULT_BOOTSTRAP_MODE
+              value: disabled
+            - name: COINVAULT_AUTH_MODE
+              value: oidc
+            - name: COINVAULT_AUTH_PUBLIC_URL
+              value: https://coinvault.yolo.scapegoat.dev
+            - name: COINVAULT_OIDC_ISSUER_URL
+              value: https://auth.scapegoat.dev/realms/coinvault
+            - name: COINVAULT_OIDC_CLIENT_ID
+              value: coinvault-web
+            - name: COINVAULT_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: oidc_client_secret
+            - name: COINVAULT_AUTH_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: session_secret
+            - name: GEC_MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_host
+            - name: GEC_MYSQL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_port
+            - name: GEC_MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_database
+            - name: GEC_MYSQL_RO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_ro_user
+            - name: GEC_MYSQL_RO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coinvault-runtime
+                  key: gec_mysql_ro_password
+            - name: COINVAULT_PROFILE_REGISTRIES
+              value: /run/secrets/pinocchio/profiles.yaml
+            - name: COINVAULT_TIMELINE_DB
+              value: /data/coinvault-timeline.db
+            - name: COINVAULT_TURNS_DB
+              value: /data/coinvault-turns.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: pinocchio
+              mountPath: /run/secrets/pinocchio
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: coinvault-data
+        - name: pinocchio
+          secret:
+            secretName: coinvault-pinocchio
+            items:
+              - key: profiles_yaml
+                path: profiles.yaml
+              - key: config_yaml
+                path: config.yaml

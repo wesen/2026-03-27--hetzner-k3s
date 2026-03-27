@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coinvault
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: coinvault
+    app.kubernetes.io/component: app
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - coinvault.yolo.scapegoat.dev
+      secretName: coinvault-tls
+  rules:
+    - host: coinvault.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coinvault
+                port:
+                  number: 80

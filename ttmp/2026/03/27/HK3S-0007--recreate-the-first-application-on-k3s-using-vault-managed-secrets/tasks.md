@@ -10,15 +10,15 @@
 
 ## Phase 2: Application secret and runtime contract
 
-- [ ] Inventory the chosen app’s current runtime env and Vault dependencies
-- [ ] Decide whether the app should consume Vault via VSO-backed Kubernetes `Secret`, direct Vault API login, or another path
-- [ ] Map current secrets to the new `kv/apps/<app>/<env>/...` convention
+- [x] Inventory the chosen app’s current runtime env and Vault dependencies
+- [x] Decide whether the app should consume Vault via VSO-backed Kubernetes `Secret`, direct Vault API login, or another path
+- [x] Map current secrets to the new `kv/apps/<app>/<env>/...` convention
 
 ## Phase 3: Repo-managed deployment work
 
-- [ ] Add the Argo CD application and Kubernetes manifests for the chosen app
-- [ ] Add the service account and Vault role/policy bindings the app needs
-- [ ] Add ingress, persistence, and dependency wiring as needed
+- [x] Add the Argo CD application and Kubernetes manifests for the chosen app
+- [x] Add the service account and Vault role/policy bindings the app needs
+- [x] Add ingress, persistence, and dependency wiring as needed
 
 ## Phase 4: Live migration
 

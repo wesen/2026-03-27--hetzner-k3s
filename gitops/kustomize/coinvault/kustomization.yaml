@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: coinvault
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - persistentvolumeclaim.yaml
+  - vault-connection.yaml
+  - vault-auth.yaml
+  - vault-static-secret-runtime.yaml
+  - vault-static-secret-pinocchio.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
