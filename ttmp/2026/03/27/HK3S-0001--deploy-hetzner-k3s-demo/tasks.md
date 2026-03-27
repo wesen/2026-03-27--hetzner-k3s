@@ -5,9 +5,9 @@
 - [x] Create the docmgr ticket scaffold and initial deployment docs
 - [x] Audit the repo to identify the real deployment flow and blocking external inputs
 - [x] Create the initial repository checkpoint in git
-- [ ] Confirm deployment inputs and defaults with the operator
-- [ ] Create a deployment-ready `terraform.tfvars` locally
-- [ ] Run `terraform init`
+- [x] Confirm deployment inputs and defaults with the operator
+- [x] Create a deployment-ready `terraform.tfvars` locally
+- [x] Run `terraform init`
 - [ ] Run `terraform apply`
 - [ ] Create or update the DNS record for the app hostname
 - [ ] Watch cloud-init complete successfully on the server

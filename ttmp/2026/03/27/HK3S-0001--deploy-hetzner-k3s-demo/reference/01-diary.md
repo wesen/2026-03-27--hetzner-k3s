@@ -284,6 +284,70 @@ This is the point where the variable model becomes concrete. `k3s.scapegoat.com`
 - Confirmed values:
   - `admin_cidrs = ["98.175.153.62/32"]`
   - `repo_url = "https://github.com/wesen/2026-03-27--hetzner-k3s.git"`
-  - `base_domain = "scapegoat.com"`
+  - `base_domain = "scapegoat.dev"`
   - `app_subdomain = "k3s"`
   - `server_type = "cpx31"`
+
+## Step 5: Materialize local deployment secrets and initialize Terraform
+
+The deployment inputs are now complete enough to leave the questionnaire phase. I retrieved the Hetzner token from 1Password, generated a PostgreSQL password, wrote a local `terraform.tfvars`, and ran the first Terraform commands needed to verify that the configuration is ready to plan.
+
+One important correction landed during this step: the base domain is `scapegoat.dev`, not `scapegoat.com`, which means the final app host is `k3s.scapegoat.dev`. That correction was applied before generating `terraform.tfvars`, so the local deployment values are internally consistent.
+
+### Prompt Context
+
+**User prompt (verbatim):** "it's in the Private. acme: wesen@ruinwesen.com"
+
+**Follow-up user prompt (verbatim):** "it's scapegoat.dev btw"
+
+**Assistant interpretation:** Use the `Private` 1Password vault to resolve the Hetzner token, record the ACME email, correct the base domain, and move from input collection to Terraform-ready local configuration.
+
+**Inferred user intent:** Finish the secret-bearing setup work and get the deployment to the point where Terraform can safely plan and apply.
+
+### What I did
+- Resolved the 1Password item from the `Private` vault and revealed the concealed `credential` field for local use.
+- Generated a PostgreSQL password locally.
+- Created `terraform.tfvars` with the token, SSH key, admin CIDR, public HTTPS repo URL, corrected `.dev` base domain, ACME email, and generated database password.
+- Ran `terraform init`.
+- Ran `terraform validate`.
+- Updated the ticket to make Terraform planning the active step.
+
+### Why
+- `terraform apply` should only happen after the local secrets file exists and Terraform has been initialized successfully.
+- The corrected base domain had to be applied before the local variables file was written, otherwise the bootstrap manifests would target the wrong host.
+
+### What worked
+- The 1Password CLI workflow succeeded once the correct vault name was used.
+- `terraform init` completed successfully.
+- `terraform validate` reported a valid configuration.
+
+### What didn't work
+- The first attempt to address the vault by the guessed family-vault name failed because that vault name was not present in the CLI-visible account context.
+
+### What I learned
+- The deployment no longer has any unanswered input questions for the Terraform phase.
+- The repo's current `.gitignore` ignores `.terraform.lock.hcl`, so the provider lock file created by `terraform init` remains local instead of being checkpointed.
+
+### What was tricky to build
+- The main sharp edge was avoiding a stale domain value after the late correction from `.com` to `.dev`. The symptom would have been a silently wrong ingress host embedded into the cloud-init bootstrap. I handled that by treating the correction as authoritative and regenerating the local deployment values only after updating the mapped `base_domain`.
+
+### What warrants a second pair of eyes
+- If the `.terraform.lock.hcl` file is intended to be versioned later, the current `.gitignore` will need to change before that can happen.
+- The generated PostgreSQL password exists only in the ignored local `terraform.tfvars`; if you want a second copy in a secret manager, that should happen before apply or immediately after.
+
+### What should be done in the future
+- Run `terraform plan`.
+- If the plan is correct, run `terraform apply`.
+- Capture the server IP and move to the DNS and cloud-init monitoring steps.
+
+### Code review instructions
+- Review `terraform.tfvars.example`, `variables.tf`, and the updated runbook to confirm the resolved variable set is coherent.
+- Re-run `terraform init` and `terraform validate` in the repo root if you need to reproduce the local-preparation step.
+
+### Technical details
+- Commands run:
+  - `op item get 'hetzner k3s deploy' --vault 'Private' --format json | jq -r '.title, (.fields[] | [.id, .label, .type] | @tsv)'`
+  - `op item get 7c5e27xsunmsv5sxyd7fuf7xwq --vault 'Private' --fields credential --reveal`
+  - `openssl rand -base64 30`
+  - `terraform init`
+  - `terraform validate`

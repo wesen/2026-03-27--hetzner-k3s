@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 2 is active: finish the remaining deployment-input decisions, then prepare the first deployment-ready `terraform.tfvars` values.
+Step 3 is active: inspect the Terraform plan and, if it looks correct, apply it to create the Hetzner resources.
 
 ## Key Links
 
@@ -55,8 +55,7 @@ Current status: **active**
 
 Blocking external inputs:
 
-- Hetzner Cloud API token access through a working 1Password CLI session
-- ACME email address
+- None for Terraform planning.
 
 Inputs already resolved or proposed:
 
@@ -65,7 +64,11 @@ Inputs already resolved or proposed:
 - Confirmed repo URL candidate: `https://github.com/wesen/2026-03-27--hetzner-k3s.git`
 - Git revision: `main`
 - Server type override: `cpx31`
-- Confirmed hostname: `k3s.scapegoat.com`
+- Confirmed hostname: `k3s.scapegoat.dev`
+- Confirmed ACME email: `wesen@ruinwesen.com`
+- Local `terraform.tfvars` created and excluded from git
+- `terraform init` completed successfully
+- `terraform validate` completed successfully
 
 ## Topics
 

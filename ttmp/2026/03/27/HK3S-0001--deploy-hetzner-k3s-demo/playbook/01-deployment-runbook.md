@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 2: gather the external values that are not present in the repository, confirm which defaults to keep, then create the local `terraform.tfvars`.
+Step 3: review the Terraform plan output, then apply it to create the Hetzner resources.
 
 ## Environment Assumptions
 
@@ -105,9 +105,16 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - `admin_cidrs = ["98.175.153.62/32"]`
 - `repo_url = "https://github.com/wesen/2026-03-27--hetzner-k3s.git"`
 - `repo_revision = "main"`
-- `base_domain = "scapegoat.com"`
+- `base_domain = "scapegoat.dev"`
 - `app_subdomain = "k3s"`
 - `server_type = "cpx31"`
+- `acme_email = "wesen@ruinwesen.com"`
+
+### Local Preparation Status
+
+- `terraform.tfvars` has been created locally and is ignored by git.
+- `terraform init` succeeded with provider `hetznercloud/hcloud v1.60.1`.
+- `terraform validate` succeeded.
 
 ## Exit Criteria
 

@@ -47,3 +47,13 @@ Step 4: confirmed public HTTPS repo path, admin CIDR, and final hostname mapping
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/playbook/01-deployment-runbook.md — Recorded confirmed repo URL and hostname variable mapping
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded user-confirmed deployment values
 
+
+## 2026-03-27
+
+Step 5: created local terraform.tfvars, retrieved the Hetzner token from 1Password, corrected the base domain to scapegoat.dev, and completed terraform init/validate successfully.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/index.md — Promoted Terraform planning to the active step
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded local secret creation and Terraform initialization
+
