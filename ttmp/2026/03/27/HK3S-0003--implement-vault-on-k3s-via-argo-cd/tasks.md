@@ -17,20 +17,20 @@
 
 ## Phase 3: First live deployment
 
-- [ ] Create the `vault` namespace bootstrap secret in the live cluster
-- [ ] Apply the Argo CD `Application` and wait for the Vault pods/services/ingress to converge
-- [ ] Verify pod scheduling, PVC binding, ingress creation, and public health/UI reachability on `vault.yolo.scapegoat.dev`
+- [x] Create the `vault` namespace bootstrap secret in the live cluster
+- [x] Apply the Argo CD `Application` and wait for the Vault pods/services/ingress to converge
+- [x] Verify pod scheduling, PVC binding, ingress creation, and public health/UI reachability on `vault.yolo.scapegoat.dev`
 
 ## Phase 4: Initial Vault bring-up
 
-- [ ] Initialize the new K3s Vault exactly once
-- [ ] Store recovery material outside git and outside the server
-- [ ] Verify that the K3s Vault restarts unsealed via AWS KMS
+- [x] Initialize the new K3s Vault exactly once
+- [x] Store recovery material outside git and outside the server
+- [x] Verify that the K3s Vault restarts unsealed via AWS KMS
 
 ## Phase 5: Post-deploy handoff for later tickets
 
-- [ ] Record the live deployment outputs and operator commands in the ticket docs
-- [ ] Define the next implementation tickets:
+- [x] Record the live deployment outputs and operator commands in the ticket docs
+- [x] Define the next implementation tickets:
   Keycloak OIDC on the new hostname, Kubernetes auth, Vault Secrets Operator, first app secret recreation
-- [ ] Validate the ticket with `docmgr doctor`
-- [ ] Commit the implementation work in focused checkpoints as tasks complete
+- [x] Validate the ticket with `docmgr doctor`
+- [x] Commit the implementation work in focused checkpoints as tasks complete

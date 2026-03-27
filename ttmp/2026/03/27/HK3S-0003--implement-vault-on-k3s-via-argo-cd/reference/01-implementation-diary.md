@@ -20,7 +20,7 @@ RelatedFiles:
       Note: Local helper for the non-git AWS KMS bootstrap secret (commit ec36585)
 ExternalSources: []
 Summary: Chronological implementation diary for recreating Vault on the K3s cluster via Argo CD.
-LastUpdated: 2026-03-27T11:38:00-04:00
+LastUpdated: 2026-03-27T13:19:00-04:00
 WhatFor: Use this to review each implementation step, the exact commands run, and why the repo and cluster changed the way they did.
 WhenToUse: Read this when continuing implementation or reviewing the execution trail after the fact.
 ---
@@ -229,3 +229,234 @@ returned exit code `124` with no usable output.
   - `kubectl apply --dry-run=client --validate=false -f gitops/applications/vault.yaml`
   - `timeout 15s env KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl cluster-info`
   - `ruby -e 'require "yaml"; data = YAML.load_file("gitops/applications/vault.yaml"); abort("wrong kind") unless data["kind"] == "Application"; puts data.dig("spec", "source", "chart")'`
+
+## Step 3: Recover admin access drift and complete the live Vault rollout
+
+This step started with an operator access problem rather than a chart problem. The repo-side scaffold was ready, but both SSH and the Kubernetes API had become unreachable from this workstation. The actual cause was a stale firewall allowlist: `admin_cidrs` still pointed at an earlier public IP while the current workstation IP had changed. I corrected that with a targeted Terraform firewall apply, restored cluster access, and only then continued with the live Vault rollout.
+
+Once access was back, the deployment path itself was straightforward. I created the `vault-aws-kms` bootstrap secret in namespace `vault`, applied the repo-managed `vault` Argo CD `Application`, and watched the rollout converge. The pod scheduled cleanly, the Raft PVC bound, the ingress appeared, the certificate issued, and the public health endpoint returned `503` before initialization, which is the expected signal that Vault is reachable but not initialized yet.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue through the implementation tasks, handling real operational blockers as they appear rather than stopping at the scaffold.
+
+**Inferred user intent:** End up with a live K3s Vault deployment, not just manifests in git.
+
+### What I did
+- Identified that the workstation public IP had changed to `100.40.113.156`.
+- Confirmed the old firewall allowlist still only permitted `98.175.153.62/32`.
+- Updated the local-only `terraform.tfvars` admin CIDR and ran a targeted `terraform apply -target=hcloud_firewall.default -auto-approve`.
+- Revalidated access with:
+  - `kubectl cluster-info`
+  - `ssh root@91.98.46.169 'kubectl get nodes -o wide'`
+- Pulled the existing Vault AWS KMS credentials from the current Coolify Vault container.
+- Created the live `vault-aws-kms` secret with [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh).
+- Applied [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml).
+- Verified:
+  - Argo CD `Application` reached `Synced`
+  - `vault-0` pod was `Running`
+  - `data-vault-0` PVC bound
+  - ingress existed on `vault.yolo.scapegoat.dev`
+  - cert-manager certificate became `Ready`
+  - `curl -k https://vault.yolo.scapegoat.dev/v1/sys/health` returned `503` before init
+
+### Why
+- Access had to be restored before any live deployment step was possible.
+- The targeted firewall apply was the lowest-risk operational fix.
+- The AWS KMS secret needed to exist before Argo could start Vault with the intended seal configuration.
+
+### What worked
+- The firewall-only Terraform apply restored both SSH and Kubernetes API access.
+- The official Vault chart deployed cleanly under Argo CD.
+- Pod scheduling, PVC binding, ingress creation, and certificate issuance all worked on the first pass after access was restored.
+- The public `503` health response correctly reflected “reachable but not initialized.”
+
+### What didn't work
+- Cluster access from this workstation failed until the admin CIDR was updated.
+- The failure mode looked like hanging `kubectl` and SSH timeouts rather than a clean firewall message, so the diagnosis required checking the current public IP explicitly.
+
+### What I learned
+- Single-IP admin allowlists are workable for a demo but brittle for real operator workflows.
+- The live Vault rollout path is mechanically simple once cluster access is stable.
+- `503` from `/v1/sys/health` is a useful expected-state signal during pre-init.
+
+### What was tricky to build
+- The main tricky part was avoiding a false root cause. It would have been easy to blame the Vault chart or Argo CD when the real issue was the operator machine falling outside the firewall allowlist. Restoring access first kept the deployment debugging honest.
+
+### What warrants a second pair of eyes
+- Whether this environment should keep relying on changing home-IP allowlists for SSH and Kubernetes API access.
+- Whether the K3s Vault should keep reusing the legacy deployment’s AWS KMS credentials or move to a cleaner dedicated IAM identity.
+
+### What should be done in the future
+- Replace brittle per-IP admin access with a more stable operator boundary.
+- Create a dedicated AWS IAM principal for the K3s Vault seal path if stronger separation is needed.
+
+### Code review instructions
+- Review:
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/vault.yaml)
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-aws-kms-secret.sh)
+- Validate with:
+  - `export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml`
+  - `kubectl -n argocd get application vault`
+  - `kubectl -n vault get pods,pvc,ingress`
+  - `kubectl -n vault get certificate`
+  - `curl -k https://vault.yolo.scapegoat.dev/v1/sys/health`
+
+### Technical details
+- Commands run:
+  - `curl -s https://api.ipify.org`
+  - `terraform plan -target=hcloud_firewall.default -no-color`
+  - `terraform apply -target=hcloud_firewall.default -auto-approve`
+  - `ssh -o BatchMode=yes root@91.98.46.169 'kubectl get nodes -o wide'`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml ./scripts/bootstrap-vault-aws-kms-secret.sh`
+  - `KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl apply -f gitops/applications/vault.yaml`
+  - `kubectl -n vault describe pod vault-0`
+  - `kubectl -n vault logs vault-0 --tail=120`
+  - `kubectl -n vault get certificate,challenge,order`
+  - `curl -k -I https://vault.yolo.scapegoat.dev/`
+
+## Step 4: Initialize Vault once, store recovery material in 1Password, and verify auto-unseal
+
+After the deployment reached the expected pre-init state, I performed the one irreversible operator step in this ticket: initializing the new Vault. Because the deployment uses AWS KMS auto-unseal, initialization produced recovery keys rather than an ongoing manual unseal workflow. I captured the init JSON locally, wrote it immediately into a 1Password secure note in the `Private` vault, and let the shell delete the temporary local files on exit. Nothing sensitive was written into repo docs, repo files, or left on the server.
+
+Then I verified the actual operating behavior instead of stopping at “init succeeded.” The public health endpoint returned `200`, the UI responded on `https://vault.yolo.scapegoat.dev/ui/`, and a forced deletion of `vault-0` proved that the replacement pod came back `initialized=true` and `sealed=false` on its own. That is the concrete confirmation that AWS KMS auto-unseal is functioning, not merely configured.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Complete the one-time Vault bring-up safely and prove the resulting deployment is recoverable.
+
+**Inferred user intent:** Finish this ticket with a real, usable Vault on K3s rather than a pod that still needs manual bootstrap work.
+
+### What I did
+- Checked pre-init status with `vault status -format=json`.
+- Ran `vault operator init -format=json` exactly once in `vault-0`.
+- Stored the root token, recovery keys, and raw init JSON in 1Password vault `Private` as secure note `vault yolo scapegoat dev k3s init 2026-03-27`.
+- Verified post-init state:
+  - `initialized=true`
+  - `sealed=false`
+  - public health endpoint returned `200`
+  - `https://vault.yolo.scapegoat.dev/ui/` returned `HTTP/2 200`
+- Deleted `vault-0` and waited for the replacement pod to come back.
+- Verified the restarted pod auto-unsealed and the application remained `Synced Healthy` in Argo CD.
+
+### Why
+- Initialization is the required one-time transition from “reachable Vault server” to “usable Vault cluster.”
+- Recovery material had to leave both the repo and the server immediately.
+- Restart verification is the strongest proof that the AWS KMS auto-unseal path works operationally.
+
+### What worked
+- The initialization command succeeded on the first try.
+- 1Password was available through the CLI, so the secure note storage path stayed local-to-operator and off-cluster.
+- The restarted pod came back `Ready` and unsealed without manual intervention.
+- Argo CD reported `sync=Synced health=Healthy` after the restart.
+
+### What didn't work
+- `vault status -format=json` returned exit code `2` before init because the server was sealed and uninitialized. That was expected behavior, but it is easy to misread as a generic command failure if not documented.
+
+### What I learned
+- This design works cleanly on the current single-node K3s stack: Argo deployment, Raft, Traefik TLS, and AWS KMS auto-unseal all fit together without extra bootstrap hacks.
+- For this stage, 1Password is a reasonable off-cluster escrow for recovery material.
+- Forced pod deletion is the right validation step for auto-unseal; a static post-init `vault status` is not enough.
+
+### What was tricky to build
+- The sharp edge was handling the init material safely. Initialization necessarily emits the most sensitive material in the system. The correct pattern was to treat local disk as a short-lived transit path only: write temp files, create the 1Password secure note immediately, verify it exists, and let the shell `trap` clean up the files.
+
+### What warrants a second pair of eyes
+- Whether the 1Password item naming convention used here is the long-term convention we want for future environments.
+- Whether we want a second reviewed backup path for recovery material before onboarding more workloads.
+
+### What should be done in the future
+- Enable human login through Keycloak OIDC.
+- Enable Kubernetes auth and baseline Vault policies.
+- Deploy Vault Secrets Operator and verify in-cluster secret sync.
+- Recreate the first application deployment against Vault-managed secrets.
+
+### Code review instructions
+- Validate with:
+  - `export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml`
+  - `kubectl -n vault exec vault-0 -- sh -lc 'vault status -format=json'`
+  - `curl -k https://vault.yolo.scapegoat.dev/v1/sys/health`
+  - `curl -k -I https://vault.yolo.scapegoat.dev/ui/`
+  - `kubectl -n argocd get application vault -o jsonpath='{.status.sync.status}{" "}{.status.health.status}{"\n"}'`
+- Confirm that recovery material is not present in the repo and that the secure note exists in 1Password.
+
+### Technical details
+- Commands run:
+  - `kubectl -n vault exec vault-0 -- sh -lc 'vault status -format=json'`
+  - `kubectl -n vault exec vault-0 -- sh -lc 'vault operator init -format=json'`
+  - `op item template get 'Secure Note'`
+  - `op item create --vault Private --tags vault,k3s,bootstrap -`
+  - `op item get 'vault yolo scapegoat dev k3s init 2026-03-27' --vault Private --format json`
+  - `curl -k -sS -o /dev/null -w '%{http_code} %{content_type}\n' https://vault.yolo.scapegoat.dev/v1/sys/health`
+  - `curl -k -I https://vault.yolo.scapegoat.dev/ui/`
+  - `kubectl -n vault delete pod vault-0`
+  - `kubectl -n vault exec vault-0 -- sh -lc 'vault status -format=json' | jq -r '.initialized, .sealed, .leader_address'`
+
+## Step 5: Close the ticket in a validated state
+
+With the deployment working, the last step was to make the ticket usable as long-term project memory instead of leaving the details split across shell history and half-updated docs. I updated the ticket index, task list, playbook, changelog, and diary to reflect the finished state: live Vault on K3s, recovery material stored in 1Password, and auto-unseal verified after restart. I also recorded the recommended next tickets so the follow-up work has a clean handoff boundary.
+
+I then ran `docmgr doctor --ticket HK3S-0003 --stale-after 30`. The first run found one vocabulary mismatch because I had used `completed` instead of `complete` in the ticket status field. I corrected that and reran doctor successfully. That closes the ticket with a clean documentation validation pass rather than an informal “looks done.”
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the task list fully, including the documentation and validation work around the implementation.
+
+**Inferred user intent:** Leave behind a ticket that someone else can trust and continue from, not just a deployed cluster object.
+
+### What I did
+- Updated the ticket docs to reflect the live completed state.
+- Added the explicit next-ticket recommendations.
+- Ran `docmgr doctor --ticket HK3S-0003 --stale-after 30`.
+- Fixed the one reported status vocabulary mismatch.
+- Reran doctor and got a clean pass.
+
+### Why
+- A deployment ticket is only really finished when the operational and documentation state agree.
+- `docmgr doctor` is the lightweight quality gate that confirms the ticket is not drifting out of the repo’s documentation conventions.
+
+### What worked
+- The second doctor run passed cleanly.
+- The ticket now expresses a completed implementation slice with clear next steps.
+
+### What didn't work
+- The first doctor run reported:
+
+```text
+Unknown vocabulary value for Status
+Value: "completed"
+Known values: draft, active, review, complete, archived
+```
+
+- That was a documentation hygiene issue, not an implementation issue.
+
+### What I learned
+- The docmgr status vocabulary is strict and worth respecting because it makes ticket state machine semantics predictable across the repo.
+- A short closeout step is useful even after the technical work is done because it makes the final state auditable.
+
+### What was tricky to build
+- There was no technical trickiness here, but there was one process pitfall: it is easy to think “the cluster is healthy, so the ticket is done.” In this repo, the disciplined finish is to reconcile the docs and pass `docmgr doctor` too.
+
+### What warrants a second pair of eyes
+- The proposed next-ticket ordering: OIDC first, then Kubernetes auth/VSO, then the first app recreation.
+
+### What should be done in the future
+- Open and execute the next Vault follow-up tickets from the list in the ticket index.
+
+### Code review instructions
+- Review:
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/index.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/index.md)
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/tasks.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/tasks.md)
+  - [/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/playbook/01-vault-on-k3s-implementation-plan.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0003--implement-vault-on-k3s-via-argo-cd/playbook/01-vault-on-k3s-implementation-plan.md)
+- Validate with:
+  - `docmgr doctor --ticket HK3S-0003 --stale-after 30`
+
+### Technical details
+- Commands run:
+  - `docmgr doctor --ticket HK3S-0003 --stale-after 30`

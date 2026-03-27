@@ -120,6 +120,16 @@ Success criteria:
 - `vault.yolo.scapegoat.dev` responds,
 - the pod is stable enough to initialize.
 
+Validation commands used in this ticket:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+kubectl -n vault get pods,pvc,ingress
+kubectl -n argocd get application vault -o jsonpath='{.status.sync.status}{" "}{.status.health.status}{"\n"}'
+curl -k -I https://vault.yolo.scapegoat.dev/
+curl -k https://vault.yolo.scapegoat.dev/v1/sys/health
+```
+
 ## Task 5: Initialize and record handoff
 
 Initialize the K3s Vault once, store recovery material outside git, and document:
@@ -133,6 +143,22 @@ Success criteria:
 - the new Vault is initialized,
 - AWS KMS auto-unseal is validated by restart testing,
 - the diary captures the operator flow.
+
+Operator commands used in this ticket:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+kubectl -n vault exec vault-0 -- sh -lc 'vault operator init -format=json'
+kubectl -n vault exec vault-0 -- sh -lc 'vault status -format=json'
+kubectl -n vault delete pod vault-0
+kubectl -n vault exec vault-0 -- sh -lc 'vault status -format=json'
+```
+
+Recovery material handling in this ticket:
+
+- not written into repo files
+- not left on the server
+- stored in 1Password vault `Private` as secure note `vault yolo scapegoat dev k3s init 2026-03-27`
 
 ## Failure Modes
 
@@ -151,3 +177,8 @@ Success criteria:
 - The live cluster runs a K3s-hosted Vault instance on `vault.yolo.scapegoat.dev`.
 - The deployment is documented in the implementation diary.
 - The next-ticket boundaries are explicit: OIDC, Kubernetes auth, VSO, and app secret recreation.
+
+## Operational Notes
+
+- This ticket exposed an operator sharp edge: `admin_cidrs` had been pinned to an earlier workstation IP. When the local public IP changed, both SSH and the Kubernetes API became unreachable until the firewall was updated through a targeted Terraform apply.
+- Long-term, this should be replaced with a more stable admin-access path, such as a VPN/Tailscale boundary, a bastion, or a less brittle allowlist maintenance process.

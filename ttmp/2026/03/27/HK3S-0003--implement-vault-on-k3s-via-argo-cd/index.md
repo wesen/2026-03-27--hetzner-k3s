@@ -1,7 +1,7 @@
 ---
 Title: Implement Vault on K3s via Argo CD
 Ticket: HK3S-0003
-Status: active
+Status: complete
 Topics:
     - vault
     - k3s
@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Implementation ticket for recreating Vault on the Hetzner K3s cluster via Argo CD, starting with the deployment scaffold and live bring-up rather than Coolify cutover."
-LastUpdated: 2026-03-27T13:13:00-04:00
+LastUpdated: 2026-03-27T13:19:00-04:00
 WhatFor: "Use this as the execution ticket for the first concrete Vault-on-K3s implementation work."
 WhenToUse: "Read this when carrying out the K3s Vault deployment tasks or reviewing what has been completed so far."
 ---
@@ -29,7 +29,7 @@ The immediate goal is to get a repo-managed Argo CD application plus the minimal
 
 ## Current Step
 
-Step 3 is active: bootstrap the live `vault-aws-kms` secret in the cluster, apply the new Argo CD `Application`, and observe the first Vault rollout.
+Completed: the K3s Vault deployment is live, initialized, stored off-cluster in 1Password, and verified to auto-unseal after a forced restart.
 
 ## Key Links
 
@@ -42,7 +42,27 @@ Step 3 is active: bootstrap the live `vault-aws-kms` secret in the cluster, appl
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
+
+## Result
+
+The K3s-hosted Vault instance is now live and healthy:
+
+- Argo CD application: `vault`
+- Hostname: `vault.yolo.scapegoat.dev`
+- Storage: single-node Raft on `local-path`
+- TLS: Traefik ingress with cert-manager certificate
+- Seal: AWS KMS auto-unseal using `alias/vault-scapegoat-dev-unseal`
+- Recovery material: stored outside git and outside the server in a 1Password secure note
+
+## Next Tickets
+
+Recommended next implementation tickets:
+
+- Enable Vault human login through Keycloak OIDC on `vault.yolo.scapegoat.dev`
+- Enable Vault Kubernetes auth and bootstrap baseline policies and roles
+- Deploy Vault Secrets Operator and prove secret sync in a non-production namespace
+- Recreate the first application deployment on K3s using Vault-managed secrets rather than `.envrc` or semi-manual operator flows
 
 ## Topics
 
