@@ -18,6 +18,8 @@ spec:
     whenScaled: Retain
   updateStrategy:
     type: RollingUpdate
+    rollingUpdate:
+      partition: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "demo-stack.name" . }}
@@ -91,6 +93,8 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: data
+      apiVersion: v1
+      kind: PersistentVolumeClaim
       spec:
         accessModes:
           - ReadWriteOnce
