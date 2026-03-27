@@ -10,7 +10,14 @@ metadata:
     app.kubernetes.io/component: postgres
 spec:
   serviceName: {{ include "demo-stack.fullname" . }}-postgres
+  podManagementPolicy: OrderedReady
   replicas: 1
+  revisionHistoryLimit: 10
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "demo-stack.name" . }}
@@ -21,13 +28,21 @@ spec:
         app.kubernetes.io/name: {{ include "demo-stack.name" . }}
         app.kubernetes.io/component: postgres
     spec:
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
       containers:
         - name: postgres
           image: {{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}
           imagePullPolicy: IfNotPresent
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           ports:
             - containerPort: 5432
               name: postgres
+              protocol: TCP
           env:
             - name: POSTGRES_DB
               valueFrom:
@@ -52,16 +67,22 @@ spec:
                 - sh
                 - -c
                 - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            failureThreshold: 3
             initialDelaySeconds: 10
             periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           livenessProbe:
             exec:
               command:
                 - sh
                 - -c
                 - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            failureThreshold: 3
             initialDelaySeconds: 20
             periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 1
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
@@ -74,6 +95,7 @@ spec:
         accessModes:
           - ReadWriteOnce
         storageClassName: {{ .Values.postgres.storageClassName | quote }}
+        volumeMode: Filesystem
         resources:
           requests:
             storage: {{ .Values.postgres.storageSize | quote }}
