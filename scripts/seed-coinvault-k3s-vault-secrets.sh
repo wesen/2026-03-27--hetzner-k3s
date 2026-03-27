@@ -30,6 +30,11 @@ dest_kv_mount="${DEST_VAULT_KV_MOUNT_PATH:-kv}"
 runtime_secret_path="${COINVAULT_RUNTIME_SECRET_PATH:-apps/coinvault/prod/runtime}"
 pinocchio_secret_path="${COINVAULT_PINOCCHIO_SECRET_PATH:-apps/coinvault/prod/pinocchio}"
 k3s_public_url="${COINVAULT_K3S_PUBLIC_URL:-https://coinvault.yolo.scapegoat.dev}"
+override_gec_mysql_host="${COINVAULT_GEC_MYSQL_HOST:-}"
+override_gec_mysql_port="${COINVAULT_GEC_MYSQL_PORT:-}"
+override_gec_mysql_database="${COINVAULT_GEC_MYSQL_DATABASE:-}"
+override_gec_mysql_ro_user="${COINVAULT_GEC_MYSQL_RO_USER:-}"
+override_gec_mysql_ro_password="${COINVAULT_GEC_MYSQL_RO_PASSWORD:-}"
 
 read_secret() {
   local addr="$1"
@@ -55,6 +60,22 @@ write_runtime_secret() {
   gec_mysql_database="$(jq -r '.gec_mysql_database' <<<"$payload")"
   gec_mysql_ro_user="$(jq -r '.gec_mysql_ro_user' <<<"$payload")"
   gec_mysql_ro_password="$(jq -r '.gec_mysql_ro_password' <<<"$payload")"
+
+  if [[ -n "${override_gec_mysql_host}" ]]; then
+    gec_mysql_host="${override_gec_mysql_host}"
+  fi
+  if [[ -n "${override_gec_mysql_port}" ]]; then
+    gec_mysql_port="${override_gec_mysql_port}"
+  fi
+  if [[ -n "${override_gec_mysql_database}" ]]; then
+    gec_mysql_database="${override_gec_mysql_database}"
+  fi
+  if [[ -n "${override_gec_mysql_ro_user}" ]]; then
+    gec_mysql_ro_user="${override_gec_mysql_ro_user}"
+  fi
+  if [[ -n "${override_gec_mysql_ro_password}" ]]; then
+    gec_mysql_ro_password="${override_gec_mysql_ro_password}"
+  fi
 
   VAULT_ADDR="$DEST_VAULT_ADDR" VAULT_TOKEN="$DEST_VAULT_TOKEN" \
     vault kv put "${dest_kv_mount}/${runtime_secret_path}" \
@@ -92,4 +113,7 @@ write_pinocchio_secret "$pinocchio_payload"
 echo "seeded ${dest_kv_mount}/${runtime_secret_path} into ${DEST_VAULT_ADDR}"
 echo "seeded ${dest_kv_mount}/${pinocchio_secret_path} into ${DEST_VAULT_ADDR}"
 echo "public app url set to ${k3s_public_url}"
+if [[ -n "${override_gec_mysql_host}" ]]; then
+  echo "mysql host override applied: ${override_gec_mysql_host}"
+fi
 echo "no secret values were printed"
