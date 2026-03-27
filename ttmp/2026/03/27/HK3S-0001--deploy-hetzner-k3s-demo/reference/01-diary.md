@@ -1122,3 +1122,79 @@ I created a Kustomize package under `gitops/kustomize/demo-stack` with plain Kub
   - `Application.spec.source.path` = `gitops/kustomize/demo-stack`
   - `kubectl -n argocd get applications` -> `demo-stack   Synced   Healthy`
   - `terraform plan -no-color` -> `No changes`
+
+## Step 17: Write long-term intern-facing docs in Glazed help-page format
+
+After the live migration work, the repo still lacked durable long-term docs aimed at a new operator. The user asked for two detailed documents in `docs/`, using the Glazed help-page format even though this repo does not itself ship a Go CLI. The right scope was not “short README notes,” but intern-friendly guides that explain both the concepts and the operator steps well enough that someone new can understand what the stack is, why the workflow is structured this way, and how to repeat it safely.
+
+I followed the `glazed-help-page-authoring` guidance and also checked the built-in `glaze help how-to-write-good-documentation-pages` and `glaze help writing-help-entries` topics before drafting the pages. The resulting docs are:
+
+- `docs/hetzner-k3s-server-setup.md`
+- `docs/argocd-app-setup.md`
+
+The first page explains the end-to-end Hetzner workflow, including Terraform, cloud-init, DNS, TLS, K3s, Argo CD, and the current staged bootstrap-versus-live-source design. The second page focuses on the Argo CD `Application` itself: what it is, how source/destination/sync work, how this repo is laid out, how to create or migrate the app safely, and why Kustomize now owns the live deployment path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, now let's create long term documents on 1. how to setup a hetzner server (basically the whole flow we did) 2. more tailored, how to set up an argocd app"
+
+**Follow-up user prompt (verbatim):** "They should be detailed and explain all the necessary concepts that a new intern can understand what this is about and then be able to go through the whole task."
+
+**Follow-up user prompt (verbatim):** "Use the $glazed-help-page-authoring format (even if we have no go applicaiton, put them in docs/)"
+
+**Assistant interpretation:** Create durable, detailed, Glazed-style Markdown help pages in `docs/` that can serve as long-term operator documentation rather than only ticket-local notes.
+
+**Inferred user intent:** Turn the deployment knowledge we accumulated during execution into reusable onboarding material for someone much less familiar with the stack.
+
+### What I did
+- Read the `glazed-help-page-authoring` skill instructions.
+- Ran:
+  - `glaze help how-to-write-good-documentation-pages`
+  - `glaze help writing-help-entries`
+- Created:
+  - `docs/hetzner-k3s-server-setup.md`
+  - `docs/argocd-app-setup.md`
+- Updated the repository `README.md` so it points at the new long-form docs and no longer implies that the live deployment is still Helm-driven.
+
+### Why
+- Ticket-local notes are good for audit history, but they are not a good onboarding surface for a new intern.
+- The repo now has enough architectural nuance that “just read the README” is not sufficient.
+- The Glazed help-page frontmatter provides a structured long-term format that can later be embedded in a help system if desired.
+
+### What worked
+- The Glazed help-page format fit this repo well even without a Go CLI.
+- The two pages now separate concerns cleanly:
+  - infrastructure and full deployment flow
+  - Argo CD application setup and migration logic
+- The pages include troubleshooting tables and `See Also` links, which makes them usable as long-term reference instead of one-time prose dumps.
+
+### What didn't work
+- There is still no actual embedded Glazed help system in this repo, so these files are currently standalone Markdown documents rather than wired help entries. That is acceptable for this task because the user explicitly asked for the format, not for Go integration.
+
+### What I learned
+- Once the live deployment path moved to Kustomize, the repo needed a better explanation of the staged design than the README alone could provide.
+- The “intern level” requirement forces a healthier writing style: explain what the component is, why it exists, how it fails, and how to validate it, not just which command to run.
+
+### What warrants a second pair of eyes
+- Whether you want to later add a small docs index or wire these pages into an actual Glazed/Cobra help system in another repo or tool.
+
+### What should be done in the future
+- Optionally add a `docs/README.md` or docs index if more long-form pages are added.
+- Optionally port these pages into a real embedded Glazed help system if this repository later grows a CLI or companion operator tool.
+
+### Code review instructions
+- Review:
+  - `docs/hetzner-k3s-server-setup.md`
+  - `docs/argocd-app-setup.md`
+  - `README.md`
+- Check that each page:
+  - has valid Glazed-style frontmatter fields
+  - explains concepts before commands
+  - ends with troubleshooting and `See Also`
+
+### Technical details
+- Commands used for authoring guidance:
+  - `glaze help how-to-write-good-documentation-pages`
+  - `glaze help writing-help-entries`
+- Commit:
+  - `3163fa6` already introduced the Kustomize package these docs describe

@@ -35,7 +35,7 @@ Provision the Hetzner VM, allow cloud-init to bootstrap K3s and Argo CD, and val
 
 ## Current Step
 
-Step 16: the live Argo CD application now deploys from `gitops/kustomize/demo-stack`; the remaining Helm chart is only a bootstrap compatibility layer so Terraform stays reconciled.
+Step 17: long-term operator docs now exist in `docs/`, and they explain both the full Hetzner/K3s flow and the Argo CD application setup flow in Glazed help-page format.
 
 ## Environment Assumptions
 
@@ -144,6 +144,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - CoreDNS again uses `forward . /etc/resolv.conf`.
 - In-cluster `nslookup` against `10.43.0.10` resolves both public hostnames correctly without the temporary override.
 - `gitops/charts/demo-stack` remains in the repo only for bootstrap compatibility; the live deployment path is Kustomize.
+- `docs/hetzner-k3s-server-setup.md` explains the end-to-end deployment flow for a new operator.
+- `docs/argocd-app-setup.md` explains how to create or migrate the Argo CD application and validate it.
 - The initial cloud-init run failed, but the bootstrap script was rerun successfully after the repo fix for `app/go.sum`.
 
 ## Exit Criteria

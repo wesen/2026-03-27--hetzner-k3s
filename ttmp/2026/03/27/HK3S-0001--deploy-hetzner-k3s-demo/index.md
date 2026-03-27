@@ -39,7 +39,7 @@ The deployment will be tracked in small, reviewable steps. Each completed step s
 
 ## Current Step
 
-Step 16 is active: the live `demo-stack` Argo CD application now sources `gitops/kustomize/demo-stack`, while the old Helm chart remains only as a bootstrap compatibility path so Terraform stays reconciled and the current server is kept.
+Step 17 is active: long-term operator docs now exist in `docs/` using Glazed help-page frontmatter, covering both the full Hetzner/K3s deployment flow and the Argo CD application setup flow for a new intern.
 
 ## Key Links
 
@@ -92,6 +92,9 @@ Inputs already resolved or proposed:
 - CoreDNS is back on `forward . /etc/resolv.conf`
 - In-cluster DNS resolves both `k3s.scapegoat.dev` and `argocd.yolo.scapegoat.dev` correctly without the temporary public-resolver override
 - Legacy note: `gitops/charts/demo-stack` is retained only as a bootstrap compatibility path; the live deployment source is Kustomize
+- Long-term docs exist at:
+  - `docs/hetzner-k3s-server-setup.md`
+  - `docs/argocd-app-setup.md`
 
 Next operator action:
 

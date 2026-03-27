@@ -168,3 +168,14 @@ Step 16: moved the live `demo-stack` Argo CD source from Helm templating to Kust
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/demo-stack.yaml — Repo-managed Argo CD `Application` manifest for the Kustomize path
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/charts/demo-stack/README.md — Marks the Helm chart as legacy bootstrap compatibility only
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the Kustomize migration and cleanup rationale
+
+
+## 2026-03-27
+
+Step 17: added long-term Glazed-format docs in `docs/` for the full Hetzner/K3s deployment flow and for Argo CD application setup, written to be understandable to a new intern.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md — End-to-end Hetzner/K3s/Terraform/DNS/TLS workflow
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/argocd-app-setup.md — Argo CD application concepts, setup flow, and migration guidance
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0001--deploy-hetzner-k3s-demo/reference/01-diary.md — Recorded the documentation deliverable and rationale

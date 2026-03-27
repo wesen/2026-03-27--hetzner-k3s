@@ -19,4 +19,5 @@
 - [x] Resolve the residual Argo CD `OutOfSync` status on `demo-stack-postgres`
 - [x] Verify whether the temporary CoreDNS upstream override is still needed
 - [x] Move the live `demo-stack` Argo CD source from Helm templating to Kustomize
+- [x] Create long-term Glazed-format docs for the full Hetzner flow and Argo CD app setup
 - [x] Record final outputs, validation results, and follow-up risks
