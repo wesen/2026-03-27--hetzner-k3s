@@ -444,3 +444,77 @@ That closes the runtime-config drift loop. The deployment now uses the hosted pr
 ### What should be done in the future
 - Record cutover and rollback boundaries.
 - Re-run an authenticated CoinVault chat flow against the fixed runtime path and confirm the OpenAI request succeeds.
+
+## Step 8: Import the local CoinVault MySQL dataset into the cluster schema so the stats and inventory paths have real data
+
+After the runtime-profile path was fixed, the next user-visible failure was no longer AI auth. It was application data. The quick-stats panel still failed because the cluster MySQL schema `gec` existed but contained no application tables. The logs were explicit:
+
+- `Error 1146 (42S02): Table 'gec.products' doesn't exist`
+
+At that point the practical question was not architectural. It was operational: which source is easiest to trust and import from?
+
+The simplest source turned out to be the repo-local CoinVault MySQL container, not the hosted Coolify database. The local repo already had a running compose-managed MySQL 5.7 container:
+
+- container: `2026-03-16--gec-rag-mysql-1`
+- image: `mysql:5.7.44`
+
+That container still held the seeded development dataset in the `gec_dev` schema. I confirmed that before touching the cluster:
+
+- `products`: `8926`
+- `orders`: `105705`
+- `metals`: `5`
+
+On the cluster side, the target MySQL already had:
+
+- database `gec`
+- user `coinvault_ro`
+- grant on `gec.*`
+
+but no application tables yet.
+
+Because the target database name is `gec` while the local source database is `gec_dev`, I deliberately avoided a full `--databases` dump import. Instead, I streamed a schema-and-data dump for the local source database contents directly into the target database name:
+
+- source dump command: `mysqldump ... gec_dev`
+- target import command: `mysql ... gec`
+
+That preserved the K3s runtime contract without forcing another application-secret change.
+
+After the import completed, I re-checked the cluster counts and got the same expected values:
+
+- `products`: `8926`
+- `orders`: `105705`
+- `metals`: `5`
+
+I also verified that the actual application runtime user can read those tables by connecting as `coinvault_ro` and querying `products`. That matters because a successful root import is not enough; the app has to see the imported data through its own credentials.
+
+The public `/api/stats/quick` endpoint now returns `401` when called anonymously, which is the expected auth boundary. The earlier failure mode was `500` from a missing table. So the data-path problem is fixed, and the remaining requirement for a full UI verification is an authenticated browser session.
+
+### What I did
+- Identified the local compose MySQL container as the easiest source of truth.
+- Verified the source dataset shape and representative row counts in `gec_dev`.
+- Verified the cluster target schema existed and that `coinvault_ro` already had grants on `gec.*`.
+- Streamed a live dump from local `gec_dev` directly into cluster `gec`.
+- Re-checked the imported row counts on the cluster.
+- Verified `coinvault_ro` can read `products` after import.
+
+### Why
+- CoinVault was operationally deployed, but still missing the actual business data the app expects for inventory and quick stats. Importing the existing local dataset was the fastest low-risk way to close that gap.
+
+### What worked
+- The repo-local compose MySQL source was already running and healthy.
+- Importing into `gec` without changing app secrets preserved the current K3s runtime contract.
+- The cluster row counts matched the local source on the key tables that drove the visible failure.
+
+### What didn't work
+- The initial K3s MySQL rollout only provisioned an empty schema and credentials, which was enough for connectivity but not enough for real application behavior.
+- Anonymous `curl` validation of `/api/stats/quick` is not useful once auth is working; it now correctly returns `401`.
+
+### What I learned
+- For app migrations, “database reachable” and “database contains the expected business tables” are distinct milestones. The first one passed earlier; the second one was still missing.
+- When source and target DB names differ, importing raw table/schema contents into the target DB is cleaner than changing the app contract after the fact.
+
+### What warrants a second pair of eyes
+- Run an authenticated browser check of the quick-stats panel to confirm the original visible error is gone for a real session, not just in SQL verification.
+
+### What should be done in the future
+- Record cutover and rollback boundaries now that both runtime config and business data are present on K3s.
