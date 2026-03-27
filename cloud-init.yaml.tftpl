@@ -1,0 +1,130 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - docker.io
+  - qemu-guest-agent
+
+write_files:
+  - path: /usr/local/bin/bootstrap-k3s-demo.sh
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      export DEBIAN_FRONTEND=noninteractive
+      export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+      kubectl() {
+        k3s kubectl "$@"
+      }
+
+      systemctl enable --now docker
+      systemctl enable --now qemu-guest-agent || true
+
+      mkdir -p /etc/rancher/k3s
+      cat >/etc/rancher/k3s/config.yaml <<'EOCFG'
+      write-kubeconfig-mode: "0644"
+      EOCFG
+
+      curl -sfL https://get.k3s.io -o /tmp/install-k3s.sh
+      if [ -n "${k3s_version}" ]; then
+        INSTALL_K3S_VERSION="${k3s_version}" sh /tmp/install-k3s.sh
+      else
+        sh /tmp/install-k3s.sh
+      fi
+
+      until kubectl get nodes >/dev/null 2>&1; do
+        sleep 5
+      done
+
+      kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${cert_manager_version}/cert-manager.yaml"
+      kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=300s
+      kubectl wait --for=condition=Available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+      kubectl wait --for=condition=Available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+
+      kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+      kubectl apply -n argocd --server-side --force-conflicts -f "${argocd_install_url}"
+      kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
+      kubectl wait --for=condition=Available deployment/argocd-repo-server -n argocd --timeout=300s
+      kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=300s
+
+      rm -rf /opt/bootstrap-repo
+      git clone "${repo_url}" /opt/bootstrap-repo
+      cd /opt/bootstrap-repo
+      git checkout "${repo_revision}"
+
+      docker build -t "${app_image_repository}:${app_image_tag}" /opt/bootstrap-repo/app
+      mkdir -p /var/lib/rancher/k3s/agent/images
+      docker save "${app_image_repository}:${app_image_tag}" -o /var/lib/rancher/k3s/agent/images/demo-go-app.tar
+      k3s ctr images import /var/lib/rancher/k3s/agent/images/demo-go-app.tar
+
+      kubectl create namespace "${app_namespace}" --dry-run=client -o yaml | kubectl apply -f -
+      cat >/tmp/postgres-secret.yaml <<'EOSECRET'
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ${db_secret_name}
+        namespace: ${app_namespace}
+      type: Opaque
+      data:
+        postgres-user: ${postgres_user_b64}
+        postgres-password: ${postgres_password_b64}
+        postgres-db: ${postgres_db_b64}
+      EOSECRET
+      kubectl apply -f /tmp/postgres-secret.yaml
+
+      cat >/tmp/argocd-demo-application.yaml <<'EOAPP'
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: demo-stack
+        namespace: argocd
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: default
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: ${app_namespace}
+        source:
+          repoURL: ${repo_url}
+          targetRevision: ${repo_revision}
+          path: ${chart_path}
+          helm:
+            releaseName: demo-stack
+            valuesObject:
+              namespace: ${app_namespace}
+              host: ${app_host}
+              clusterIssuer:
+                name: letsencrypt-prod
+                email: ${acme_email}
+                server: ${acme_server}
+              ingress:
+                className: traefik
+              postgres:
+                existingSecret: ${db_secret_name}
+                storageClassName: local-path
+              app:
+                image:
+                  repository: ${app_image_repository}
+                  tag: ${app_image_tag}
+                imagePullPolicy: IfNotPresent
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
+            - ServerSideApply=true
+      EOAPP
+      kubectl apply -f /tmp/argocd-demo-application.yaml
+
+runcmd:
+  - [/usr/local/bin/bootstrap-k3s-demo.sh]

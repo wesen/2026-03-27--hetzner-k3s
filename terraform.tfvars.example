@@ -1,0 +1,18 @@
+hcloud_token      = "replace-me"
+ssh_public_key    = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@example"
+admin_cidrs       = ["203.0.113.10/32"]
+repo_url          = "https://github.com/your-user/hetzner-k3s-argocd-demo.git"
+repo_revision     = "main"
+base_domain       = "example.com"
+acme_email        = "ops@example.com"
+postgres_password = "change-me-now"
+
+# Optional overrides
+# allow_kube_api       = true
+# server_type          = "cpx31"
+# server_image         = "ubuntu-24.04"
+# location             = "fsn1"
+# app_subdomain        = "demo"
+# acme_server          = "https://acme-staging-v02.api.letsencrypt.org/directory"
+# k3s_version          = "v1.33.3+k3s1"
+# cert_manager_version = "v1.20.0"

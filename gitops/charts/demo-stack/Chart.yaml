@@ -1,0 +1,6 @@
+apiVersion: v2
+name: demo-stack
+description: Single-node K3s demo stack with PostgreSQL, a Go app, and HTTPS ingress
+version: 0.1.0
+appVersion: "1.0.0"
+type: application
