@@ -78,6 +78,17 @@ There is also upstream design context in the source repo ticket:
 - apply the Argo application
 - validate sync, ingress, TLS, and public response
 
+### TLS gotcha discovered during rollout
+
+- Traefik’s self-signed certificate appears immediately when the ingress exists but cert-manager has not issued the real cert yet
+- normal replacement time is usually on the order of tens of seconds to a few minutes
+- in this rollout, the self-signed cert persisted because the ingress mistakenly referenced `cert-manager.io/cluster-issuer: letsencrypt-production`
+- the actual cluster issuer name is `letsencrypt-prod`
+- symptom chain:
+  - `curl https://pretext.yolo.scapegoat.dev` failed with a self-signed certificate error
+  - `kubectl -n pretext describe certificaterequest pretext-explorer-tls-1` reported `Referenced "ClusterIssuer" not found`
+  - `kubectl get clusterissuer` showed only `letsencrypt-prod`
+
 ## Usage Examples
 
 ### Build the explorer image locally

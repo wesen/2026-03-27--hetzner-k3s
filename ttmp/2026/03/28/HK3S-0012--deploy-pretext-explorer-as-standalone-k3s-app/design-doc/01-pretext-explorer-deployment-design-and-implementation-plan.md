@@ -132,6 +132,7 @@ Reason:
 
 - `*.yolo.scapegoat.dev` already points at the cluster
 - this avoids a Terraform detour unless the wildcard no longer covers the host
+- the actual live `ClusterIssuer` name on this cluster is `letsencrypt-prod`, which must match the ingress annotation exactly
 
 ### Keep the initial image delivery local to the single node
 
@@ -191,6 +192,7 @@ Open questions after the initial rollout:
 - should this move to GHCR and GitHub Actions once the deployment stabilizes?
 - should the `pretext` repo eventually publish the whole demo site as a cluster app too?
 - should the public page gain a small landing header or link back to the broader demo index?
+- should the repo standardize a shared ingress snippet or documentation pattern so future apps cannot accidentally use the nonexistent `letsencrypt-production` issuer name?
 
 ## References
 

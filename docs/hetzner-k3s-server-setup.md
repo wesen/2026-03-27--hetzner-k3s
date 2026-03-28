@@ -211,6 +211,24 @@ The clean target state is:
 - both HTTPS endpoints return `HTTP/2 200`
 - `kubectl -n argocd get applications` shows `demo-stack   Synced   Healthy`
 
+Important TLS note for future app ingresses:
+
+- the live cert-manager `ClusterIssuer` name on this cluster is `letsencrypt-prod`
+- do not annotate new ingresses with `cert-manager.io/cluster-issuer: letsencrypt-production`
+- if you use the wrong name, Traefik serves its default self-signed certificate immediately and cert-manager never progresses past `CertificateRequest` because the referenced issuer does not exist
+
+Quick check:
+
+```bash
+kubectl get clusterissuer
+```
+
+At the time of writing, the expected output includes:
+
+```text
+letsencrypt-prod   True
+```
+
 ## Step 7: Switch the Live App to the Repo-Managed Kustomize Source
 
 This step is specific to the current state of the repository. First boot still seeds a legacy Helm-compatible application path for bootstrap stability, but the live deployment should be moved onto the repo-managed Kustomize source.
