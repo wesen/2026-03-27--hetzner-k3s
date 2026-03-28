@@ -1,5 +1,5 @@
 ---
-Title: Cluster data services deferred implementation plan
+Title: Cluster data services implementation plan
 Ticket: HK3S-0009
 Status: active
 Topics:
@@ -20,45 +20,42 @@ RelatedFiles:
     - Path: ../../HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration consumer that should inform the eventual shared-service design
 ExternalSources: []
-Summary: "Deferred plan for later introducing shared Postgres, MySQL, and Redis services on K3s under Argo CD."
-LastUpdated: 2026-03-27T14:20:00-04:00
-WhatFor: "Use this to remember the intended sequencing and design questions for shared cluster data services."
-WhenToUse: "Read this after the secrets path and first-app migration are stable enough to justify shared stateful infrastructure."
+Summary: "Implementation plan for shared Postgres, MySQL, and Redis services on K3s under Argo CD, now that MySQL is proven and the remaining slices are being executed."
+LastUpdated: 2026-03-28T15:15:00-04:00
+WhatFor: "Use this to understand the intended sequencing, implementation pattern, and acceptance criteria for the shared cluster data services."
+WhenToUse: "Read this when continuing HK3S-0009 or reviewing why Postgres and Redis follow the same repo-owned manifest path as MySQL."
 ---
 
-# Cluster data services deferred implementation plan
+# Cluster data services implementation plan
 
 ## Purpose
 
-Capture the later-phase plan for adding shared PostgreSQL, MySQL, and Redis services to the K3s cluster under Argo CD, but explicitly defer that move until the current secrets and first-application migration work is stable.
+Capture the implementation plan for adding shared PostgreSQL, MySQL, and Redis services to the K3s cluster under Argo CD.
 
 ## Current recommendation
 
-Do not implement this yet.
+Implement the remaining shared-service slices using the MySQL pattern that is already live:
 
-Keep the current simpler pattern for now because:
+- repo-owned Kustomize manifests
+- Argo CD `Application` per service
+- Vault plus VSO for credentials
+- single-replica retained-persistence StatefulSet
 
-- the repo already has a working app-local PostgreSQL example
-- shared stateful services add storage, backup, and multi-tenant complexity
-- the right platform shape should be informed by at least one real migrated application, not guessed in advance
+## Current trigger state
 
-## Trigger to revisit this ticket
+The original trigger conditions are now satisfied:
 
-Revisit when all of the following are true:
-
-- Vault Secrets Operator or another stable secret-delivery path is proven
-- at least one real application is running on K3s
-- the team knows whether multiple apps actually need shared Postgres, MySQL, Redis, or only one or two of them
-- the cluster storage and backup story is strong enough for shared stateful services
+- Vault/VSO is proven
+- real applications are running on K3s
+- MySQL is already implemented and live
+- the repo-owned manifest model has proven more stable than the external chart path
 
 ## Recommended sequence
 
-1. Choose one service first, probably PostgreSQL, because the repo already has a local baseline for it.
-2. Prove the shared-service pattern end to end:
-   provision, credentials, backup, restore, app consumption.
-3. Only then decide whether MySQL and Redis should be introduced as platform services too.
-
-That avoids turning this into a three-database platform project before the first one is even proven.
+1. Keep MySQL as the proven anchor service.
+2. Add shared PostgreSQL next, because the repo already has an app-local baseline and the service model is close to MySQL.
+3. Add shared Redis after that, using the same Vault/VSO plus Kustomize pattern.
+4. Once all three exist, revisit backup/restore and upgrade procedures as a combined platform concern.
 
 ## Main design questions
 
@@ -73,12 +70,15 @@ That avoids turning this into a three-database platform project before the first
 - Current app-local PostgreSQL manifests:
   - [postgres-statefulset.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/demo-stack/postgres-statefulset.yaml)
   - [postgres-service.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/demo-stack/postgres-service.yaml)
+- Current shared MySQL manifests:
+  - [statefulset.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/mysql/statefulset.yaml)
+  - [vault-static-secret.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/mysql/vault-static-secret.yaml)
 - Current Argo CD/Kustomize operator docs:
   - [docs/argocd-app-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/argocd-app-setup.md)
 - Current secrets-path dependency:
   - [HK3S-0006 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0006--deploy-vault-secrets-operator-on-k3s-and-prove-secret-sync/index.md)
 
-## Acceptance criteria for the future implementation
+## Acceptance criteria for the implementation
 
 - the selected shared data service is GitOps-managed under Argo CD
 - backups and restore are tested

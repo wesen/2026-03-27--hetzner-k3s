@@ -321,3 +321,75 @@ That is the key proof that later app migrations can consume the service through 
 
 ### What should be done in the future
 - Resume the CoinVault migration and replace its Coolify-only MySQL host with `mysql.mysql.svc.cluster.local`.
+
+## Step 7: Scaffold shared PostgreSQL and Redis by directly reusing the proven MySQL pattern
+
+With MySQL already live, I moved the umbrella ticket forward from “one service proven” to “reuse the same pattern for the next two services.” The important choice here was not to reopen the chart versus operator debate. MySQL had already answered that for this cluster. The right move was to generalize the pattern we now trust:
+
+- repo-owned Kustomize manifests
+- Argo CD application per service
+- Vault Kubernetes auth policy and role per namespace/service account
+- VSO-projected Kubernetes secret
+- single-replica retained StatefulSet
+
+I first updated the ticket itself so the work was no longer implicit. I added new PostgreSQL and Redis phases to `tasks.md`, updated the ticket index and plan to reflect that the deferral phase is over, and created a second design document focused on the follow-on service slices.
+
+Then I added the actual implementation scaffold:
+
+- Vault policies and roles:
+  - [`vault/policies/kubernetes/postgres.hcl`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/postgres.hcl)
+  - [`vault/roles/kubernetes/postgres.json`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/roles/kubernetes/postgres.json)
+  - [`vault/policies/kubernetes/redis.hcl`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/redis.hcl)
+  - [`vault/roles/kubernetes/redis.json`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/roles/kubernetes/redis.json)
+- Vault secret bootstrap helpers:
+  - [`scripts/bootstrap-cluster-postgres-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-postgres-secrets.sh)
+  - [`scripts/bootstrap-cluster-redis-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-redis-secrets.sh)
+- Validation helpers:
+  - [`scripts/validate-cluster-postgres.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-postgres.sh)
+  - [`scripts/validate-cluster-redis.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-redis.sh)
+- Argo applications:
+  - [`gitops/applications/postgres.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/postgres.yaml)
+  - [`gitops/applications/redis.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/redis.yaml)
+- New Kustomize packages:
+  - [`gitops/kustomize/postgres/kustomization.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/postgres/kustomization.yaml)
+  - [`gitops/kustomize/redis/kustomization.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/redis/kustomization.yaml)
+
+The PostgreSQL service is intentionally conservative:
+
+- namespace `postgres`
+- service `postgres.postgres.svc.cluster.local:5432`
+- database `platform`
+- user `platform_admin`
+
+Redis follows the same namespace-and-secret pattern, but it enables AOF persistence so restart behavior is meaningful and the service is not silently limited to “cache only” use cases.
+
+Before touching the live cluster, I ran the local validation pass:
+
+- `bash -n` over the four new helper scripts
+- `kubectl kustomize gitops/kustomize/postgres`
+- `kubectl kustomize gitops/kustomize/redis`
+- `git diff --check`
+- `docmgr doctor --ticket HK3S-0009 --stale-after 30`
+
+Everything passed, which means the next step is no longer design work. It is live rollout: seed Vault, refresh the Vault Kubernetes auth bootstrap, apply the two Argo applications, and validate the services in-cluster.
+
+### What I did
+- Added the PostgreSQL and Redis task phases and a follow-on design doc.
+- Added the Vault auth files, bootstrap scripts, validation scripts, Argo applications, and Kustomize packages.
+- Validated the full scaffold locally.
+
+### Why
+- The MySQL slice already proved the platform pattern, so reusing it is lower risk than inventing a different one for Postgres or Redis.
+
+### What worked
+- The new service packages rendered cleanly on the first pass.
+- The Vault auth and VSO pattern generalized cleanly from MySQL to both new services.
+
+### What didn't work
+- Nothing failed at this stage; this was a clean scaffold checkpoint.
+
+### What I learned
+- The MySQL slice paid off exactly the way it was supposed to: PostgreSQL and Redis are now incremental, not exploratory.
+
+### What should be done in the future
+- Commit the scaffold as its own checkpoint, then move into live Vault bootstrap and Argo rollout.

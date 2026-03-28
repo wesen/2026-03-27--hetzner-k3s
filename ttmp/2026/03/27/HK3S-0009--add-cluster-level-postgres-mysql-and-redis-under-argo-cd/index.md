@@ -20,10 +20,10 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "MySQL-first implementation ticket for introducing the first shared cluster data service under Argo CD so CoinVault and later applications can consume a stable in-cluster MySQL endpoint."
-LastUpdated: 2026-03-27T16:34:00-04:00
-WhatFor: "Use this ticket to implement the first shared cluster data-service slice on K3s, starting with MySQL because it is the active blocker for the CoinVault migration."
-WhenToUse: "Read this when an application migration needs a stable in-cluster MySQL endpoint and the Vault/VSO path is already available."
+Summary: "Implementation ticket for shared cluster data services under Argo CD, starting with the completed MySQL slice and now extending to PostgreSQL and Redis."
+LastUpdated: 2026-03-28T15:15:00-04:00
+WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
+WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
 
 # Add cluster-level Postgres MySQL and Redis under Argo CD
@@ -48,7 +48,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 5 is active: the repo-managed Kustomize MySQL deployment is live and validated. The next step is to use it from the blocked application-migration ticket.
+Step 6 is active: the finished MySQL slice is being extended into shared PostgreSQL and Redis using the same repo-managed Kustomize and Vault/VSO model.
 
 ## Key Links
 
@@ -56,6 +56,8 @@ Step 5 is active: the repo-managed Kustomize MySQL deployment is live and valida
   - [01-cluster-data-services-plan.md](./playbooks/01-cluster-data-services-plan.md)
 - MySQL-first design:
   - [01-mysql-first-cluster-data-services-design.md](./design-doc/01-mysql-first-cluster-data-services-design.md)
+- Postgres and Redis follow-on design:
+  - [02-postgres-and-redis-cluster-services-design.md](./design-doc/02-postgres-and-redis-cluster-services-design.md)
 - Implementation diary:
   - [01-cluster-data-services-implementation-diary.md](./reference/01-cluster-data-services-implementation-diary.md)
 
@@ -68,7 +70,7 @@ Current status: **active**
 Current decision:
 
 - implement MySQL now as the first shared cluster data service
-- continue deferring PostgreSQL and Redis until after the first shared-service pattern is proven
+- use the now-proven shared-service pattern to add PostgreSQL and Redis next
 - keep MySQL on repo-managed Kustomize manifests instead of the external Bitnami chart
 
 Why:
@@ -77,6 +79,7 @@ Why:
 - MySQL is the smallest cluster data-service slice that solves a real migration blocker today
 - proving one shared data-service pattern first is still better than building all three at once
 - the external Bitnami chart path proved brittle during live rollout, while repo-managed manifests gave a stable and reviewable operational surface
+- that same repo-managed manifest path is now the preferred way to add shared PostgreSQL and Redis too
 
 ## Topics
 

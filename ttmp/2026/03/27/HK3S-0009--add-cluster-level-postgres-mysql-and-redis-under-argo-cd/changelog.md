@@ -10,3 +10,7 @@
 - Step 4: began the live rollout, bootstrapped the Vault policy/role and secret path successfully, hit a missing execute bit on the helper scripts, then discovered the external Bitnami chart path was not operational in practice because the published chart repo lagged the GitHub chart tree and referenced a non-existent container image tag; pivoted to repo-managed Kustomize manifests using the official `mysql:8.4` image while keeping the same Vault/VSO secret contract
 - Step 5: pushed the Kustomize pivot, deleted the failed chart-created StatefulSet so Argo could recreate it from the repo-owned spec, then aligned the StatefulSet manifest with Kubernetes-defaulted fields until Argo reported `Synced Healthy`
 - Step 6: validated the final MySQL service end to end, including SQL execution inside the server pod and a one-shot client pod reaching `mysql.mysql.svc.cluster.local` as the application user `coinvault_ro`
+
+## 2026-03-28
+
+- Step 7: reactivated HK3S-0009 for shared PostgreSQL and Redis, added the follow-on design doc and task phases, and scaffolded the Vault, Argo, Kustomize, bootstrap, and validation artifacts for both services

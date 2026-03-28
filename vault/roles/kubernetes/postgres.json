@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": "postgres",
+  "bound_service_account_namespaces": "postgres",
+  "policies": "postgres",
+  "ttl": "1h"
+}

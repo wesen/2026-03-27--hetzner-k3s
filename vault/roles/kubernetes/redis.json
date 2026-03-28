@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": "redis",
+  "bound_service_account_namespaces": "redis",
+  "policies": "redis",
+  "ttl": "1h"
+}
