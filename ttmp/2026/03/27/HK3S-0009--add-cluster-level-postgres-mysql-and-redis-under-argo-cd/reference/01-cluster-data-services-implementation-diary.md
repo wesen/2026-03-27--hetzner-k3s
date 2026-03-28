@@ -12,9 +12,9 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: Chronological diary for introducing the first shared cluster data service on K3s, starting with MySQL.
-LastUpdated: 2026-03-27T16:34:00-04:00
-WhatFor: Use this to review the exact implementation trail for the MySQL-first cluster data-services slice.
+Summary: Chronological diary for introducing shared cluster data services on K3s, starting with MySQL and now including PostgreSQL and Redis.
+LastUpdated: 2026-03-28T15:28:10-04:00
+WhatFor: Use this to review the exact implementation trail for the shared MySQL, PostgreSQL, and Redis slices.
 WhenToUse: Read this when continuing or reviewing HK3S-0009.
 ---
 
@@ -318,6 +318,143 @@ That is the key proof that later app migrations can consume the service through 
 
 ### What I learned
 - The consumer-path smoke test is worth keeping because it validates DNS, credentials, image pull, and SQL reachability all at once.
+
+## Step 7: Expand the proven MySQL pattern into repo-owned PostgreSQL and Redis scaffolds
+
+Once MySQL was live, the ticket had enough evidence to stop speculating about PostgreSQL and Redis and just implement them using the same platform contract. I added the follow-on design note and concrete ticket tasks first so the rollout would still be reviewable in order instead of looking like “mystery manifests appeared in the repo.”
+
+Then I scaffolded both service slices in parallel:
+
+- shared PostgreSQL under [`gitops/kustomize/postgres`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/postgres)
+- shared Redis under [`gitops/kustomize/redis`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/redis)
+- Argo CD applications:
+  - [`gitops/applications/postgres.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/postgres.yaml)
+  - [`gitops/applications/redis.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/redis.yaml)
+- Vault Kubernetes-auth policy and role pairs:
+  - [`vault/policies/kubernetes/postgres.hcl`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/postgres.hcl)
+  - [`vault/roles/kubernetes/postgres.json`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/roles/kubernetes/postgres.json)
+  - [`vault/policies/kubernetes/redis.hcl`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/policies/kubernetes/redis.hcl)
+  - [`vault/roles/kubernetes/redis.json`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/vault/roles/kubernetes/redis.json)
+- Vault secret bootstrap and live validation helpers:
+  - [`scripts/bootstrap-cluster-postgres-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-postgres-secrets.sh)
+  - [`scripts/bootstrap-cluster-redis-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-redis-secrets.sh)
+  - [`scripts/validate-cluster-postgres.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-postgres.sh)
+  - [`scripts/validate-cluster-redis.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-redis.sh)
+
+I kept the manifests structurally close to the working MySQL slice so the platform remains coherent:
+
+- one namespace per shared service
+- one service account per service
+- VaultConnection, VaultAuth, and VaultStaticSecret for credentials
+- one single-replica persistent StatefulSet
+- one stable cluster DNS name per service
+
+### What I did
+- Added the design note and explicit rollout tasks for PostgreSQL and Redis.
+- Added the GitOps applications, Kustomize packages, Vault policies, Vault roles, and helper scripts.
+- Ran the static validation pass before committing:
+  - `bash -n` on the four new helper scripts
+  - `kubectl kustomize` on both new Kustomize packages
+  - `git diff --check`
+  - `docmgr doctor --ticket HK3S-0009 --stale-after 30`
+
+### Why
+- MySQL had already proven the manifest, Vault, and VSO model.
+- PostgreSQL and Redis are infrastructure siblings now, not research projects.
+
+### What worked
+- The two new service slices fit cleanly into the existing repo structure.
+- Static validation passed without requiring a redesign.
+
+### What didn't work
+- Nothing failed technically at this stage, but it was clear that the live rollout would need 1Password/Vault access again.
+
+### What I learned
+- Once the platform contract is solid, adding another stateful service becomes mostly repetition plus careful validation.
+
+### What should be done in the future
+- Seed the Vault secret paths, re-run the Kubernetes-auth bootstrap so the new service roles exist, and deploy both services live.
+
+## Step 8: Use the live Vault root token path again, then bring PostgreSQL and Redis up end to end
+
+The remaining live dependency was Vault. Both new services use the same Vault plus VSO path as MySQL, so the cluster cannot reconcile them fully until:
+
+- Vault knows about the new Kubernetes-auth policies and roles
+- the service-specific secret data exists at:
+  - `kv/infra/postgres/cluster`
+  - `kv/infra/redis/cluster`
+
+I used the 1Password CLI again for that bootstrap step. The direct `op` flow was flaky earlier in the day, so I switched to a dedicated `tmux` session and verified `op vault list` there first. That kept the authenticated session stable long enough to read the Vault init note from the `Private` vault and extract the existing root token locally without changing the actual stored secret. Then I exported:
+
+- `KUBECONFIG=/home/manuel/code/wesen/2026-03-27--hetzner-k3s/kubeconfig-91.98.46.169.yaml`
+- `VAULT_ADDR=https://vault.yolo.scapegoat.dev`
+- `VAULT_TOKEN=<root token from 1Password note>`
+
+and ran:
+
+- [`scripts/bootstrap-vault-kubernetes-auth.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-kubernetes-auth.sh)
+- [`scripts/bootstrap-cluster-postgres-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-postgres-secrets.sh)
+- [`scripts/bootstrap-cluster-redis-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-cluster-redis-secrets.sh)
+
+That wrote the new Vault roles and seeded:
+
+- PostgreSQL secret path with generated `postgres-password`, `postgres-db=platform`, `postgres-user=platform_admin`, and service coordinates
+- Redis secret path with generated `redis-password` and service coordinates
+
+After that I applied:
+
+- [`gitops/applications/postgres.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/postgres.yaml)
+- [`gitops/applications/redis.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/redis.yaml)
+
+Argo created both namespaces immediately, VSO rendered:
+
+- `postgres-auth`
+- `redis-auth`
+
+and both StatefulSets came up. I then ran the service-level acceptance checks:
+
+- `kubectl wait --for=condition=ready pod/postgres-0 -n postgres --timeout=180s`
+- `kubectl wait --for=condition=ready pod/redis-0 -n redis --timeout=180s`
+- [`scripts/validate-cluster-postgres.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-postgres.sh)
+- [`scripts/validate-cluster-redis.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-cluster-redis.sh)
+
+Those validations proved:
+
+- both Argo applications reached `Synced Healthy`
+- PostgreSQL accepted SQL as `platform_admin` in database `platform`
+- the PostgreSQL validation row survived a StatefulSet restart
+- Redis accepted authenticated commands
+- the Redis validation key survived a StatefulSet restart with AOF enabled
+
+The Kubernetes events and logs also confirmed the expected local-path PVC creation and normal pod recreation during the scripted restart tests.
+
+### What I did
+- Switched to `op` inside a persistent `tmux` session to keep the authenticated 1Password session stable.
+- Read the existing Vault init note from 1Password and used its root token to seed the live Vault configuration for the new services.
+- Applied the PostgreSQL and Redis Argo applications.
+- Waited for both pods to become ready.
+- Ran the scripted persistence and auth validation for both services.
+
+### Why
+- The service manifests were already ready; the only missing live dependency was Vault data and auth configuration.
+- Persistence across restart is the minimum acceptable proof for a shared single-node platform service.
+
+### What worked
+- The `tmux` workaround made the 1Password CLI reliable again for this session.
+- VSO secret sync for both services was healthy immediately after the Vault bootstrap.
+- Both PostgreSQL and Redis reached `Synced Healthy` without the chart-path failures that happened on the original MySQL attempt.
+- The restart-and-persistence validation passed for both services.
+
+### What didn't work
+- My first attempt to sanitize the Vault note output was too narrowly written for a different label format, so I adjusted course and kept the actual bootstrap command non-echoing instead.
+- The validation scripts were quiet while the restart tests ran, so I checked Argo state, pod state, events, and logs directly while waiting for the final success output.
+
+### What I learned
+- The MySQL-derived manifest pattern was the right long-term choice. Once the external chart dependency was gone, adding PostgreSQL and Redis became straightforward.
+- For 1Password-backed operator workflows, a persistent shell session is more reliable than repeatedly spawning fresh CLI invocations.
+
+### What should be done in the future
+- Add backup, restore, engine-upgrade, and rollback procedures for all three shared services as the next platform-hardening slice.
 
 ### What should be done in the future
 - Resume the CoinVault migration and replace its Coolify-only MySQL host with `mysql.mysql.svc.cluster.local`.

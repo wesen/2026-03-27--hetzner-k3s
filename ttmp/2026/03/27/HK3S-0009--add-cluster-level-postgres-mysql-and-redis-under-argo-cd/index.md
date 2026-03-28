@@ -20,8 +20,8 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "Implementation ticket for shared cluster data services under Argo CD, starting with the completed MySQL slice and now extending to PostgreSQL and Redis."
-LastUpdated: 2026-03-28T15:15:00-04:00
+Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are now live, with backup and upgrade procedures still remaining as follow-up platform work."
+LastUpdated: 2026-03-28T15:28:10-04:00
 WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
 WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
@@ -48,7 +48,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 6 is active: the finished MySQL slice is being extended into shared PostgreSQL and Redis using the same repo-managed Kustomize and Vault/VSO model.
+Step 8 is active: the shared PostgreSQL and Redis rollout is complete, and the remaining ticket work is now the deferred backup, restore, upgrade, and rollback guidance.
 
 ## Key Links
 
@@ -70,7 +70,7 @@ Current status: **active**
 Current decision:
 
 - implement MySQL now as the first shared cluster data service
-- use the now-proven shared-service pattern to add PostgreSQL and Redis next
+- use the now-proven shared-service pattern to add PostgreSQL and Redis next, which is now done
 - keep MySQL on repo-managed Kustomize manifests instead of the external Bitnami chart
 
 Why:
@@ -79,7 +79,7 @@ Why:
 - MySQL is the smallest cluster data-service slice that solves a real migration blocker today
 - proving one shared data-service pattern first is still better than building all three at once
 - the external Bitnami chart path proved brittle during live rollout, while repo-managed manifests gave a stable and reviewable operational surface
-- that same repo-managed manifest path is now the preferred way to add shared PostgreSQL and Redis too
+- that same repo-managed manifest path successfully brought up shared PostgreSQL and Redis too
 
 ## Topics
 

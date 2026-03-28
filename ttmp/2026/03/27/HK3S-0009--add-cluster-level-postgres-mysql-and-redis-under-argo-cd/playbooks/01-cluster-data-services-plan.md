@@ -20,8 +20,8 @@ RelatedFiles:
     - Path: ../../HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration consumer that should inform the eventual shared-service design
 ExternalSources: []
-Summary: "Implementation plan for shared Postgres, MySQL, and Redis services on K3s under Argo CD, now that MySQL is proven and the remaining slices are being executed."
-LastUpdated: 2026-03-28T15:15:00-04:00
+Summary: "Implementation plan for shared Postgres, MySQL, and Redis services on K3s under Argo CD; all three shared-service slices are now live and the remaining work is operational hardening."
+LastUpdated: 2026-03-28T15:28:10-04:00
 WhatFor: "Use this to understand the intended sequencing, implementation pattern, and acceptance criteria for the shared cluster data services."
 WhenToUse: "Read this when continuing HK3S-0009 or reviewing why Postgres and Redis follow the same repo-owned manifest path as MySQL."
 ---
@@ -57,6 +57,8 @@ The original trigger conditions are now satisfied:
 3. Add shared Redis after that, using the same Vault/VSO plus Kustomize pattern.
 4. Once all three exist, revisit backup/restore and upgrade procedures as a combined platform concern.
 
+Steps 1 through 3 are now complete. The active follow-up is step 4.
+
 ## Main design questions
 
 - Should these be shared platform services at all, or should some apps keep app-local instances?
@@ -85,3 +87,11 @@ The original trigger conditions are now satisfied:
 - at least one application consumes the service successfully
 - credential delivery is Vault-compatible and documented
 - engine upgrades and rollback procedures are documented
+
+Current completion note:
+
+- MySQL, PostgreSQL, and Redis are all GitOps-managed under Argo CD
+- Vault/VSO-backed credential delivery is live for all three services
+- MySQL has a proven application-consumption path through CoinVault
+- PostgreSQL and Redis have live service-level validation with persistence across restart
+- backups, restore, and engine upgrade procedures are still the remaining gap

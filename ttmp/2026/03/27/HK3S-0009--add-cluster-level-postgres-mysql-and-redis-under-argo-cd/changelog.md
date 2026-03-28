@@ -14,3 +14,4 @@
 ## 2026-03-28
 
 - Step 7: reactivated HK3S-0009 for shared PostgreSQL and Redis, added the follow-on design doc and task phases, and scaffolded the Vault, Argo, Kustomize, bootstrap, and validation artifacts for both services
+- Step 8: used the Vault root token from 1Password to write the new Kubernetes auth policies and roles plus the shared PostgreSQL and Redis secret payloads, applied both Argo CD applications, and validated that each service is `Synced Healthy` and persists data across a StatefulSet restart

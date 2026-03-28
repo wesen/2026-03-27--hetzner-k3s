@@ -36,14 +36,14 @@
 
 ## Phase 6: Shared PostgreSQL rollout
 
-- [ ] Add shared PostgreSQL design notes and concrete rollout tasks to this ticket
-- [ ] Add Vault policy, role, and bootstrap script for `kv/infra/postgres/cluster`
-- [ ] Add Argo CD application and Kustomize manifests for the shared PostgreSQL service
-- [ ] Deploy PostgreSQL on the cluster and validate readiness, SQL access, and restart behavior
+- [x] Add shared PostgreSQL design notes and concrete rollout tasks to this ticket
+- [x] Add Vault policy, role, and bootstrap script for `kv/infra/postgres/cluster`
+- [x] Add Argo CD application and Kustomize manifests for the shared PostgreSQL service
+- [x] Deploy PostgreSQL on the cluster and validate readiness, SQL access, and restart behavior
 
 ## Phase 7: Shared Redis rollout
 
-- [ ] Add shared Redis design notes and concrete rollout tasks to this ticket
-- [ ] Add Vault policy, role, and bootstrap script for `kv/infra/redis/cluster`
-- [ ] Add Argo CD application and Kustomize manifests for the shared Redis service
-- [ ] Deploy Redis on the cluster and validate auth, persistence, and restart behavior
+- [x] Add shared Redis design notes and concrete rollout tasks to this ticket
+- [x] Add Vault policy, role, and bootstrap script for `kv/infra/redis/cluster`
+- [x] Add Argo CD application and Kustomize manifests for the shared Redis service
+- [x] Deploy Redis on the cluster and validate auth, persistence, and restart behavior
