@@ -1,10 +1,8 @@
-# Hetzner single-node K3s + Argo CD demo
+# Hetzner single-node K3s + Argo CD platform
 
-This repo provisions **one Hetzner Cloud VM** with **Terraform**, bootstraps **K3s** and **Argo CD** with **cloud-init**, installs **cert-manager**, and deploys a **demo Go web app** plus **PostgreSQL** inside K3s.
+This repo provisions **one Hetzner Cloud VM** with **Terraform**, bootstraps **K3s** and **Argo CD** with **cloud-init**, installs **cert-manager**, and then uses **GitOps** to run platform and application workloads on top of that cluster.
 
-The demo app is exposed to the public internet over **HTTPS** through the **K3s-packaged Traefik ingress controller**. PostgreSQL uses K3s **local-path** storage, so its data lives on the node's local disk.
-
-The same cluster now also carries a repo-managed **Vault** application definition under Argo CD, with AWS KMS auto-unseal bootstrapped through a local operator secret step rather than committed credentials.
+The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik ingress controller**. Shared PostgreSQL, MySQL, Redis, Vault, Keycloak, CoinVault, Pretext, and the public Argo CD UI are all managed from this repository.
 
 ## What this stack does
 
@@ -17,22 +15,17 @@ The same cluster now also carries a repo-managed **Vault** application definitio
   - installs cert-manager
   - installs Argo CD
   - clones this repo on the server
-  - builds the demo Go image locally on the node
-  - imports that image into K3s containerd
-  - creates the PostgreSQL secret in Kubernetes
-  - bootstraps an Argo CD `Application`
+  - seeds the initial bootstrap application path
 - Argo CD then deploys:
-  - a `ClusterIssuer` for Let's Encrypt HTTP-01
-  - PostgreSQL as a single-replica `StatefulSet`
-  - the demo Go app as a `Deployment`
-  - a `Service` and `Ingress`
-  - optionally, additional repo-managed platform apps such as Vault
+  - platform services such as Vault, Keycloak, PostgreSQL, MySQL, Redis, and the public Argo CD UI
+  - application services such as CoinVault and Pretext
+  - ingress and TLS resources for public endpoints
 
 ## Requirements
 
 - A Hetzner Cloud project + API token
 - A domain you control
-- DNS for `demo.<your-domain>` pointing to the server's public IP after Terraform creates it
+- DNS for the hostnames you want to expose pointing to the server's public IP after Terraform creates it
 - An SSH public key
 - A **Git repository URL for this repo**
   - easiest path: push this repo to a **public** GitHub repo first
@@ -49,10 +42,11 @@ The same cluster now also carries a repo-managed **Vault** application definitio
    terraform apply
    ```
 
-4. Create the DNS record for the app host once Terraform prints the server IP:
+4. Create the DNS records once Terraform prints the server IP:
 
    ```
-   demo.<your-domain>  ->  <server IPv4>
+   <app>.<your-domain>          ->  <server IPv4>
+   *.yolo.<your-domain>         ->  <server IPv4>
    ```
 
 5. Watch first-boot provisioning:
@@ -76,7 +70,7 @@ The same cluster now also carries a repo-managed **Vault** application definitio
    kubectl -n argocd port-forward svc/argocd-server 8080:443
    ```
 
-   Then open `https://localhost:8080`.
+   Then open `https://localhost:8080`. If `argocd-public` is synced, `https://argocd.yolo.scapegoat.dev` should also work directly.
 
 8. Get the initial Argo CD admin password:
 
@@ -85,17 +79,18 @@ The same cluster now also carries a repo-managed **Vault** application definitio
      -o jsonpath='{.data.password}' | base64 -d && echo
    ```
 
-9. Switch the live Argo CD application to the Kustomize source:
+9. Apply a repo-managed Argo CD application if it is not already present:
 
    ```bash
-   kubectl apply -f gitops/applications/demo-stack.yaml
-   kubectl -n argocd annotate application demo-stack argocd.argoproj.io/refresh=hard --overwrite
+   kubectl apply -f gitops/applications/argocd-public.yaml
+   kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite
    ```
 
-10. Open the demo app:
+10. Open one of the live public endpoints:
 
    ```
-   https://demo.<your-domain>
+   https://argocd.yolo.scapegoat.dev
+   https://coinvault.yolo.scapegoat.dev
    ```
 
 ## Important caveats
@@ -114,13 +109,13 @@ The same cluster now also carries a repo-managed **Vault** application definitio
 - `docs/coinvault-k3s-deployment-playbook.md`: end-to-end operator guide for the CoinVault K3s deployment path
 - `docs/public-repo-ghcr-argocd-deployment-playbook.md`: how to publish public-repo images to GHCR and deploy them through Argo CD
 - `docs/vault-backed-postgres-bootstrap-job-pattern.md`: how to provision app-specific PostgreSQL databases and roles declaratively with Vault, VSO, and a bootstrap Job
-- `gitops/kustomize/demo-stack`: Kustomize package deployed by the live Argo CD application
-- `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
+- `gitops/applications/argocd-public.yaml`: Argo CD `Application` that restores and exposes the Argo CD server itself
+- `gitops/kustomize/argocd-public`: dedicated package that owns `argocd-server`, `argocd-cmd-params-cm`, and the public ingress
+- `gitops/applications/coinvault.yaml`: Argo CD `Application` for the first migrated real app
 - `gitops/applications/vault.yaml`: Argo CD `Application` for the K3s-hosted Vault deployment
 - `gitops/applications/vault-kubernetes-auth.yaml`: Argo CD `Application` for the Kubernetes-auth smoke namespace/service account
 - `gitops/kustomize/vault-kubernetes-auth`: smoke-test Kubernetes objects for the Vault Kubernetes auth path
 - `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
-- `app/`: demo Go app source + Dockerfile
 - `scripts/get-kubeconfig.sh`: helper to fetch a usable kubeconfig
 - `scripts/bootstrap-vault-aws-kms-secret.sh`: local helper to create the non-git Kubernetes secret for Vault AWS KMS auto-unseal
 - `scripts/bootstrap-vault-kubernetes-auth.sh`: local helper to enable/configure Vault Kubernetes auth and seed baseline policies/roles

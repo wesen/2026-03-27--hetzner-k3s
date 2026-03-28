@@ -27,12 +27,12 @@ This matters because Argo CD is not “just another deployment command.” It is
 
 ## What You Will Build
 
-You will build an Argo CD `Application` that watches a path in this repository and deploys the Kubernetes manifests in that path into the cluster. In the current cleaned-up state, the live application is:
+You will build an Argo CD `Application` that watches a path in this repository and deploys the Kubernetes manifests in that path into the cluster. In the current cleaned-up state, a small infrastructure example is:
 
-- name: `demo-stack`
+- name: `argocd-public`
 - namespace: `argocd`
-- source path: `gitops/kustomize/demo-stack`
-- destination namespace: `demo`
+- source path: `gitops/kustomize/argocd-public`
+- destination namespace: `argocd`
 
 By the end of this page you should know how to:
 
@@ -50,7 +50,7 @@ This section explains the ideas behind Argo CD. Read it first. A lot of operator
 
 An Argo CD `Application` is a Kubernetes custom resource that tells Argo CD where to fetch manifests from, where to deploy them, and how aggressively to keep Git and the cluster in sync.
 
-This matters because you do not “configure Argo” in a dashboard first and then export it later. The durable unit is the `Application` YAML itself. In this repo, that durable definition lives at [`gitops/applications/demo-stack.yaml`](../gitops/applications/demo-stack.yaml).
+This matters because you do not “configure Argo” in a dashboard first and then export it later. The durable unit is the `Application` YAML itself. In this repo, one example of that durable definition lives at [`gitops/applications/argocd-public.yaml`](../gitops/applications/argocd-public.yaml).
 
 ### Source, Destination, and Sync Policy
 
@@ -68,7 +68,7 @@ The live deployment now uses Kustomize. The legacy Helm chart still exists only 
 
 This matters because a new intern may see both paths and think both are equally current. They are not. The correct mental model is:
 
-- live `Application` source: `gitops/kustomize/demo-stack`
+- live infrastructure example: `gitops/kustomize/argocd-public`
 - legacy bootstrap compatibility path: `gitops/charts/demo-stack`
 
 ### Resource Adoption
@@ -87,14 +87,14 @@ This matters because many failures that look like “Argo is broken” are reall
 
 This section explains where to look when you are creating or changing an app definition in this repository.
 
-- [`gitops/applications/demo-stack.yaml`](../gitops/applications/demo-stack.yaml): repo-managed `Application`
-- [`gitops/kustomize/demo-stack/kustomization.yaml`](../gitops/kustomize/demo-stack/kustomization.yaml): live Kustomize entry point
-- [`gitops/kustomize/demo-stack/`](../gitops/kustomize/demo-stack): live manifests Argo deploys
+- [`gitops/applications/argocd-public.yaml`](../gitops/applications/argocd-public.yaml): repo-managed `Application`
+- [`gitops/kustomize/argocd-public/kustomization.yaml`](../gitops/kustomize/argocd-public/kustomization.yaml): small live Kustomize entry point
+- [`gitops/kustomize/argocd-public/`](../gitops/kustomize/argocd-public): live manifests Argo deploys for the public Argo CD UI
 - [`gitops/charts/demo-stack/README.md`](../gitops/charts/demo-stack/README.md): explains the legacy chart status
 
 ## Step 1: Create the Kubernetes Manifests You Want Argo to Own
 
-This step defines the actual resources Argo should manage. In the current repo, that means plain manifests under `gitops/kustomize/demo-stack` collected by a `kustomization.yaml`.
+This step defines the actual resources Argo should manage. In the current repo, that means plain manifests under `gitops/kustomize/<app-name>` collected by a `kustomization.yaml`.
 
 Why this matters: the `Application` object only points at a source path. If the manifests in that path do not reflect the live desired state, Argo will faithfully deploy the wrong thing.
 
@@ -105,15 +105,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - namespace.yaml
-  - clusterissuer.yaml
-  - postgres-service.yaml
-  - postgres-statefulset.yaml
-  - app-service.yaml
-  - app-deployment.yaml
-  - ingress.yaml
   - argocd-server-config.yaml
-  - argocd-server-rollout.yaml
+  - argocd-server-deployment.yaml
   - argocd-server-ingress.yaml
 ```
 
@@ -131,7 +124,7 @@ Example:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: demo-stack
+  name: argocd-public
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -139,11 +132,11 @@ spec:
   project: default
   destination:
     server: https://kubernetes.default.svc
-    namespace: demo
+    namespace: argocd
   source:
     repoURL: https://github.com/wesen/2026-03-27--hetzner-k3s.git
     targetRevision: main
-    path: gitops/kustomize/demo-stack
+    path: gitops/kustomize/argocd-public
   syncPolicy:
     automated:
       prune: true
@@ -163,7 +156,7 @@ Why this matters: catching syntax or structure problems before the source switch
 
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-kubectl kustomize gitops/kustomize/demo-stack
+kubectl kustomize gitops/kustomize/argocd-public
 ```
 
 You are looking for:
@@ -183,8 +176,8 @@ Why this matters: Argo CD polls Git, but for migration work you usually want an 
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
 export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
 
-kubectl apply -f gitops/applications/demo-stack.yaml
-kubectl -n argocd annotate application demo-stack argocd.argoproj.io/refresh=hard --overwrite
+kubectl apply -f gitops/applications/argocd-public.yaml
+kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite
 ```
 
 ## Step 5: Watch Argo Converge
@@ -194,17 +187,17 @@ This step confirms that Argo has actually moved onto the expected source and ado
 Why this matters: a migration can look successful at first glance while one or two resources remain `OutOfSync` due to defaulted fields, wrong names, or source mismatches.
 
 ```bash
-kubectl -n argocd get application demo-stack \
+kubectl -n argocd get application argocd-public \
   -o jsonpath='{.spec.source.path}{"\n"}{.status.sync.status}{"\n"}{.status.health.status}{"\n"}'
 
-kubectl -n argocd get application demo-stack -o json | \
+kubectl -n argocd get application argocd-public -o json | \
   jq -r '.status.resources[] | [.kind,.namespace,.name,.status,.health.status] | @tsv'
 ```
 
 The clean target state is:
 
 ```text
-gitops/kustomize/demo-stack
+gitops/kustomize/argocd-public
 Synced
 Healthy
 ```
@@ -239,7 +232,7 @@ curl -I https://argocd.yolo.scapegoat.dev
 You want all of the following:
 
 - `terraform plan -no-color` shows `No changes`
-- `demo-stack` is `Synced Healthy`
+- `argocd-public` is `Synced Healthy`
 - both HTTPS endpoints return `HTTP/2 200`
 
 ## When to Use Helm Anyway
@@ -274,6 +267,6 @@ This table focuses on the migration-specific problems that usually appear when c
 ## See Also
 
 - [Set Up a Hetzner K3s Server for This Repository](./hetzner-k3s-server-setup.md) — full infrastructure-to-validation workflow
-- [`gitops/applications/demo-stack.yaml`](../gitops/applications/demo-stack.yaml) — current live `Application`
-- [`gitops/kustomize/demo-stack/kustomization.yaml`](../gitops/kustomize/demo-stack/kustomization.yaml) — current live Kustomize package
+- [`gitops/applications/argocd-public.yaml`](../gitops/applications/argocd-public.yaml) — current live infrastructure `Application`
+- [`gitops/kustomize/argocd-public/kustomization.yaml`](../gitops/kustomize/argocd-public/kustomization.yaml) — current live Kustomize package for public Argo CD exposure
 - [`gitops/charts/demo-stack/README.md`](../gitops/charts/demo-stack/README.md) — explains the remaining bootstrap compatibility layer

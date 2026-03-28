@@ -40,7 +40,7 @@ At the end of the flow, you should be able to do all of the following:
 - open the app over HTTPS
 - open Argo CD over HTTPS
 - run `terraform plan` and see `No changes`
-- run `kubectl -n argocd get applications` and see `demo-stack` as `Synced` and `Healthy`
+- run `kubectl -n argocd get applications` and see the platform apps, including `argocd-public`, as healthy
 
 ## Core Concepts
 
@@ -66,7 +66,7 @@ This matters because the cluster is intentionally single-node and non-HA. That i
 
 ### Argo CD and GitOps
 
-Argo CD watches a path in the Git repository and applies Kubernetes resources from that path into the cluster. The live application now sources `gitops/kustomize/demo-stack`.
+Argo CD watches paths in the Git repository and applies Kubernetes resources from those paths into the cluster. The current repo uses multiple repo-managed `Application` objects, including `coinvault`, `keycloak`, `vault`, `pretext`, and `argocd-public`.
 
 This matters because the cluster’s long-term source of truth is Git, not shell history. If something is only present because you ran `kubectl apply` manually and never moved it into GitOps, you have configuration drift even if the cluster looks healthy.
 
@@ -76,7 +76,7 @@ The live deployment now uses Kustomize, but the old Helm chart still exists as a
 
 This matters because an intern should not “clean up” the old chart casually. Right now the correct mental model is:
 
-- `gitops/kustomize/demo-stack` is the live deployment source
+- `gitops/applications/*` and `gitops/kustomize/*` are the live deployment sources
 - `gitops/charts/demo-stack` is legacy bootstrap compatibility
 - if you want to remove the chart completely, you must redesign bootstrap carefully rather than deleting files in place
 
@@ -87,10 +87,10 @@ This section explains where the important files live. You need this map because 
 - [`main.tf`](../main.tf) and [`variables.tf`](../variables.tf): Hetzner infrastructure and required inputs
 - [`cloud-init.yaml.tftpl`](../cloud-init.yaml.tftpl): first-boot bootstrap logic
 - [`scripts/get-kubeconfig.sh`](../scripts/get-kubeconfig.sh): helper to fetch a usable kubeconfig
-- [`gitops/applications/demo-stack.yaml`](../gitops/applications/demo-stack.yaml): repo-managed Argo CD `Application`
-- [`gitops/kustomize/demo-stack/kustomization.yaml`](../gitops/kustomize/demo-stack/kustomization.yaml): live deployment source
+- [`gitops/applications/argocd-public.yaml`](../gitops/applications/argocd-public.yaml): repo-managed Argo CD `Application` for the public Argo CD UI
+- [`gitops/kustomize/argocd-public/kustomization.yaml`](../gitops/kustomize/argocd-public/kustomization.yaml): dedicated Argo CD public-exposure package
+- [`gitops/applications/coinvault.yaml`](../gitops/applications/coinvault.yaml): repo-managed Argo CD `Application` for a real app
 - [`gitops/charts/demo-stack/README.md`](../gitops/charts/demo-stack/README.md): explains why the legacy chart still exists
-- [`app/`](../app): demo Go application source and Dockerfile
 
 ## Prerequisites
 
@@ -192,7 +192,7 @@ kubectl get nodes
 kubectl -n argocd get applications
 ```
 
-The node should be `Ready`. The application may still be progressing at this stage, but you should at least see Argo CD running and the `demo-stack` application present.
+The node should be `Ready`. The applications may still be progressing at this stage, but you should at least see Argo CD running and the repo-managed `Application` objects present.
 
 ## Step 6: Validate the Public Endpoints
 
@@ -209,7 +209,20 @@ kubectl -n argocd get applications
 The clean target state is:
 
 - both HTTPS endpoints return `HTTP/2 200`
-- `kubectl -n argocd get applications` shows `demo-stack   Synced   Healthy`
+- `kubectl -n argocd get applications` shows `argocd-public   Synced   Healthy`
+
+If Firefox or another browser reports a self-signed certificate for `argocd.yolo.scapegoat.dev`, that usually means Traefik is serving its fallback certificate because the dedicated `argocd-public` route is missing or `argocd-server` itself is not running. The fast checks are:
+
+```bash
+kubectl -n argocd get application argocd-public
+kubectl -n argocd get deploy argocd-server
+kubectl -n argocd get ingress argocd-server-public
+openssl s_client -connect argocd.yolo.scapegoat.dev:443 \
+  -servername argocd.yolo.scapegoat.dev </dev/null 2>/dev/null | \
+  openssl x509 -noout -subject -issuer
+```
+
+The healthy external certificate chain should show a Let's Encrypt issuer, not `TRAEFIK DEFAULT CERT`.
 
 Important TLS note for future app ingresses:
 
@@ -237,15 +250,15 @@ Why this matters: this is what gets you to the long-term cleaned-up state withou
 
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-kubectl apply -f gitops/applications/demo-stack.yaml
-kubectl -n argocd annotate application demo-stack argocd.argoproj.io/refresh=hard --overwrite
-kubectl -n argocd get application demo-stack -o jsonpath='{.spec.source.path}{"\n"}'
+kubectl apply -f gitops/applications/argocd-public.yaml
+kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite
+kubectl -n argocd get application argocd-public -o jsonpath='{.spec.source.path}{"\n"}'
 ```
 
 The expected source path after this step is:
 
 ```text
-gitops/kustomize/demo-stack
+gitops/kustomize/argocd-public
 ```
 
 ## Step 8: Confirm Terraform Is Still Reconciled
@@ -271,8 +284,8 @@ This section summarizes the end state. Use it as the quick acceptance checklist 
 
 - `terraform plan -no-color` reports `No changes`
 - `kubectl get nodes` shows the node as `Ready`
-- `kubectl -n argocd get applications` shows `demo-stack   Synced   Healthy`
-- `kubectl -n argocd get application demo-stack -o jsonpath='{.spec.source.path}'` prints `gitops/kustomize/demo-stack`
+- `kubectl -n argocd get applications` shows `argocd-public   Synced   Healthy`
+- `kubectl -n argocd get application argocd-public -o jsonpath='{.spec.source.path}'` prints `gitops/kustomize/argocd-public`
 - `curl -I https://k3s.scapegoat.dev` returns `HTTP/2 200`
 - `curl -I https://argocd.yolo.scapegoat.dev` returns `HTTP/2 200`
 - CoreDNS uses `forward . /etc/resolv.conf`
@@ -295,5 +308,5 @@ This table covers the problems most likely to confuse a new operator. The focus 
 
 - [Set Up an Argo CD Application in This Repository](./argocd-app-setup.md) — focused guide for creating or migrating the GitOps application itself
 - [`README.md`](../README.md) — concise operator overview of the repository
-- [`gitops/applications/demo-stack.yaml`](../gitops/applications/demo-stack.yaml) — the current live `Application`
-- [`gitops/kustomize/demo-stack/kustomization.yaml`](../gitops/kustomize/demo-stack/kustomization.yaml) — the live Kustomize source
+- [`gitops/applications/argocd-public.yaml`](../gitops/applications/argocd-public.yaml) — the dedicated Argo CD public-exposure `Application`
+- [`gitops/kustomize/argocd-public/kustomization.yaml`](../gitops/kustomize/argocd-public/kustomization.yaml) — the package that owns `argocd-server`, `argocd-cmd-params-cm`, and the public ingress
