@@ -35,6 +35,7 @@ override_gec_mysql_port="${COINVAULT_GEC_MYSQL_PORT:-}"
 override_gec_mysql_database="${COINVAULT_GEC_MYSQL_DATABASE:-}"
 override_gec_mysql_ro_user="${COINVAULT_GEC_MYSQL_RO_USER:-}"
 override_gec_mysql_ro_password="${COINVAULT_GEC_MYSQL_RO_PASSWORD:-}"
+override_oidc_issuer_url="${COINVAULT_OIDC_ISSUER_URL:-}"
 
 read_secret() {
   local addr="$1"
@@ -76,6 +77,9 @@ write_runtime_secret() {
   if [[ -n "${override_gec_mysql_ro_password}" ]]; then
     gec_mysql_ro_password="${override_gec_mysql_ro_password}"
   fi
+  if [[ -n "${override_oidc_issuer_url}" ]]; then
+    oidc_issuer_url="${override_oidc_issuer_url}"
+  fi
 
   VAULT_ADDR="$DEST_VAULT_ADDR" VAULT_TOKEN="$DEST_VAULT_TOKEN" \
     vault kv put "${dest_kv_mount}/${runtime_secret_path}" \
@@ -115,5 +119,8 @@ echo "seeded ${dest_kv_mount}/${pinocchio_secret_path} into ${DEST_VAULT_ADDR}"
 echo "public app url set to ${k3s_public_url}"
 if [[ -n "${override_gec_mysql_host}" ]]; then
   echo "mysql host override applied: ${override_gec_mysql_host}"
+fi
+if [[ -n "${override_oidc_issuer_url}" ]]; then
+  echo "oidc issuer override applied: ${override_oidc_issuer_url}"
 fi
 echo "no secret values were printed"

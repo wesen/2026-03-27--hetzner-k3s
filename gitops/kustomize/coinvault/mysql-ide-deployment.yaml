@@ -43,7 +43,7 @@ spec:
                   name: coinvault-runtime
                   key: session_secret
             - name: MYSQL_IDE_OIDC_ISSUER_URL
-              value: https://auth.scapegoat.dev/realms/coinvault
+              value: https://auth.yolo.scapegoat.dev/realms/coinvault
             - name: MYSQL_IDE_OIDC_CLIENT_ID
               value: coinvault-web
             - name: MYSQL_IDE_OIDC_CLIENT_SECRET

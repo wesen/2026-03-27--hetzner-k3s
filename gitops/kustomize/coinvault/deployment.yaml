@@ -40,7 +40,7 @@ spec:
             - name: COINVAULT_AUTH_PUBLIC_URL
               value: https://coinvault.yolo.scapegoat.dev
             - name: COINVAULT_OIDC_ISSUER_URL
-              value: https://auth.scapegoat.dev/realms/coinvault
+              value: https://auth.yolo.scapegoat.dev/realms/coinvault
             - name: COINVAULT_OIDC_CLIENT_ID
               value: coinvault-web
             - name: COINVAULT_OIDC_CLIENT_SECRET
