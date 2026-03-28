@@ -12,7 +12,7 @@
   shared in-cluster Postgres is now the default recommendation, while external Postgres remains the fallback if the team wants to preserve stronger control-plane separation
 - [x] Decide whether to migrate the existing shared Keycloak instance in place, restore from export, or rebuild realm/client state from Terraform and only migrate operator/application data
 - [x] Adopt the Vault-backed PostgreSQL bootstrap `Job` pattern for the `keycloak` database and `keycloak_app` role
-- [ ] Define backup, restore, and disaster-recovery procedures for realms, clients, groups, users, and identity-provider settings
+- [x] Define backup, restore, and disaster-recovery procedures for realms, clients, groups, users, and identity-provider settings
 
 ## Phase 3: GitOps packaging
 
@@ -34,7 +34,8 @@
 
 ## Phase 5: Validation and handoff
 
-- [ ] Validate Vault operator login against the in-cluster Keycloak
-- [ ] Validate at least one application login flow against the in-cluster Keycloak
-- [ ] Validate backup and restore procedures before decommissioning the external deployment
+- [x] Validate Vault operator login against the in-cluster Keycloak
+- [x] Validate at least one application login flow against the in-cluster Keycloak
+  The current proof is the `infra` realm Account Console on `auth.yolo.scapegoat.dev`; external application-realm migrations remain a later follow-on.
+- [x] Validate backup and restore procedures before decommissioning the external deployment
 - [x] Validate the ticket with `docmgr doctor`

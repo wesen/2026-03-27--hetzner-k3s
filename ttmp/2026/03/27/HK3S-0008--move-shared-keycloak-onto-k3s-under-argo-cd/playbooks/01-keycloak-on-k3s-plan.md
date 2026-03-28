@@ -21,17 +21,17 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md
       Note: Shared PostgreSQL now exists on-cluster and should be the preferred Keycloak backing store candidate
 ExternalSources: []
-Summary: "Implementation plan for moving the shared Keycloak control plane onto the K3s cluster under Argo CD, updated now that the base parallel deployment is live."
-LastUpdated: 2026-03-28T15:56:50-04:00
+Summary: "Implementation plan for moving the shared Keycloak control plane onto the K3s cluster under Argo CD, updated now that the parallel `infra` slice is fully validated."
+LastUpdated: 2026-03-28T17:31:03-04:00
 WhatFor: "Use this to remember the intended architecture and sequencing for moving the shared Keycloak control plane onto K3s later."
 WhenToUse: "Read this when the current Vault and first-app migration work is complete enough that identity-plane consolidation becomes a sensible next phase."
 ---
 
-# Keycloak on K3s deferred implementation plan
+# Keycloak on K3s implementation plan
 
 ## Purpose
 
-Capture the later-phase plan for moving the shared Keycloak control plane from the current external deployment at `auth.scapegoat.dev` onto the K3s cluster, but explicitly defer that move until the current Vault and app-migration work has stabilized.
+Capture the implementation plan for moving the shared Keycloak control plane from the current external deployment at `auth.scapegoat.dev` onto the K3s cluster. The parallel `infra` slice is now live and validated; the remaining work is future realm migration and any eventual external-host cutover.
 
 ## Current recommendation
 
@@ -137,8 +137,23 @@ That reduces the remaining design surface. The hard questions are now cutover, b
 
 Current progress note:
 
-- steps 1 through 6 are now complete at the base-runtime level
-- the next live step is Terraform-driven realm/client recreation plus Vault and application login validation
+- steps 1 through 7 are now complete for the `infra` realm slice
+- the base runtime, Terraform-driven `infra` realm recreation, Vault operator login, a realm-backed browser login, and database backup/restore validation are all proven
+- the next live step is not more platform plumbing; it is deciding whether and when to migrate non-`infra` realms and whether to cut over `auth.scapegoat.dev`
+
+## Validated current state
+
+The following are now true on the live cluster:
+
+- Argo app `keycloak` is `Synced Healthy`
+- `https://auth.yolo.scapegoat.dev` serves a valid certificate
+- the `infra` realm and `vault-oidc` client exist on the in-cluster Keycloak through the Terraform `k3s-parallel` environment
+- Vault `oidc/` now points at `https://auth.yolo.scapegoat.dev/realms/infra`
+- browser login to Vault works through the new Keycloak instance
+- browser login to the Keycloak Account Console for the `infra` realm works
+- a logical PostgreSQL dump/restore smoke test succeeds through [validate-keycloak-backup-restore.sh](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-keycloak-backup-restore.sh)
+
+Those validations prove the new identity plane can authenticate humans, back itself with shared PostgreSQL, and survive a database-level restore workflow. They do not yet mean the team should cut over the public `auth.scapegoat.dev` hostname.
 
 ## Acceptance criteria for the future implementation
 
@@ -147,3 +162,8 @@ Current progress note:
 - the new Keycloak deployment is GitOps-managed under Argo CD
 - backups and restore are tested
 - rollback from cutover is documented and practical
+
+Current acceptance note:
+
+- the criteria above are satisfied for the `infra` realm parallel slice
+- the remaining open question is business/operator cutover, not technical feasibility

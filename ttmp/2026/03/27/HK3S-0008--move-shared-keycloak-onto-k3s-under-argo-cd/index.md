@@ -17,8 +17,8 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md
       Note: Shared cluster PostgreSQL is now live and should be the default backing-store candidate for any future Keycloak-on-K3s deployment
 ExternalSources: []
-Summary: "Implementation ticket for moving shared Keycloak onto K3s under Argo CD; the parallel in-cluster deployment is now live, and the remaining work is realm/client migration plus Vault/application login validation."
-LastUpdated: 2026-03-28T15:56:50-04:00
+Summary: "Implementation ticket for moving shared Keycloak onto K3s under Argo CD; the parallel in-cluster deployment, `infra` realm recreation, Vault login validation, and backup/restore smoke test are now complete, while final external cutover remains intentionally deferred."
+LastUpdated: 2026-03-28T17:31:03-04:00
 WhatFor: "Use this ticket to plan the future move of the shared Keycloak control plane from the external deployment at auth.scapegoat.dev onto the K3s cluster under Argo CD."
 WhenToUse: "Read this when the Vault, Secrets Operator, and first-app migration tickets are stable enough to consider consolidating the shared identity plane onto K3s."
 ---
@@ -38,7 +38,7 @@ When this ticket is eventually executed, it should leave behind:
 
 ## Current Step
 
-Step 4 is active: the parallel in-cluster deployment at `auth.yolo.scapegoat.dev` is live and validated with the bootstrap admin account. The next work is recreating the `infra` realm and clients against the new instance and then validating Vault operator login plus one application login.
+Step 5 is complete for the `infra` realm slice: the parallel in-cluster deployment at `auth.yolo.scapegoat.dev` is live, the `infra` realm and `vault-oidc` client have been recreated against it, Vault operator login works against the new issuer, the realm-backed Account Console login works, and a logical PostgreSQL dump/restore smoke test has passed. The next decision is organizational, not technical: whether to start migrating non-`infra` application realms and when, if ever, to cut over `auth.scapegoat.dev`.
 
 ## Key Links
 
@@ -61,7 +61,7 @@ Current decision:
 - move Keycloak onto the current single-node K3s cluster as a parallel-host rollout
 - when this ticket is activated, prefer shared in-cluster PostgreSQL as the Keycloak backing store instead of inventing a separate one-off database path
 - use repo-owned manifests plus a Vault-backed PostgreSQL bootstrap `Job` rather than Terraform or an external chart to create the `keycloak` database contract
-- keep realm and client recreation as a separate follow-on step after the base Keycloak runtime is healthy
+- keep non-`infra` realm migration and the final `auth.scapegoat.dev` cutover as a separate follow-on step after the parallel infra slice has proven itself
 
 Why:
 
@@ -69,6 +69,7 @@ Why:
 - shared PostgreSQL now exists on-cluster, so the data-store question is no longer open
 - repo-owned manifests fit the current operational style of the cluster better than a vendor chart
 - keeping the external Keycloak online preserves the rollback and break-glass path during the parallel rollout
+- the parallel infra slice is now strong enough to prove the architecture without forcing an early hostname takeover
 
 ## Topics
 

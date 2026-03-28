@@ -240,3 +240,105 @@ That validation proved:
 - Create the Terraform-side parallel environment for recreating the `infra` realm and clients against `auth.yolo.scapegoat.dev`.
 - Validate Vault operator login against the new Keycloak instance.
 - Validate at least one application login flow against the new Keycloak instance.
+
+## Step 4: Recreate the `infra` realm in the new Keycloak and repoint Vault OIDC
+
+After the base runtime was healthy, I moved to the first true migration task: recreate the shared `infra` realm and the `vault-oidc` client against the new Keycloak instance without touching the old external one. I did that in the Terraform repo by cloning the hosted `infra-access` environment into a new `k3s-parallel` environment and pointing it at `https://auth.yolo.scapegoat.dev`.
+
+That apply succeeded and left behind the expected realm/client shape on the K3s Keycloak:
+
+- realm `infra`
+- groups `infra-admins` and `infra-readonly`
+- GitHub identity provider
+- confidential browser client `vault-oidc`
+- group membership mapper for the `groups` claim
+
+With that in place, I reconfigured Vault itself. I chose the pragmatic path and repointed the existing `oidc/` mount at the new issuer instead of creating a second temporary Vault auth mount. That kept the validation focused on the real production operator path and avoided extra callback/client drift. The bootstrap and validation helpers both passed after I corrected the 1Password note parsing for the Vault root token.
+
+The resulting live Vault config now reads:
+
+- `oidc_discovery_url = https://auth.yolo.scapegoat.dev/realms/infra`
+- `oidc_client_id = vault-oidc`
+- `default_role = operators`
+
+### What I did
+- Added and applied the Terraform `k3s-parallel` environment for `infra-access`.
+- Reused the existing `vault-oidc` client model against the new Keycloak hostname.
+- Repointed Vault `oidc/` at `https://auth.yolo.scapegoat.dev/realms/infra`.
+- Re-ran [`bootstrap-vault-oidc.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-oidc.sh) and [`validate-vault-oidc-config.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-vault-oidc-config.sh).
+
+### Why
+- This is the smallest real proof that the in-cluster Keycloak can replace the external one for operator auth.
+- A parallel Vault auth mount would have reduced risk slightly, but it also would have validated a path the team does not actually intend to operate.
+
+### What worked
+- Terraform recreated the `infra` realm cleanly on the new Keycloak instance.
+- The `vault-oidc` callback URI was already valid for `vault.yolo.scapegoat.dev`.
+- Vault OIDC bootstrap and config validation passed once the correct client secret and root token parsing were in place.
+
+### What didn't work
+- My first root-token extraction assumed a single-line `key: value` note format in 1Password.
+- The actual note stores `Root token:` on one line and the token on the next line, so the first bootstrap rerun failed with `missing required environment variable: VAULT_TOKEN`.
+
+### What I learned
+- The new Keycloak instance is no longer just “up.” It is actually serving the operator OIDC contract that matters.
+- The remaining migration risk has moved from platform wiring to human workflow and cutover timing.
+
+## Step 5: Prove browser login and validate logical backup/restore
+
+Once Vault was pointed at the new issuer, I wanted proof that real humans could still use it and that the new identity plane had a credible recovery path. I created a temporary local user in the `infra` realm, added it to `infra-admins`, and used that account for browser-based smoke tests.
+
+The first browser flow was Vault itself. I logged out of the existing Vault UI session, started a fresh OIDC sign-in, authenticated against `auth.yolo.scapegoat.dev`, completed the required profile fields on first login, and landed back on the Vault dashboard. That proved the real Vault popup flow against the new Keycloak issuer, not just the raw OIDC config shape.
+
+For a second browser-backed proof, I opened the Keycloak Account Console on:
+
+- `https://auth.yolo.scapegoat.dev/realms/infra/account/`
+
+and confirmed the same temporary user could sign in and load the realm-backed account UI. That is a meaningful second path even though it is realm-native rather than an already-migrated external application client.
+
+I then turned to the backup/restore task. Instead of leaving that as a theoretical runbook, I wrote [`validate-keycloak-backup-restore.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-keycloak-backup-restore.sh) and ran it live. The script:
+
+1. reads the shared PostgreSQL admin credential synced into `keycloak-postgres-admin`
+2. creates a scratch database `keycloak_restore_smoke`
+3. runs `pg_dump` against the live `keycloak` database
+4. restores that dump into the scratch database
+5. checks that the restored database contains:
+   - realm `infra`
+   - client `vault-oidc`
+6. drops the scratch database on cleanup
+
+The live run passed with:
+
+- `keycloak backup/restore validation passed`
+- `verified realm: infra`
+- `verified client: vault-oidc`
+
+After the smoke tests, I deleted the temporary validation user so it would not linger as accidental operator state.
+
+### What I did
+- Created a temporary `infra-admins` user in the new Keycloak realm.
+- Validated real browser login to Vault through the new issuer.
+- Validated browser login to the Keycloak Account Console.
+- Added and ran [`validate-keycloak-backup-restore.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-keycloak-backup-restore.sh).
+- Deleted the temporary validation user afterward.
+
+### Why
+- HK3S-0008 should not claim success on config alone.
+- Browser login proves the operator workflow.
+- Logical dump/restore proves that realm and client data can be recovered from the shared PostgreSQL backing store.
+
+### What worked
+- Vault browser login landed on the dashboard after OIDC through `auth.yolo.scapegoat.dev`.
+- The Keycloak Account Console loaded successfully for the `infra` realm.
+- The dump/restore script successfully reconstructed the `infra` realm and `vault-oidc` client in a scratch database.
+
+### What didn't work
+- The first login of a brand-new local Keycloak user required the profile-completion screen before redirecting back to Vault. That was expected behavior, but it lengthened the browser validation slightly.
+
+### What I learned
+- The current parallel slice is operationally convincing: human auth works, shared PostgreSQL works, and backup/restore is no longer hypothetical.
+- The external deployment is now a rollback choice, not a technical dependency.
+
+### What should be done in the future
+- Decide whether to migrate any non-`infra` realms, such as application-specific clients and brokers, into the K3s Keycloak.
+- Decide whether to cut over `auth.scapegoat.dev` or keep the external deployment as a long-lived separate control plane.
