@@ -26,15 +26,15 @@
 
 ## Phase 4: Migration design
 
-- [ ] Design realm migration for `infra` first, then any shared application realms
-- [ ] Plan hostname strategy:
+- [x] Design realm migration for `infra` first, then any shared application realms
+- [x] Plan hostname strategy:
   parallel hostname first, then cutover, or direct takeover of `auth.scapegoat.dev`
-- [ ] Plan OIDC client continuity for Vault and application callbacks during the transition
-- [ ] Define rollback boundaries if the new Keycloak instance fails after cutover
+- [x] Plan OIDC client continuity for Vault and application callbacks during the transition
+- [x] Define rollback boundaries if the new Keycloak instance fails after cutover
 
 ## Phase 5: Validation and handoff
 
 - [ ] Validate Vault operator login against the in-cluster Keycloak
 - [ ] Validate at least one application login flow against the in-cluster Keycloak
 - [ ] Validate backup and restore procedures before decommissioning the external deployment
-- [ ] Validate the ticket with `docmgr doctor`
+- [x] Validate the ticket with `docmgr doctor`

@@ -143,3 +143,100 @@ The application manifest validated. The Kustomize package hit the expected names
 
 ### What should be done in the future
 - Seed the Vault secret paths, re-run the Vault Kubernetes-auth bootstrap so the new roles exist, and deploy the Argo application.
+
+## Step 3: Seed Vault, recover from a stuck Argo hook, and bring the parallel Keycloak live
+
+Once the scaffold was committed, I moved into the live rollout. The first operational task was to seed Vault so the new package could actually reconcile:
+
+- re-ran [`bootstrap-vault-kubernetes-auth.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-vault-kubernetes-auth.sh) so the new `keycloak` and `keycloak-db-bootstrap` roles existed in the live Vault auth backend
+- wrote the Keycloak runtime database secret and bootstrap-admin secret with [`bootstrap-keycloak-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-keycloak-secrets.sh)
+- applied [`gitops/applications/keycloak.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/keycloak.yaml)
+
+The Vault part worked immediately. The first Argo sync did not.
+
+The bug was in the first version of the database bootstrap `Job`. I had made it an Argo `PreSync` hook, which sounds reasonable at first because the Keycloak database must exist before Keycloak starts. But hooks are executed outside the normal sync-wave ordering for the rest of the application. That meant Argo tried to create the hook Job before the service account and Vault/VSO resources existed. The job controller then produced:
+
+- `pods "keycloak-db-bootstrap-" is forbidden: error looking up service account keycloak/keycloak-db-bootstrap: serviceaccount "keycloak-db-bootstrap" not found`
+
+That left the application stuck in `operationState.phase=Running` while waiting forever on the failed hook.
+
+The fix was:
+
+1. change the bootstrap `Job` from a `PreSync` hook into a normal resource with:
+   - `argocd.argoproj.io/sync-wave: "1"`
+   - `argocd.argoproj.io/sync-options: Replace=true`
+2. push that change
+3. manually clean up the stale hook state:
+   - delete the old job
+   - remove the job hook finalizer
+   - remove the stuck application finalizer
+   - recreate the `Application`
+
+Once the stale hook state was gone, the current revision synced correctly:
+
+- namespace
+- service accounts
+- VaultConnection
+- VaultAuth resources
+- VaultStaticSecret resources
+- bootstrap script ConfigMap
+- database bootstrap Job
+- service
+- deployment
+- ingress
+
+The database bootstrap then succeeded, and the Keycloak pod came up. The initial Keycloak startup took a little longer because the container detected configuration changes and rebuilt the optimized server image on first boot. That was visible in the logs but not a failure.
+
+The last small operational wrinkle was TLS timing. The first public `curl` check failed with:
+
+- `curl: (60) SSL certificate problem: self-signed certificate`
+
+That was just cert-manager’s temporary challenge certificate during ACME issuance. A short wait later, the certificate became:
+
+- `certificate/keycloak-tls Ready=True`
+
+and the full validation script passed:
+
+- [`validate-keycloak.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-keycloak.sh)
+
+That validation proved:
+
+- Argo app `keycloak` is `Synced Healthy`
+- the `keycloak` database exists
+- the `keycloak_app` role exists
+- the public hostname `https://auth.yolo.scapegoat.dev` is serving with a valid certificate
+- the bootstrap-admin account can obtain a token against the public hostname
+
+### What I did
+- Seeded the live Vault data for Keycloak.
+- Applied the Keycloak Argo application.
+- Diagnosed the failed `PreSync` hook ordering bug.
+- Changed the database bootstrap `Job` to a normal wave-ordered resource.
+- Cleaned up the stale Argo hook and application finalizers.
+- Recreated the application and completed the rollout.
+- Waited for cert-manager to swap the temporary certificate for the final ACME certificate.
+- Ran the end-to-end Keycloak validation script.
+
+### Why
+- The base runtime needed to be proven before touching realm/client migration.
+- The rollout needed to preserve the external Keycloak as rollback, which is exactly what the parallel-host model accomplished.
+
+### What worked
+- Vault seeding and VSO secret sync worked immediately.
+- The database bootstrap `Job` succeeded once it was allowed to run after its service account and secrets existed.
+- The Keycloak deployment rolled out cleanly after the database contract existed.
+- Public bootstrap-admin login validation succeeded.
+
+### What didn't work
+- The first `PreSync` hook design was wrong for a Job that depends on non-hook resources in the same application.
+- The stuck hook left stale Argo state behind, so I had to clear finalizers manually before the corrected revision could take over.
+- The first public validation hit the expected temporary self-signed certificate before ACME finished.
+
+### What I learned
+- For this repo, the right pattern is a normal wave-ordered bootstrap `Job`, not a `PreSync` hook, when the Job depends on Vault/VSO and service-account resources from the same package.
+- Clearing stale Argo hook state can be necessary even after the manifest bug is fixed; Git alone does not always unwind a wedged operation state.
+
+### What should be done in the future
+- Create the Terraform-side parallel environment for recreating the `infra` realm and clients against `auth.yolo.scapegoat.dev`.
+- Validate Vault operator login against the new Keycloak instance.
+- Validate at least one application login flow against the new Keycloak instance.

@@ -21,7 +21,7 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md
       Note: Shared PostgreSQL now exists on-cluster and should be the preferred Keycloak backing store candidate
 ExternalSources: []
-Summary: "Implementation plan for moving the shared Keycloak control plane onto the K3s cluster under Argo CD, updated now that the package scaffold exists."
+Summary: "Implementation plan for moving the shared Keycloak control plane onto the K3s cluster under Argo CD, updated now that the base parallel deployment is live."
 LastUpdated: 2026-03-28T15:56:50-04:00
 WhatFor: "Use this to remember the intended architecture and sequencing for moving the shared Keycloak control plane onto K3s later."
 WhenToUse: "Read this when the current Vault and first-app migration work is complete enough that identity-plane consolidation becomes a sensible next phase."
@@ -137,8 +137,8 @@ That reduces the remaining design surface. The hard questions are now cutover, b
 
 Current progress note:
 
-- steps 1 through 4 are now represented in Git
-- the next live step is Vault secret seeding plus Argo rollout
+- steps 1 through 6 are now complete at the base-runtime level
+- the next live step is Terraform-driven realm/client recreation plus Vault and application login validation
 
 ## Acceptance criteria for the future implementation
 

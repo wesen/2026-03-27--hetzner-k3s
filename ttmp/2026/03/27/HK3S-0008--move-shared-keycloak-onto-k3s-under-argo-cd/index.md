@@ -17,7 +17,7 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md
       Note: Shared cluster PostgreSQL is now live and should be the default backing-store candidate for any future Keycloak-on-K3s deployment
 ExternalSources: []
-Summary: "Implementation ticket for moving shared Keycloak onto K3s under Argo CD; the package scaffold now exists and the remaining work is live rollout and migration validation."
+Summary: "Implementation ticket for moving shared Keycloak onto K3s under Argo CD; the parallel in-cluster deployment is now live, and the remaining work is realm/client migration plus Vault/application login validation."
 LastUpdated: 2026-03-28T15:56:50-04:00
 WhatFor: "Use this ticket to plan the future move of the shared Keycloak control plane from the external deployment at auth.scapegoat.dev onto the K3s cluster under Argo CD."
 WhenToUse: "Read this when the Vault, Secrets Operator, and first-app migration tickets are stable enough to consider consolidating the shared identity plane onto K3s."
@@ -38,7 +38,7 @@ When this ticket is eventually executed, it should leave behind:
 
 ## Current Step
 
-Step 3 is active: the Keycloak package scaffold exists in Git, and the next work is seeding Vault, applying the Argo app, and validating the parallel in-cluster deployment at `auth.yolo.scapegoat.dev`.
+Step 4 is active: the parallel in-cluster deployment at `auth.yolo.scapegoat.dev` is live and validated with the bootstrap admin account. The next work is recreating the `infra` realm and clients against the new instance and then validating Vault operator login plus one application login.
 
 ## Key Links
 
@@ -61,6 +61,7 @@ Current decision:
 - move Keycloak onto the current single-node K3s cluster as a parallel-host rollout
 - when this ticket is activated, prefer shared in-cluster PostgreSQL as the Keycloak backing store instead of inventing a separate one-off database path
 - use repo-owned manifests plus a Vault-backed PostgreSQL bootstrap `Job` rather than Terraform or an external chart to create the `keycloak` database contract
+- keep realm and client recreation as a separate follow-on step after the base Keycloak runtime is healthy
 
 Why:
 

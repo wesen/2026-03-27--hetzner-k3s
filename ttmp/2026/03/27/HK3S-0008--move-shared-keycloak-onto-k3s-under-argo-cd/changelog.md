@@ -10,3 +10,4 @@
 - Updated the deferred Keycloak-on-K3s plan now that Vault, VSO, the first migrated app, and shared PostgreSQL are all live; marked the platform-prerequisite task complete and recorded that shared PostgreSQL is now the preferred Keycloak backing-store candidate when this ticket is activated
 - Added the reusable Vault-backed PostgreSQL bootstrap Job pattern doc, a concrete Keycloak-on-K3s implementation design doc, and a live diary so HK3S-0008 can proceed task by task instead of remaining a vague deferred note
 - Added the initial Keycloak package scaffold, including Vault/VSO secret wiring, a PostgreSQL bootstrap `PreSync` Job, the parallel-host ingress, and local bootstrap/validation helpers
+- Seeded the live Vault data, fixed the bootstrap Job ordering bug by moving it out of `PreSync` hook mode, recovered the wedged Argo application state, and brought `https://auth.yolo.scapegoat.dev` up to `Synced Healthy` with successful bootstrap-admin login validation
