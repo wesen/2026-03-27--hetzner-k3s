@@ -35,6 +35,10 @@ topics:
       description: GitHub Container Registry image publishing and consumption
     - slug: ci-cd
       description: Continuous integration and continuous delivery workflows
+    - slug: pretext
+      description: Pretext source and deployments
+    - slug: static-site
+      description: Static web applications and deployments
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -57,7 +57,9 @@ Current implementation state:
 - source-side standalone explorer build is implemented in the `pretext` repo
 - container packaging for the static site is implemented in the `pretext` repo
 - GitOps manifests and operator scripts are added in this repo
-- live cluster rollout and validation are the remaining active step
+- the app is live at `https://pretext.yolo.scapegoat.dev`
+- Argo reports `pretext` as `Synced Healthy`
+- the first rollout also documented the cluster-specific TLS issuer requirement: use `letsencrypt-prod`
 
 ## Topics
 

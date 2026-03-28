@@ -89,6 +89,15 @@ There is also upstream design context in the source repo ticket:
   - `kubectl -n pretext describe certificaterequest pretext-explorer-tls-1` reported `Referenced "ClusterIssuer" not found`
   - `kubectl get clusterissuer` showed only `letsencrypt-prod`
 
+### Final rollout result
+
+- source repo deployment fork confirmed at `wesen/pretext` `main` commit `2b6911f415d97e737e22972dd996f12ecc3f8342`
+- K3s repo GitOps state pushed through commit `b162427`
+- image `pretext-explorer:hk3s-0012` built locally and imported into node `91.98.46.169`
+- Argo `Application` `pretext` reached `Synced Healthy`
+- `Certificate` `pretext-explorer-tls` reached `Ready=True`
+- public endpoint `https://pretext.yolo.scapegoat.dev` serves the explorer article successfully
+
 ## Usage Examples
 
 ### Build the explorer image locally
