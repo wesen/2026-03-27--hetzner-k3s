@@ -113,6 +113,7 @@ The same cluster now also carries a repo-managed **Vault** application definitio
 - `docs/`: long-form intern-facing operational guides in Glazed help-page format
 - `docs/coinvault-k3s-deployment-playbook.md`: end-to-end operator guide for the CoinVault K3s deployment path
 - `docs/public-repo-ghcr-argocd-deployment-playbook.md`: how to publish public-repo images to GHCR and deploy them through Argo CD
+- `docs/vault-backed-postgres-bootstrap-job-pattern.md`: how to provision app-specific PostgreSQL databases and roles declaratively with Vault, VSO, and a bootstrap Job
 - `gitops/kustomize/demo-stack`: Kustomize package deployed by the live Argo CD application
 - `gitops/applications/demo-stack.yaml`: current Argo CD `Application` manifest
 - `gitops/applications/vault.yaml`: Argo CD `Application` for the K3s-hosted Vault deployment

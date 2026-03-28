@@ -2,22 +2,26 @@
 
 ## Phase 1: Preconditions
 
-- [ ] Wait until `HK3S-0006` and `HK3S-0007` are complete and stable enough that the cluster has a proven app and secrets delivery path
-- [ ] Reconfirm that keeping Keycloak external is no longer buying meaningful recovery or operational simplicity
-- [ ] Decide whether this move should be done on the current single-node cluster or after a multi-node K3s upgrade
+- [x] Wait until `HK3S-0006` and `HK3S-0007` are complete and stable enough that the cluster has a proven app and secrets delivery path
+- [ ] Reconfirm that keeping Keycloak external is no longer buying meaningful recovery or operational simplicity beyond serving as the rollback path
+- [ ] Decide that this move should be implemented on the current single-node cluster as a parallel-host rollout rather than waiting for a multi-node upgrade
 
 ## Phase 2: Architecture and data model
 
-- [ ] Choose the runtime shape:
-  in-cluster Postgres, external Postgres, or another persistent store
+- [x] Choose the preferred runtime shape:
+  shared in-cluster Postgres is now the default recommendation, while external Postgres remains the fallback if the team wants to preserve stronger control-plane separation
 - [ ] Decide whether to migrate the existing shared Keycloak instance in place, restore from export, or rebuild realm/client state from Terraform and only migrate operator/application data
+- [ ] Adopt the Vault-backed PostgreSQL bootstrap `Job` pattern for the `keycloak` database and `keycloak_app` role
 - [ ] Define backup, restore, and disaster-recovery procedures for realms, clients, groups, users, and identity-provider settings
 
 ## Phase 3: GitOps packaging
 
 - [ ] Choose the packaging model for K3s:
   vendor chart, Kustomize-wrapped chart, or plain manifests under Argo CD
+- [ ] Choose the parallel hostname for the in-cluster Keycloak deployment
+- [ ] Add Vault policy, role, and bootstrap helpers for Keycloak runtime secrets and the database-bootstrap Job
 - [ ] Add the Keycloak Argo CD application and cluster resources
+- [ ] Add the PostgreSQL bootstrap Job and its synced secrets
 - [ ] Add ingress, TLS, storage, and secret wiring for the new in-cluster deployment
 
 ## Phase 4: Migration design
