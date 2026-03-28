@@ -4,7 +4,7 @@ metadata:
   name: pretext-explorer
   annotations:
     argocd.argoproj.io/sync-wave: "2"
-    cert-manager.io/cluster-issuer: letsencrypt-production
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   labels:
     app.kubernetes.io/name: pretext-explorer
     app.kubernetes.io/component: web
