@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": ["keycloak"],
+  "bound_service_account_namespaces": ["keycloak"],
+  "policies": ["keycloak"],
+  "token_ttl": "1h"
+}

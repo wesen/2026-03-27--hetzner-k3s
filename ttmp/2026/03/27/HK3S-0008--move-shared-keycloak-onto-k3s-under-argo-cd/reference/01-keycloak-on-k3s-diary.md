@@ -70,3 +70,76 @@ Then I updated HK3S-0008 itself so it is no longer just “maybe one day move Ke
 
 ### What should be done in the future
 - Choose the packaging model explicitly and start the actual Keycloak package scaffold.
+
+## Step 2: Turn the design into a real GitOps package and bootstrap toolchain
+
+With the database-provisioning pattern decided, the next task was to stop talking abstractly about Keycloak and give the ticket a concrete package. I chose the same repo-owned manifest style that already succeeded for the shared MySQL, PostgreSQL, and Redis services, instead of reaching for a vendor chart. That keeps the runtime explicit and easier to debug.
+
+The package now exists in:
+
+- [`gitops/applications/keycloak.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/keycloak.yaml)
+- [`gitops/kustomize/keycloak/kustomization.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/keycloak/kustomization.yaml)
+
+The important implementation choices I encoded were:
+
+- parallel hostname: `auth.yolo.scapegoat.dev`
+- official Keycloak image: `quay.io/keycloak/keycloak:26.1.0`
+- shared PostgreSQL backing store at `postgres.postgres.svc.cluster.local:5432`
+- two service accounts:
+  - `keycloak`
+  - `keycloak-db-bootstrap`
+- Vault and VSO secret flow for:
+  - runtime DB credential
+  - bootstrap admin credential
+  - PostgreSQL bootstrap credential for the Job
+- an Argo `PreSync` Job that creates:
+  - database `keycloak`
+  - role `keycloak_app`
+
+I also added the local helpers needed to seed and validate the deployment:
+
+- [`scripts/bootstrap-keycloak-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-keycloak-secrets.sh)
+- [`scripts/validate-keycloak.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/validate-keycloak.sh)
+
+The first validation pass was purely structural:
+
+- `bash -n scripts/bootstrap-keycloak-secrets.sh`
+- `bash -n scripts/validate-keycloak.sh`
+- `kubectl kustomize gitops/kustomize/keycloak`
+- `git diff --check`
+
+That all passed. One small portability issue did show up while reviewing the rendered ConfigMap script: I had written the bootstrap shell with `set -euo pipefail` under `/bin/sh`. That is not the right assumption for the stock shell inside `postgres:16-alpine`, so I tightened it to `set -eu` and rewrote the database-existence check without relying on `pipefail`.
+
+I also tried a server dry-run against the cluster:
+
+- `kubectl apply --dry-run=server -f gitops/applications/keycloak.yaml`
+- `kubectl apply --dry-run=server -k gitops/kustomize/keycloak`
+
+The application manifest validated. The Kustomize package hit the expected namespace-not-found limitation of server dry-run because the target namespace does not exist yet and the dry-run does not stage earlier namespace creation for later objects. That is not a design problem; it is a known limitation of validating a package that creates its own namespace.
+
+### What I did
+- Chose repo-owned manifests and the parallel hostname.
+- Added the Keycloak Argo application and Kustomize package.
+- Added the Vault policies, roles, and bootstrap helpers.
+- Added the PostgreSQL bootstrap `Job`.
+- Added the initial deployment, service, and ingress.
+- Fixed the bootstrap script portability issue before rollout.
+
+### Why
+- The repo-owned manifest path fits the rest of the cluster and avoids chart-induced surprises.
+- The `PreSync` Job lets Argo own the database bootstrap without making the running Keycloak pod privileged.
+
+### What worked
+- The render and local static validation passed cleanly.
+- The Vault policy split matched the intended service-account boundaries.
+- The package structure now aligns with the rest of the cluster.
+
+### What didn't work
+- The first draft of the bootstrap shell was too optimistic about `pipefail` support under `/bin/sh`.
+- Server-side dry-run could not fully validate namespaced objects before the namespace exists, which is expected but still worth recording.
+
+### What I learned
+- The parallel-host Keycloak rollout is now mostly an operator bootstrap problem, not a packaging problem.
+
+### What should be done in the future
+- Seed the Vault secret paths, re-run the Vault Kubernetes-auth bootstrap so the new roles exist, and deploy the Argo application.

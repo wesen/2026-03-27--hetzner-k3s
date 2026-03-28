@@ -17,7 +17,7 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/index.md
       Note: Shared cluster PostgreSQL is now live and should be the default backing-store candidate for any future Keycloak-on-K3s deployment
 ExternalSources: []
-Summary: "Deferred follow-up ticket for eventually moving the shared Keycloak control plane from the external deployment to K3s under Argo CD; shared PostgreSQL is now live, so the preferred persistence direction is clearer."
+Summary: "Implementation ticket for moving shared Keycloak onto K3s under Argo CD; the package scaffold now exists and the remaining work is live rollout and migration validation."
 LastUpdated: 2026-03-28T15:56:50-04:00
 WhatFor: "Use this ticket to plan the future move of the shared Keycloak control plane from the external deployment at auth.scapegoat.dev onto the K3s cluster under Argo CD."
 WhenToUse: "Read this when the Vault, Secrets Operator, and first-app migration tickets are stable enough to consider consolidating the shared identity plane onto K3s."
@@ -27,9 +27,7 @@ WhenToUse: "Read this when the Vault, Secrets Operator, and first-app migration 
 
 ## Overview
 
-This is a deferred platform ticket. The current decision is to keep the shared Keycloak deployment external for now, even though Vault now runs on K3s, because external Keycloak still provides a cleaner recovery and break-glass control plane while the rest of the platform migration is still in motion.
-
-The goal of this ticket is not to start implementation immediately. The goal is to preserve the design and execution outline for a later phase where the shared Keycloak control plane can be moved onto K3s and managed under Argo CD without losing login continuity for Vault and application users.
+This ticket is now in active implementation. The current operating model is still to keep the shared external Keycloak deployment online as the rollback path while the new in-cluster Keycloak is brought up behind a parallel hostname.
 
 When this ticket is eventually executed, it should leave behind:
 
@@ -40,7 +38,7 @@ When this ticket is eventually executed, it should leave behind:
 
 ## Current Step
 
-Deferred follow-up, but no longer blocked on the original platform prerequisites. Vault, VSO, the first migrated app, and shared PostgreSQL are now live, so this ticket is ready for a future implementation pass once the team decides that keeping Keycloak external is no longer worth the recovery tradeoff.
+Step 3 is active: the Keycloak package scaffold exists in Git, and the next work is seeding Vault, applying the Argo app, and validating the parallel in-cluster deployment at `auth.yolo.scapegoat.dev`.
 
 ## Key Links
 
@@ -55,20 +53,21 @@ Deferred follow-up, but no longer blocked on the original platform prerequisites
 
 Current status: **active**
 
-## Deferred Decision
+## Current Decision
 
 Current decision:
 
 - keep `auth.scapegoat.dev` external for now
-- do not move Keycloak onto the single-node K3s cluster during the current Vault and first-app migration phase
+- move Keycloak onto the current single-node K3s cluster as a parallel-host rollout
 - when this ticket is activated, prefer shared in-cluster PostgreSQL as the Keycloak backing store instead of inventing a separate one-off database path
+- use repo-owned manifests plus a Vault-backed PostgreSQL bootstrap `Job` rather than Terraform or an external chart to create the `keycloak` database contract
 
 Why:
 
 - Vault, Argo CD, and the first migrated apps already depend on this cluster
-- keeping Keycloak external preserves an out-of-cluster operator login path during cluster recovery
-- identity-plane consolidation is valuable, but it is not on the critical path for the current secrets and application migration work
-- shared PostgreSQL now exists on-cluster, so the data-store question is less open than it was when this ticket was created
+- shared PostgreSQL now exists on-cluster, so the data-store question is no longer open
+- repo-owned manifests fit the current operational style of the cluster better than a vendor chart
+- keeping the external Keycloak online preserves the rollback and break-glass path during the parallel rollout
 
 ## Topics
 

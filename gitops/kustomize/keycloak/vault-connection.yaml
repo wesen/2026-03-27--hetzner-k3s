@@ -1,0 +1,9 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: vault-connection
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  address: https://vault.yolo.scapegoat.dev

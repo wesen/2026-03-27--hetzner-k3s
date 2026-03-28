@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: identity
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - auth.yolo.scapegoat.dev
+      secretName: keycloak-tls
+  rules:
+    - host: auth.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
