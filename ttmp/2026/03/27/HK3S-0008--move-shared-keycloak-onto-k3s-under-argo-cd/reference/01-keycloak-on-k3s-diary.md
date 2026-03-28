@@ -342,3 +342,101 @@ After the smoke tests, I deleted the temporary validation user so it would not l
 ### What should be done in the future
 - Decide whether to migrate any non-`infra` realms, such as application-specific clients and brokers, into the K3s Keycloak.
 - Decide whether to cut over `auth.scapegoat.dev` or keep the external deployment as a long-lived separate control plane.
+
+## Step 6: Migrate CoinVault to the new Keycloak and retire the demo stack
+
+With the `infra` slice proven, I moved one real application realm over: `coinvault`. That was the right next test because CoinVault is already live on K3s and exercises the exact browser OIDC path we care about operationally.
+
+I started in the Terraform repo by cloning the hosted `keycloak/apps/coinvault/envs/hosted` environment into a new `k3s-parallel` environment aimed at `https://auth.yolo.scapegoat.dev`. The first local apply looked successful, but the resulting issuer was wrong:
+
+- `https://auth.yolo.scapegoat.dev/realms/smailnail`
+
+That turned out to be a local input leak. A preexisting environment value was still setting `realm_name=smailnail`, so the first apply created the wrong realm even though the module and example files said `coinvault`. I caught it immediately because the new CoinVault pod crashed on startup with:
+
+- `create oidc authenticator: oidc discovery request failed with status 404`
+
+and the public well-known discovery URL for `coinvault` returned 404.
+
+The fix was to rewrite the local ignored `terraform.tfvars` for the `k3s-parallel` environment with explicit:
+
+- `realm_name = "coinvault"`
+- `realm_display_name = "coinvault"`
+
+then re-run `terraform plan` and `terraform apply`. Terraform replaced the accidental `smailnail` realm and recreated the intended `coinvault` realm plus the `coinvault-web` client. After that, this URL returned the expected discovery document:
+
+- `https://auth.yolo.scapegoat.dev/realms/coinvault/.well-known/openid-configuration`
+
+Once the Keycloak side was real, I updated the K3s CoinVault package:
+
+- [`gitops/kustomize/coinvault/deployment.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/deployment.yaml)
+- [`gitops/kustomize/coinvault/mysql-ide-deployment.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/mysql-ide-deployment.yaml)
+
+Both now point at:
+
+- `https://auth.yolo.scapegoat.dev/realms/coinvault`
+
+I also updated [`seed-coinvault-k3s-vault-secrets.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/seed-coinvault-k3s-vault-secrets.sh) so the Vault-backed runtime secret can override `oidc_issuer_url` cleanly, and then re-seeded the K3s Vault secret with the new issuer value. That kept the synced runtime secret and the pod env consistent.
+
+The first CoinVault rollout after the manifest flip still failed, but for a now-obvious reason: the pod had started during the brief window where the wrong realm existed, so it cached the bad 404 outcome and sat in `CrashLoopBackOff`. Deleting that bad pod after the corrected realm existed was enough. The new pod came up cleanly, Argo finished wave 1, and `mysql-ide` then rolled forward in wave 2 to the same issuer.
+
+The real proof was browser login. I created a temporary local user in the `coinvault` realm, opened:
+
+- `https://coinvault.yolo.scapegoat.dev/auth/logout`
+
+which redirected to the new Keycloak login page at:
+
+- `https://auth.yolo.scapegoat.dev/realms/coinvault/...`
+
+Then I authenticated with the temporary user and landed back in the authenticated CoinVault UI. That is the first real external application login against the in-cluster Keycloak, not just a realm-native console or Vault operator path.
+
+With CoinVault stable, I removed the old placeholder workload:
+
+- deleted the live Argo `Application` for `demo-stack`
+- waited for the `demo` namespace to enter normal finalizer cleanup and disappear
+- deleted:
+  - [`gitops/applications/demo-stack.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/demo-stack.yaml)
+  - the entire [`gitops/kustomize/demo-stack`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/demo-stack) package
+
+That leaves the cluster with a real app using the new Keycloak, instead of the original placeholder demo package.
+
+Rollback remains simple and explicit:
+
+1. keep the external `auth.scapegoat.dev` deployment online
+2. revert the CoinVault issuer URLs in the K3s manifests
+3. re-seed the Vault-backed CoinVault runtime secret with the old issuer
+4. let Argo roll the deployments back
+
+No database migration is needed for that rollback because this slice only changed OIDC issuer and client source, not CoinVault application data.
+
+### What I did
+- Added the Terraform `k3s-parallel` environment for the `coinvault` realm.
+- Corrected an accidental first apply that created `smailnail` instead of `coinvault`.
+- Recreated the `coinvault` realm and `coinvault-web` client against the new Keycloak.
+- Updated CoinVault and MySQL IDE to use the new issuer.
+- Re-seeded the Vault-backed runtime secret with the new issuer metadata.
+- Validated real browser login through CoinVault against the new issuer.
+- Removed the old `demo-stack` application from the cluster and from Git.
+
+### Why
+- A Keycloak migration is not credible until a real external app uses it.
+- CoinVault is the right first app because it is already live, already OIDC-backed, and already business-relevant.
+- Removing `demo-stack` prevents a dead placeholder from obscuring the fact that the cluster now carries real workloads.
+
+### What worked
+- The corrected `coinvault` realm published a valid discovery document.
+- CoinVault rolled successfully once the bad pod from the 404 window was replaced.
+- MySQL IDE followed in the next Argo sync wave.
+- Browser login landed back in the authenticated CoinVault UI.
+- The demo stack pruned cleanly from the cluster and its namespace disappeared.
+
+### What didn't work
+- The first Terraform apply created the wrong realm because a stale input value leaked in locally.
+- The first CoinVault rollout happened during that bad-realm window and crashed until the pod was recreated.
+
+### What I learned
+- The right migration pattern is still “parallel realm, then flip app issuer, then validate browser flow.” The failed first apply did not invalidate the pattern; it just showed why explicit local inputs matter.
+- Removing placeholder apps as soon as a real one exists makes the cluster state much easier to read.
+
+### What should be done in the future
+- Decide whether other shared application realms should also move to the in-cluster Keycloak.
+- Decide whether `auth.scapegoat.dev` should ever cut over to the K3s instance or remain the long-lived external rollback boundary.

@@ -42,13 +42,13 @@
 
 ## Phase 6: CoinVault realm migration and cluster cleanup
 
-- [ ] Add a `k3s-parallel` Terraform environment for the `coinvault` realm and browser client against `https://auth.yolo.scapegoat.dev`
-- [ ] Apply the parallel `coinvault` realm/client state and preserve callback coverage for:
+- [x] Add a `k3s-parallel` Terraform environment for the `coinvault` realm and browser client against `https://auth.yolo.scapegoat.dev`
+- [x] Apply the parallel `coinvault` realm/client state and preserve callback coverage for:
   `https://coinvault.yolo.scapegoat.dev` and `https://coinvault-sql.yolo.scapegoat.dev`
-- [ ] Update the K3s CoinVault package so both `coinvault` and `mysql-ide` use the new issuer URL `https://auth.yolo.scapegoat.dev/realms/coinvault`
-- [ ] Re-seed or update the Vault-backed CoinVault runtime secret so its OIDC metadata matches the new issuer contract
-- [ ] Validate a real browser login against CoinVault through the in-cluster Keycloak
-- [ ] Document rollback boundaries for returning CoinVault to `auth.scapegoat.dev` if the application-realm migration fails
-- [ ] Remove the old `demo-stack` Argo application from the cluster and from Git
-- [ ] Remove the no-longer-needed `gitops/kustomize/demo-stack` package if nothing else depends on it
-- [ ] Re-run validation and update the diary, changelog, and ticket index after the CoinVault migration and demo-stack cleanup
+- [x] Update the K3s CoinVault package so both `coinvault` and `mysql-ide` use the new issuer URL `https://auth.yolo.scapegoat.dev/realms/coinvault`
+- [x] Re-seed or update the Vault-backed CoinVault runtime secret so its OIDC metadata matches the new issuer contract
+- [x] Validate a real browser login against CoinVault through the in-cluster Keycloak
+- [x] Document rollback boundaries for returning CoinVault to `auth.scapegoat.dev` if the application-realm migration fails
+- [x] Remove the old `demo-stack` Argo application from the cluster and from Git
+- [x] Remove the no-longer-needed `gitops/kustomize/demo-stack` package if nothing else depends on it
+- [x] Re-run validation and update the diary, changelog, and ticket index after the CoinVault migration and demo-stack cleanup
