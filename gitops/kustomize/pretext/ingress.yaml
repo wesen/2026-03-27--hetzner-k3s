@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pretext-explorer
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    cert-manager.io/cluster-issuer: letsencrypt-production
+  labels:
+    app.kubernetes.io/name: pretext-explorer
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - pretext.yolo.scapegoat.dev
+      secretName: pretext-explorer-tls
+  rules:
+    - host: pretext.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pretext-explorer
+                port:
+                  name: http
