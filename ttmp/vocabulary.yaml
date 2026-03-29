@@ -49,6 +49,16 @@ topics:
       description: PostgreSQL runtime, provisioning, and migration work
     - slug: deployment
       description: Container and Kubernetes deployment workflows
+    - slug: firewall
+      description: Network access control and port exposure rules
+    - slug: kubectl
+      description: Kubernetes operator access through the kubectl CLI
+    - slug: networking
+      description: Cluster and operator networking paths and topology
+    - slug: ssh
+      description: Secure Shell operator access to servers and nodes
+    - slug: tailscale
+      description: Tailscale tailnet networking for stable private access
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -28,6 +28,19 @@ write_files:
       systemctl enable --now docker
       systemctl enable --now qemu-guest-agent || true
 
+      mkdir -p --mode=0755 /usr/share/keyrings
+      curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
+        -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+      curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.tailscale-keyring.list \
+        -o /etc/apt/sources.list.d/tailscale.list
+      apt-get update
+      apt-get install -y tailscale tailscale-archive-keyring
+      systemctl enable --now tailscaled
+
+      # Intentionally do not run `tailscale up` here. The live node should be
+      # joined manually or through a separate secret-driven bootstrap path so a
+      # tailnet auth key does not end up in generic cloud-init user data.
+
       mkdir -p /etc/rancher/k3s
       cat >/etc/rancher/k3s/config.yaml <<'EOCFG'
       write-kubeconfig-mode: "0644"

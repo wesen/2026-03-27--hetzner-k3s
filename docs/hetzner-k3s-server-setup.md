@@ -58,6 +58,15 @@ This distinction matters because Terraform does not manage day-two Kubernetes st
 
 This matters because cloud-init is a bootstrap tool, not a steady-state config manager. If first boot fails, you investigate bootstrap logs. If the cluster is already up and only the app is wrong, you usually should not be editing cloud-init anymore.
 
+The repo now also backfills the non-secret part of Tailscale bootstrap here:
+
+- install the Tailscale package
+- enable `tailscaled`
+
+But it intentionally does **not** auto-join the tailnet from generic `cloud-init` user data. Joining the tailnet is still a manual or separately secret-driven operator step so a reusable Tailscale auth key does not end up casually embedded in Terraform state or server metadata.
+
+There is one more subtlety after the node joins the tailnet: the Kubernetes API certificate must also learn about the Tailscale endpoint. In practice that means adding the Tailscale IPv4 and the node’s MagicDNS name to `tls-san` in `/etc/rancher/k3s/config.yaml`, then restarting K3s, before a Tailscale-addressed kubeconfig will verify cleanly.
+
 ### K3s
 
 K3s is the lightweight Kubernetes distribution running on the server. In this repository it provides the control plane, container runtime integration, the packaged Traefik ingress controller, and local-path storage for PostgreSQL.
@@ -138,6 +147,7 @@ Important operator note:
 - `admin_cidrs` controls both SSH on `22` and the Kubernetes API on `6443`
 - if your laptop or home IP changes later, public app HTTPS on `80/443` may continue to work while `ssh` and `kubectl` both start timing out
 - that is a Hetzner firewall symptom, not a cluster failure
+- Tailscale is now the preferred long-term fix for this problem; `admin_cidrs` should be treated as the fallback/bootstrap path, not the ideal day-2 operator path
 
 Quick diagnosis:
 
@@ -151,6 +161,13 @@ If the current public IP does not match the CIDR allowed on ports `22` and `6443
 ```bash
 terraform apply
 ```
+
+Long-term preferred operator path:
+
+- get the node onto the `go-go-golems.org.github` tailnet
+- use the Tailscale IP or MagicDNS name for SSH and `kubectl`
+- after join, add the Tailscale IP and MagicDNS name to K3s `tls-san`, then restart K3s
+- later decide whether public `6443` should be tightened or disabled
 
 ## Step 2: Provision the Hetzner Infrastructure
 
@@ -226,6 +243,26 @@ Client.Timeout exceeded while awaiting headers
 ```
 
 check the Hetzner firewall before debugging K3s itself. In this setup, the Kubernetes API is intentionally restricted to `admin_cidrs`.
+
+If you are switching to a Tailscale-based kubeconfig, there is an extra certificate step. A kubeconfig that points at the Tailscale IP will fail TLS verification until the K3s API certificate includes that Tailscale IP or MagicDNS hostname in `tls-san`.
+
+Example post-join K3s config:
+
+```yaml
+write-kubeconfig-mode: "0644"
+tls-san:
+  - 100.73.36.123
+  - k3s-demo-1.tail879302.ts.net
+```
+
+After updating `/etc/rancher/k3s/config.yaml`, restart K3s and wait for the node to return to `Ready` before fetching a new kubeconfig:
+
+```bash
+ssh root@<tailscale-ip> 'systemctl restart k3s && until kubectl get nodes >/dev/null 2>&1; do sleep 5; done && kubectl get nodes -o wide'
+./scripts/get-kubeconfig.sh <tailscale-ip>
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-ip>.yaml
+kubectl get nodes -o wide
+```
 
 ## Step 6: Validate the Public Endpoints
 
