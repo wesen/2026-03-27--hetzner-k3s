@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly TICKET_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly REPO_ROOT="$(cd "${TICKET_ROOT}/../../../../../../.." && pwd)"
+readonly REPO_ROOT="$(cd "${TICKET_ROOT}/../../../../.." && pwd)"
 readonly DEFAULT_KUBECONFIG_PATH="${REPO_ROOT}/kubeconfig-91.98.46.169.yaml"
 
 log() {
@@ -38,4 +38,3 @@ vault_kv_get_json() {
   VAULT_ADDR="${VAULT_ADDR}" VAULT_TOKEN="${VAULT_TOKEN}" \
     vault kv get -format=json "kv/${path}" | jq -c '.data.data'
 }
-

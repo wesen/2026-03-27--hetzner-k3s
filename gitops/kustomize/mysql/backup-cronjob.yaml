@@ -29,10 +29,13 @@ spec:
                 - sh
                 - -ec
                 - |
+                  set -o pipefail
                   apk add --no-cache mariadb-client aws-cli gzip >/dev/null
                   ts="$(date -u +%Y%m%dT%H%M%SZ)"
-                  file="/tmp/mysql-${ts}.sql.gz"
-                  mysqldump \
+                  dump_file="/tmp/mysql-${ts}.sql"
+                  file="${dump_file}.gz"
+                  mariadb-dump \
+                    --ssl-mode=DISABLED \
                     -h "${MYSQL_HOST}" \
                     -P "${MYSQL_PORT}" \
                     -uroot \
@@ -40,7 +43,9 @@ spec:
                     --all-databases \
                     --single-transaction \
                     --routines \
-                    --events | gzip -9 > "${file}"
+                    --events > "${dump_file}"
+                  test -s "${dump_file}"
+                  gzip -9 "${dump_file}"
                   AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" \
                   AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
                   AWS_DEFAULT_REGION="${S3_REGION}" \
