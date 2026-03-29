@@ -21,8 +21,8 @@
 - [x] Inventory the current CoinVault source-repo packaging and identify the minimum changes needed to become CI-buildable without local workstation `replace` assumptions
 - [x] Add the app-repo deployment packaging contract to CoinVault: repo README updates, `deploy/gitops-targets.json`, and deterministic GitOps PR updater script
 - [x] Add GitHub Actions image publishing for CoinVault
-- [ ] Validate the first CoinVault GHCR image publish and confirm whether CI-created GitOps PR creation is enabled or still blocked on `GITOPS_PR_TOKEN`
-- [ ] Switch the K3s deployment from node-local `coinvault:hk3s-0007` to a GHCR image tag
+- [x] Validate the first CoinVault GHCR image publish and confirm whether CI-created GitOps PR creation is enabled or still blocked on `GITOPS_PR_TOKEN`
+- [x] Switch the K3s deployment from node-local `coinvault:hk3s-0007` to a GHCR image tag
 - [ ] Validate the first CoinVault CI-created GitOps PR and live rollout
 
 ## Notes
@@ -32,3 +32,4 @@
 - Keep Argo CD Image Updater out of the first implementation slice
 - The first live proof now exists as PR `#1` in `wesen/2026-03-27--hetzner-k3s`
 - The next implementation target is `CoinVault` in `/home/manuel/code/gec/2026-03-16--gec-rag`
+- CoinVault exposed one extra migration gotcha that `mysql-ide` did not: the GitOps target manifest must already be on registry semantics (`imagePullPolicy: IfNotPresent`) before the CI-created image PR can roll out safely

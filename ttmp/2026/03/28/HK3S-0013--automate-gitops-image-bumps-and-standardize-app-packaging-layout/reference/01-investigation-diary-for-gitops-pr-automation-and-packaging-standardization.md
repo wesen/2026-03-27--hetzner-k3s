@@ -254,6 +254,64 @@ First live workflow evidence:
 
 This means CoinVault has crossed from “special-case local image import only” into the same packaging model as `mysql-ide`, even though the K3s manifest still points at the node-local image for now.
 
+### 2026-03-29: CoinVault live PR and registry-semantics cleanup
+
+Once `GITOPS_PR_TOKEN` was added to `wesen/2026-03-16--gec-rag`, I reran the CoinVault publish workflow manually so it would execute with the new secret context.
+
+Command used:
+
+```bash
+gh workflow run publish-image.yaml --repo wesen/2026-03-16--gec-rag
+gh run watch 23710069247 --repo wesen/2026-03-16--gec-rag --exit-status
+```
+
+Observed result:
+
+- workflow run `23710069247` completed successfully
+- the `Open GitOps PR` job also completed successfully
+- it opened `wesen/2026-03-27--hetzner-k3s#3`
+
+The first review pass found one more migration gap that had not existed in the `mysql-ide` path:
+
+- PR `#3` changed the image line in `gitops/kustomize/coinvault/deployment.yaml`
+- but the manifest still had `imagePullPolicy: Never`
+- that meant the manifest was still modeled for the old single-node image-import path, not for registry-backed rollout
+
+This is a distinct class of transition bug from the earlier `mysql-ide` short-SHA mismatch:
+
+- `mysql-ide` had the right pull semantics but the wrong tag shape
+- `coinvault` had the right tag shape but the wrong pull semantics
+
+I merged PR `#3` first so the image reference would enter the Git history cleanly:
+
+- PR `#3`
+- merge commit `d24b356edb7e2b2e199a44b55fd2dc3e8e134161`
+
+Then I updated the local GitOps checkout to match origin and resolved the expected stash conflict by keeping:
+
+- `image: ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80`
+- `imagePullPolicy: IfNotPresent`
+
+The conflict shape was exactly what we would expect during this transition:
+
+```text
+upstream: registry image + Never
+stash:    registry image + IfNotPresent
+result:   registry image + IfNotPresent
+```
+
+Why this matters:
+
+- the first CI-created PR should stay minimal and deterministic
+- the GitOps baseline still has to be normalized when a service migrates from node-local imports to registry images
+- the durable rule is now explicit in the ticket docs: CI-created image PRs assume the target manifest is already on registry semantics
+
+At this diary checkpoint, the remaining live validation step is:
+
+- push the `IfNotPresent` baseline fix
+- let Argo reconcile
+- confirm CoinVault rolls from the imported image contract to the GHCR-backed contract without losing health
+
 ## Related
 
 - [01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md](../design-doc/01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md)

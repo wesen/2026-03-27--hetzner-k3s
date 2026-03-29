@@ -98,6 +98,14 @@ For `mysql-ide`, this is:
 - [mysql-ide-ingress.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/mysql-ide-ingress.yaml)
 - [coinvault.yaml](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/coinvault.yaml)
 
+One important migration detail is easy to miss when an app started life as a single-node manual import:
+
+- `imagePullPolicy: Never` belongs to the old node-local image cache path
+- a GHCR-backed deployment should normally use `imagePullPolicy: IfNotPresent`
+- the manifest must already be on registry semantics before CI-created image PRs are safe to merge
+
+CoinVault hit this exact transition bug. The first PR correctly changed the image tag, but the manifest was still in the old local-import mode. The right fix was not “stop using CI PRs”; it was “finish normalizing the manifest so the deployment contract matches the new release path.”
+
 ### 3. Cluster runtime
 
 The cluster owns:

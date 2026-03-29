@@ -24,7 +24,7 @@ spec:
       containers:
         - name: coinvault
           image: ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http

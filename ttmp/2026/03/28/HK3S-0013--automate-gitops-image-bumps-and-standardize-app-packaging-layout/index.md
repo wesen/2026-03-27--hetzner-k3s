@@ -61,7 +61,8 @@ Implementation state:
 - `mysql-ide` packaging scaffold complete
 - local updater validation complete
 - first live validation complete: `mysql-ide` CI opened PR `#1` against this GitOps repo
-- remaining work is rollout to additional services, not proving the pattern
+- `coinvault` source packaging is now in place and the first live CoinVault GitOps PR has been generated
+- remaining work is completing the CoinVault live rollout and then repeating the pattern in additional services
 
 ## Topics
 

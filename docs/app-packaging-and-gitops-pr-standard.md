@@ -63,6 +63,14 @@ The GitOps repository owns:
 - Vault/VSO integration
 - the exact pinned image tag that should run
 
+When an app has already been deployed through a one-off local-image import flow, the GitOps manifest must be normalized before CI-created image PRs are safe:
+
+- switch the image reference to a registry image
+- switch `imagePullPolicy` away from `Never`
+- prefer `IfNotPresent` for immutable GHCR SHA tags
+
+If this cleanup is skipped, the first CI-created PR can merge cleanly in Git while still leaving the cluster unable to pull the published image.
+
 The cluster owns:
 
 - the live workload

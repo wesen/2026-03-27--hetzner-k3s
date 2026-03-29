@@ -60,3 +60,17 @@ Recorded the two operational corrections discovered immediately after the first 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md — Added the `admin_cidrs` firewall diagnosis and recovery guidance
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/public-repo-ghcr-argocd-deployment-playbook.md — Added the short-SHA tag-shape warning for CI-created image bump PRs
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded the firewall drift and corrective `mysql-ide` PR `#2`
+
+
+## 2026-03-29
+
+Extended the pattern into CoinVault, reran the first live workflow after the GitHub token was configured, and documented the additional migration rule that GitOps target manifests must already be on registry semantics before CI-created image PRs are safe.
+
+### Related Files
+
+- /home/manuel/code/gec/2026-03-16--gec-rag/.github/workflows/publish-image.yaml — CoinVault source-repo image publishing and GitOps PR workflow
+- /home/manuel/code/gec/2026-03-16--gec-rag/deploy/gitops-targets.json — CoinVault deployment target metadata
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/deployment.yaml — CoinVault GitOps target now transitioning from node-local image imports to GHCR-backed rollout semantics
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md — Updated with the registry-semantics rule for migrated services
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md — Updated with the node-local-import to GHCR transition note
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded CoinVault workflow run `23710069247`, GitOps PR `#3`, and the follow-up `IfNotPresent` baseline fix
