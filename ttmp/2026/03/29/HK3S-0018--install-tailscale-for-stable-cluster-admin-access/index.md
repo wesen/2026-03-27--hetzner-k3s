@@ -1,7 +1,7 @@
 ---
 Title: Install Tailscale for stable cluster admin access
 Ticket: HK3S-0018
-Status: active
+Status: complete
 Topics:
     - k3s
     - networking
@@ -21,7 +21,7 @@ RelatedFiles:
       Note: Main operator guide that should eventually describe the Tailscale-first admin path
 ExternalSources: []
 Summary: "Install Tailscale on the Hetzner K3s node, move cluster administration to the go-go-golems.org.github tailnet, and backfill the reproducible install path into cloud-init and docs."
-LastUpdated: 2026-03-29T20:05:00-04:00
+LastUpdated: 2026-03-29T20:35:00-04:00
 WhatFor: "Use this ticket to stabilize SSH and kubectl access through Tailscale instead of depending on changing public IPs and Hetzner firewall CIDRs."
 WhenToUse: "Read this when implementing or reviewing the move from public-IP-based admin access to tailnet-based admin access."
 ---
@@ -45,14 +45,7 @@ The intended improvement is:
 
 ## Current Step
 
-Step 7 is the current closeout step:
-
-- Tailscale is installed and running on the live Hetzner node
-- the node has joined the `go-go-golems.org.github` tailnet
-- SSH over the Tailscale path is working
-- `kubectl` over the Tailscale path is working
-- `cloud-init` and the operator docs are already backfilled
-- the remaining decision is whether public `6443` should now be tightened
+This ticket is complete. The Tailscale operator path is live and the public Kubernetes API exposure has been tightened.
 
 ## Key Links
 
@@ -76,6 +69,8 @@ Why:
 - the live node needs stable admin access now
 - bootstrap reproducibility still matters, but it should follow a proven live path
 - the Tailscale auth material should not casually end up in Terraform state or generic cloud-init user data unless we deliberately accept that tradeoff
+- keep public SSH on `22` restricted by `admin_cidrs` as a fallback operator path
+- disable public Kubernetes API exposure on `6443` by setting local `allow_kube_api = false` for this live environment
 
 ## Live Status
 
@@ -87,8 +82,14 @@ Current live status on the node:
 - K3s `tls-san` now includes both the Tailscale IP and MagicDNS name
 - `kubectl` succeeds against the Tailscale-addressed kubeconfig
 - public firewall access was temporarily reopened using the current `admin_cidrs` only so this install could proceed
+- public `6443` is now disabled again
+- direct socket connection to `91.98.46.169:6443` now times out
 
-This means the operator path is now proven. The remaining work is policy: whether public `6443` should remain open as a fallback or be tightened now that Tailscale works.
+This means the operator path is now proven and tightened:
+
+- Tailscale is the preferred day-2 admin path for `ssh` and `kubectl`
+- public `22` remains narrow fallback access
+- public `6443` is no longer exposed
 
 ## Tasks
 

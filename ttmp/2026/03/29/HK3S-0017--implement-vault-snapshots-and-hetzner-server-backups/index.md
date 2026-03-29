@@ -1,7 +1,7 @@
 ---
 Title: Implement Vault snapshots and Hetzner server backups
 Ticket: HK3S-0017
-Status: active
+Status: complete
 Topics:
     - k3s
     - vault

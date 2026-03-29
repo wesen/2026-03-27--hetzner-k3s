@@ -17,3 +17,5 @@
 - Validated SSH over the Tailscale path
 - Fixed the Kubernetes API certificate mismatch by adding Tailscale `tls-san` entries to K3s
 - Validated `kubectl` over a Tailscale-addressed kubeconfig
+- Disabled the public Kubernetes API firewall rule on `6443` after proving the Tailscale path
+- Verified that `kubectl` still worked over Tailscale and that direct public `6443` access timed out

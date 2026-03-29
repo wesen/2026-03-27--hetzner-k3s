@@ -25,7 +25,7 @@
 
 - [x] Fetch or generate a kubeconfig that points at the Tailscale address instead of the public IPv4
 - [x] Validate `kubectl` end to end using the Tailscale path
-- [ ] Decide whether the public `6443` path should remain enabled temporarily or be tightened later
+- [x] Decide whether the public `6443` path should remain enabled temporarily or be tightened later
 
 ## Phase 5: Bootstrap backfill
 
@@ -35,9 +35,9 @@
 
 ## Phase 6: Firewall follow-up
 
-- [ ] Decide whether to keep SSH on public `22` restricted by `admin_cidrs`, relax it, or eventually rely on Tailscale-only access
-- [ ] Decide whether `allow_kube_api` should remain exposed on public `6443` once Tailscale access is stable
-- [ ] If appropriate, apply the firewall tightening as a separate deliberate change
+- [x] Decide whether to keep SSH on public `22` restricted by `admin_cidrs`, relax it, or eventually rely on Tailscale-only access
+- [x] Decide whether `allow_kube_api` should remain exposed on public `6443` once Tailscale access is stable
+- [x] If appropriate, apply the firewall tightening as a separate deliberate change
 
 ## Phase 7: Closeout
 

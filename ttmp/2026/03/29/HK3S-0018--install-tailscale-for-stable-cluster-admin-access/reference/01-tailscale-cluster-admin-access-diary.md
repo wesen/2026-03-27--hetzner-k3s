@@ -1,7 +1,7 @@
 ---
 Title: Tailscale cluster admin access diary
 Ticket: HK3S-0018
-Status: active
+Status: complete
 Topics:
     - tailscale
     - ssh
@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological diary for installing Tailscale on the Hetzner K3s node and moving cluster admin access onto the tailnet."
-LastUpdated: 2026-03-29T20:05:00-04:00
+LastUpdated: 2026-03-29T20:35:00-04:00
 WhatFor: "Use this to continue or review the exact implementation trail for HK3S-0018."
 WhenToUse: "Read this when continuing the Tailscale access work or documenting the final operator path."
 ---
@@ -207,3 +207,42 @@ Once the node was approved into the tailnet, SSH over the Tailscale IPv4 worked 
 ### What should be done in the future
 - Decide whether the public `6443` exposure can now be tightened, since the Tailscale path is proven.
 - Decide whether a future bootstrap or post-join automation path should update `tls-san` automatically after node join.
+
+## Step 6: Tighten the public firewall after proving the Tailscale admin path
+
+Once SSH and `kubectl` were both proven over the tailnet, I made the policy choice that had been intentionally deferred earlier in the ticket.
+
+### What I did
+- Decided to keep public SSH on `22` restricted by `admin_cidrs` as a fallback path.
+- Decided to disable the public Kubernetes API path on `6443`.
+- Updated local `terraform.tfvars` for the live environment to set:
+  - `allow_kube_api = false`
+- Applied only the Hetzner firewall change with:
+  - `terraform apply -target=hcloud_firewall.default -auto-approve`
+- Re-validated:
+  - `kubectl` over the Tailscale kubeconfig still works
+  - key Argo applications are still `Synced Healthy`
+  - direct socket connection to `91.98.46.169:6443` now times out
+
+### Why
+- Tailscale is now the stable operator path.
+- Leaving public `6443` open would preserve the old exposure without enough benefit.
+- Keeping public `22` narrow is still useful as a recovery fallback while Tailscale remains the preferred day-2 path.
+
+### What worked
+- The firewall update removed only the `6443` rule.
+- Tailscale-based `kubectl` continued to work immediately after the change.
+- The public API path stopped answering as intended.
+
+### What didn't work
+- Nothing failed technically in this tightening slice.
+
+### What I learned
+- The right end state for this cluster is not “no public admin access at all.”
+- The right end state is:
+  - narrow public SSH fallback
+  - no public Kubernetes API
+  - Tailscale for routine operator access
+
+### What should be done in the future
+- If Tailscale becomes operationally routine enough, revisit whether public `22` should also be tightened further or removed.

@@ -40,7 +40,7 @@
 - [x] Run the Vault snapshot job manually once
 - [x] Verify that a `vault/` artifact lands in Hetzner Object Storage
 - [x] Inspect the snapshot artifact size and naming shape
-- [ ] Re-run `docmgr doctor`
+- [x] Re-run `docmgr doctor`
 
 ## Phase 7: Restore and operator docs
 
@@ -51,4 +51,4 @@
 ## Phase 8: Closeout
 
 - [x] Update the diary, changelog, and ticket index with the final live state
-- [ ] Commit and push the Terraform and GitOps checkpoints separately when that improves reviewability
+- [x] Commit and push the Terraform and GitOps checkpoints separately when that improves reviewability
