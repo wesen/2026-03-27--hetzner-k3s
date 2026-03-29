@@ -74,3 +74,15 @@ Extended the pattern into CoinVault, reran the first live workflow after the Git
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md — Updated with the registry-semantics rule for migrated services
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md — Updated with the node-local-import to GHCR transition note
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded CoinVault workflow run `23710069247`, GitOps PR `#3`, and the follow-up `IfNotPresent` baseline fix
+
+
+## 2026-03-29
+
+Completed the first live CoinVault rollout, recorded the private-GHCR-package `401 Unauthorized` failure, and documented the single-node containerd import bridge that restored health while keeping the GitOps source of truth on the GHCR tag and `IfNotPresent` policy.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/deployment.yaml — CoinVault now runs on the GHCR-tagged image with `imagePullPolicy: IfNotPresent`
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md — Added the private-package visibility / pull-secret / node-cache bridge guidance
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md — Added the private-source GHCR package boundary and recovery model
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded the failed package-admin attempts, stray default-namespace deployment mistake, containerd import bridge, and final `Synced Healthy` validation

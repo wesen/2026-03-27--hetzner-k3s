@@ -106,6 +106,20 @@ One important migration detail is easy to miss when an app started life as a sin
 
 CoinVault hit this exact transition bug. The first PR correctly changed the image tag, but the manifest was still in the old local-import mode. The right fix was not “stop using CI PRs”; it was “finish normalizing the manifest so the deployment contract matches the new release path.”
 
+There is a second migration boundary when the source repo is private:
+
+- GitHub Actions can still publish the image to GHCR
+- but the package may remain private
+- Kubernetes then fails with `401 Unauthorized` or `ImagePullBackOff` unless the cluster has credentials
+
+That means a private-source app needs an explicit decision:
+
+- make the package public
+- add an image pull secret
+- or use a documented one-node image import bridge while migrating
+
+CoinVault exercised this exact path. The GitOps PR flow itself worked, but the node could not pull the image anonymously. The short-term recovery was to import the exact GHCR-tagged image into the node’s containerd store so the `IfNotPresent` rollout could succeed while the package visibility issue remained open.
+
 ### 3. Cluster runtime
 
 The cluster owns:

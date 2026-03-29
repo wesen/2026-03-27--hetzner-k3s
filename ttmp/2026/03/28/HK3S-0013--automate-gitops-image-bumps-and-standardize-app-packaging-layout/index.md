@@ -1,7 +1,7 @@
 ---
 Title: Automate GitOps image bumps and standardize app packaging layout
 Ticket: HK3S-0013
-Status: active
+Status: complete
 Topics:
     - ci-cd
     - github
@@ -16,7 +16,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Define and start implementing the long-term release-engineering pattern for public app repositories: GitHub Actions publishes immutable GHCR images, CI opens pull requests against this GitOps repo to bump pinned image tags, and this repo adopts a standard packaging contract for public apps, internal tools, platform services, and shared data services.
-LastUpdated: 2026-03-29T17:40:00-04:00
+LastUpdated: 2026-03-29T13:50:00-04:00
 WhatFor: Capture the recommended next architectural cleanup after manual GHCR image publishing was proven for mysql-ide.
 WhenToUse: Use when implementing CI-created GitOps pull requests or deciding how a new service should be packaged in this repo.
 ---
@@ -52,7 +52,7 @@ The design is grounded in the current working examples:
 
 ## Status
 
-Current status: **active**
+Current status: **complete**
 
 Implementation state:
 
@@ -61,8 +61,9 @@ Implementation state:
 - `mysql-ide` packaging scaffold complete
 - local updater validation complete
 - first live validation complete: `mysql-ide` CI opened PR `#1` against this GitOps repo
-- `coinvault` source packaging is now in place and the first live CoinVault GitOps PR has been generated
-- remaining work is completing the CoinVault live rollout and then repeating the pattern in additional services
+- `coinvault` source packaging is now in place and the first live CoinVault GitOps PR has been generated and validated
+- the pattern is now proven in both a public-source app (`mysql-ide`) and a private-source app (`coinvault`)
+- remaining work is adoption in additional services, not proving the release model itself
 
 ## Topics
 

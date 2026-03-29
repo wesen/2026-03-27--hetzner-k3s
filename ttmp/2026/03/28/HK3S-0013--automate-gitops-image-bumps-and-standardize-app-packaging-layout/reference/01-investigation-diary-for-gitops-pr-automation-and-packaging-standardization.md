@@ -312,6 +312,106 @@ At this diary checkpoint, the remaining live validation step is:
 - let Argo reconcile
 - confirm CoinVault rolls from the imported image contract to the GHCR-backed contract without losing health
 
+### 2026-03-29: CoinVault live rollout completed, with one private-package bridge
+
+The final CoinVault validation step surfaced one more real boundary that `mysql-ide` did not have:
+
+- the CoinVault source repo is private
+- the GHCR package was therefore private too
+- after the manifest was normalized to `IfNotPresent`, kubelet still could not pull the image anonymously
+
+Observed failure on the new pod:
+
+```text
+Failed to pull image "ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80":
+failed to authorize:
+failed to fetch anonymous token:
+401 Unauthorized
+```
+
+This is the important design distinction:
+
+- CI-created GitOps PR automation worked
+- the image tag in the manifest was correct
+- the rollout still failed because package visibility is a separate contract boundary from GitOps automation
+
+I attempted two package-admin paths before choosing the bridge:
+
+1. GitHub CLI package API with the current `gh` auth token
+   - failed because the local token did not have `read:packages`
+2. 1Password lookup for an existing GitHub PAT
+   - `op` was working again
+   - found `Github PAT` in the `Private` vault
+   - but using that credential with `GH_TOKEN=... gh api ...` returned `401 Bad credentials`
+
+At that point, the pragmatic cluster recovery path was to use the single-node property of this environment:
+
+1. build the exact image tag locally:
+
+```bash
+docker build -t ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80 .
+```
+
+2. save it to a tarball:
+
+```bash
+docker save -o /tmp/coinvault-ghcr-d074c80.tar \
+  ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80
+```
+
+3. copy it to the node and import it into containerd:
+
+```bash
+scp /tmp/coinvault-ghcr-d074c80.tar root@91.98.46.169:/tmp/coinvault-ghcr-d074c80.tar
+ssh root@91.98.46.169 \
+  'k3s ctr images import /tmp/coinvault-ghcr-d074c80.tar &&
+   rm -f /tmp/coinvault-ghcr-d074c80.tar'
+```
+
+4. confirm the node now has the desired tag:
+
+```text
+ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80
+```
+
+One operator mistake also happened during this step and is worth recording:
+
+- I first ran `kubectl apply -f gitops/kustomize/coinvault/deployment.yaml`
+- that raw file has no explicit namespace because Kustomize injects it
+- Kubernetes therefore created a stray `Deployment/coinvault` in the `default` namespace
+- I deleted it immediately with:
+
+```bash
+kubectl -n default delete deployment coinvault
+```
+
+- then reapplied correctly with:
+
+```bash
+kubectl -n coinvault apply -f gitops/kustomize/coinvault/deployment.yaml
+```
+
+That sequence is now part of the historical record because it is the sort of real operator slip an intern should understand and avoid.
+
+Final validation after the node import bridge:
+
+- `kubectl -n coinvault rollout status deployment/coinvault --timeout=180s`
+  - succeeded
+- `kubectl -n argocd get application coinvault`
+  - `Synced Healthy`
+- live deployment spec:
+  - image `ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80`
+  - `imagePullPolicy: IfNotPresent`
+- `curl -fsS https://coinvault.yolo.scapegoat.dev/healthz | jq`
+  - `ok: true`
+  - database healthy
+  - profile registries still `/run/secrets/pinocchio/profiles.yaml`
+
+The pattern is therefore proven for CoinVault too, with one important caveat now written into the docs:
+
+- private-source apps need an explicit package-visibility or pull-secret story
+- otherwise the cluster may need a temporary node-cache bridge even after the GitOps PR automation is working
+
 ## Related
 
 - [01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md](../design-doc/01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md)

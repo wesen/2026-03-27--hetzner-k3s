@@ -71,6 +71,17 @@ When an app has already been deployed through a one-off local-image import flow,
 
 If this cleanup is skipped, the first CI-created PR can merge cleanly in Git while still leaving the cluster unable to pull the published image.
 
+There is a second boundary for private repositories:
+
+- a private source repo usually produces a private GHCR package by default
+- a cluster cannot anonymously pull that image
+- the deployment path must therefore include one of:
+  - making the GHCR package public
+  - wiring an image pull secret
+  - or, as a temporary single-node bridge only, importing the exact tagged image into containerd on the node
+
+The bridge is acceptable as a recovery technique on this single-node cluster. It is not the long-term standard.
+
 The cluster owns:
 
 - the live workload
