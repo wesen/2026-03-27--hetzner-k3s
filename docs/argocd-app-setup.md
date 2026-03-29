@@ -174,7 +174,8 @@ Why this matters: Argo CD polls Git, but for migration work you usually want an 
 
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 
 kubectl apply -f gitops/applications/argocd-public.yaml
 kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite

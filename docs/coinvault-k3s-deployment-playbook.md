@@ -190,7 +190,8 @@ Before touching CoinVault, make sure the platform controllers it depends on are 
 
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 
 kubectl get nodes
 kubectl -n argocd get applications
@@ -447,7 +448,8 @@ Script:
 Run:
 
 ```bash
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 ./scripts/validate-coinvault-k3s.sh
 ```
 

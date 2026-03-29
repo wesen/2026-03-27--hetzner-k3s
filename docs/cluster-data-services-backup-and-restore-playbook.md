@@ -131,7 +131,8 @@ The safest starting environment is:
 
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 export VAULT_ADDR=https://vault.yolo.scapegoat.dev
 ```
 

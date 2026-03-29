@@ -45,6 +45,8 @@ Choose the entry point that matches what you are trying to do:
   - [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
 - I need stable SSH and `kubectl` access through Tailscale:
   - [docs/tailscale-k3s-admin-access-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/tailscale-k3s-admin-access-playbook.md)
+- I need to operate Vault snapshots and understand the whole-node backup layer:
+  - [docs/vault-snapshot-and-server-backup-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-snapshot-and-server-backup-playbook.md)
 - I need the base platform bring-up guide:
   - [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
 
@@ -116,13 +118,15 @@ Vault + VSO
    ssh root@<server-ip> 'tail -f /var/log/cloud-init-output.log'
    ```
 
-6. Fetch a kubeconfig that points at the server:
+6. Fetch a kubeconfig that points at the current admin endpoint:
 
    ```bash
-   ./scripts/get-kubeconfig.sh <server-ip>
-   export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+   ./scripts/get-kubeconfig-tailscale.sh
+   export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
    kubectl get nodes
    ```
+
+   For the live cluster, Tailscale is now the preferred operator path and public `6443` is disabled.
 
 7. Check Argo CD:
 
@@ -159,7 +163,8 @@ Vault + VSO
 Common checks:
 
 ```bash
-export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 
 kubectl get nodes
 kubectl -n argocd get applications
@@ -200,6 +205,8 @@ Public endpoints:
   - operator playbook for shared PostgreSQL, MySQL, and Redis backups and scratch restores
 - [docs/tailscale-k3s-admin-access-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/tailscale-k3s-admin-access-playbook.md)
   - operator playbook for moving SSH and `kubectl` onto the Tailscale tailnet path
+- [docs/vault-snapshot-and-server-backup-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-snapshot-and-server-backup-playbook.md)
+  - operator playbook for Vault Raft snapshots and Hetzner whole-node backups
 - [docs/vault-backed-postgres-bootstrap-job-pattern.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-backed-postgres-bootstrap-job-pattern.md)
   - declarative app database provisioning pattern
 
@@ -223,7 +230,8 @@ That split keeps AWS credentials out of git while still making the actual Vault 
 Example:
 
 ```bash
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-<tailscale-host>.yaml
 export AWS_PROFILE=manuel
 ./scripts/bootstrap-vault-aws-kms-secret.sh
 kubectl apply -f gitops/applications/vault.yaml

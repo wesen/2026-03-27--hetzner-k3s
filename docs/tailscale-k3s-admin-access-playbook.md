@@ -233,6 +233,22 @@ Why both values matter:
 
 After the SAN fix, fetch a new kubeconfig that points at the Tailscale endpoint:
 
+Preferred helper:
+
+```bash
+./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/kubeconfig-k3s-demo-1.tail879302.ts.net.yaml
+kubectl get nodes -o wide
+```
+
+The helper resolves the host in this order:
+
+- first CLI argument
+- `K3S_TAILSCALE_DNS`
+- `K3S_TAILSCALE_IP`
+
+Manual equivalent:
+
 ```bash
 ./scripts/get-kubeconfig.sh <tailscale-ip>
 export KUBECONFIG=$PWD/kubeconfig-<tailscale-ip>.yaml
