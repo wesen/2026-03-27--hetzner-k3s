@@ -71,7 +71,11 @@
 ## Phase 11: Validation and restore drills
 
 - [x] Run each backup path manually once and verify that an artifact lands in object storage under the expected prefix
-- [ ] Restore PostgreSQL into a scratch database or scratch namespace and verify real objects come back
-- [ ] Restore MySQL into a scratch database or scratch namespace and verify real tables come back
-- [ ] Restore Redis into a scratch namespace or one-shot pod and verify the validation key survives the round trip
+- [x] Restore PostgreSQL into a scratch database or scratch namespace and verify real objects come back
+- [x] Restore MySQL into a scratch database or scratch namespace and verify real tables come back
+- [x] Restore Redis into a scratch namespace or one-shot pod and verify the validation key survives the round trip
 - [x] Update the diary, changelog, and ticket index with the backup/restore outcomes and the remaining upgrade/rollback work
+
+## Phase 12: Restore-drill findings follow-up
+
+- [ ] Investigate and resolve the orphaned Draft Review foreign-key references surfaced during the PostgreSQL scratch restore replay

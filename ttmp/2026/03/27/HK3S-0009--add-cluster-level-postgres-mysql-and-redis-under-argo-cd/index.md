@@ -20,8 +20,8 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, off-cluster backups now land in Hetzner Object Storage, and the remaining follow-up is scratch restore drills plus upgrade and rollback guidance."
-LastUpdated: 2026-03-29T16:45:00-04:00
+Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, off-cluster backups and scratch restore drills now work, and the remaining follow-up is upgrade/rollback guidance plus one PostgreSQL data-integrity finding from the Draft Review dump."
+LastUpdated: 2026-03-29T17:25:00-04:00
 WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
 WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
@@ -38,7 +38,9 @@ This started as a deferred platform ticket for introducing reusable cluster-leve
 
 The current repo only has an app-local PostgreSQL pattern in the demo stack. That is fine for the first migration slices, but it is not the eventual platform shape if multiple applications are going to land on this cluster and consume shared stateful infrastructure in a controlled way.
 
-This ticket exists so that later work does not have to rediscover the design questions from scratch. When it is eventually executed, it should leave behind:
+This ticket exists so that later work does not have to rediscover the design questions from scratch. The service rollout, backup jobs, and scratch restore drills are now implemented. The remaining work is operational hardening around upgrade/rollback guidance and one restore-drill finding in the Draft Review PostgreSQL data.
+
+When it is eventually closed, it should leave behind:
 
 - repo-managed Argo CD applications for the chosen Postgres, MySQL, and Redis runtimes
 - a clear decision on operator/chart/manifest packaging
@@ -48,7 +50,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 10 is active: scheduled off-cluster backups for PostgreSQL, MySQL, and Redis are live, and the remaining work in this ticket is scratch restore drills plus explicit upgrade and rollback procedures.
+Step 11 is active: scheduled off-cluster backups and scratch restore drills for PostgreSQL, MySQL, and Redis are complete, and the remaining work in this ticket is explicit upgrade and rollback procedures plus follow-up on the orphaned Draft Review foreign-key references exposed by the PostgreSQL restore replay.
 
 ## Key Links
 
@@ -84,6 +86,7 @@ Why:
 - the external Bitnami chart path proved brittle during live rollout, while repo-managed manifests gave a stable and reviewable operational surface
 - that same repo-managed manifest path successfully brought up shared PostgreSQL and Redis too
 - a single off-cluster object-storage target is the simplest operational baseline for this single-node cluster, and the live backup jobs now prove that path end to end
+- the scratch restore drills now prove the object-storage artifacts are usable in practice, while also surfacing a real Draft Review data-integrity issue that should be cleaned up before relying on the PostgreSQL dump for full disaster recovery
 
 ## Topics
 

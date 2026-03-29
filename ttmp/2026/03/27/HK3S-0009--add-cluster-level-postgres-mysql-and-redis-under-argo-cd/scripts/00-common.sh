@@ -38,3 +38,38 @@ vault_kv_get_json() {
   VAULT_ADDR="${VAULT_ADDR}" VAULT_TOKEN="${VAULT_TOKEN}" \
     vault kv get -format=json "kv/${path}" | jq -c '.data.data'
 }
+
+load_backup_storage_env() {
+  require_cmd aws
+  require_cmd vault
+  require_cmd jq
+  require_env VAULT_ADDR
+  if [[ -z "${VAULT_TOKEN:-}" && -f "${HOME}/.vault-token" ]]; then
+    export VAULT_TOKEN
+    VAULT_TOKEN="$(<"${HOME}/.vault-token")"
+  fi
+  require_env VAULT_TOKEN
+
+  local payload
+  payload="$(vault_kv_get_json "infra/backups/object-storage")"
+
+  export BACKUP_STORAGE_BUCKET_NAME
+  BACKUP_STORAGE_BUCKET_NAME="$(jq -r '."bucket-name"' <<<"${payload}")"
+  export BACKUP_STORAGE_ENDPOINT_URL
+  BACKUP_STORAGE_ENDPOINT_URL="$(jq -r '."storage-endpoint"' <<<"${payload}")"
+  export BACKUP_STORAGE_REGION
+  BACKUP_STORAGE_REGION="$(jq -r '."storage-region"' <<<"${payload}")"
+  export AWS_ACCESS_KEY_ID
+  AWS_ACCESS_KEY_ID="$(jq -r '."access-key"' <<<"${payload}")"
+  export AWS_SECRET_ACCESS_KEY
+  AWS_SECRET_ACCESS_KEY="$(jq -r '."secret-key"' <<<"${payload}")"
+  export AWS_DEFAULT_REGION="${BACKUP_STORAGE_REGION}"
+}
+
+latest_backup_object_key() {
+  local prefix="$1"
+
+  aws --endpoint-url "${BACKUP_STORAGE_ENDPOINT_URL}" s3 ls "s3://${BACKUP_STORAGE_BUCKET_NAME}/${prefix}" --recursive \
+    | awk '{print $4}' \
+    | tail -n 1
+}

@@ -20,7 +20,7 @@ RelatedFiles:
     - Path: /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/redis/statefulset.yaml
       Note: Shared Redis runtime to back up
 ExternalSources: []
-Summary: "Implementation plan for off-cluster backups of the shared PostgreSQL, MySQL, and Redis services using Hetzner Object Storage, Vault/VSO-delivered credentials, and repo-managed CronJobs."
+Summary: "Implementation and replay plan for off-cluster backups and scratch restore drills of the shared PostgreSQL, MySQL, and Redis services using Hetzner Object Storage, Vault/VSO-delivered credentials, and repo-managed CronJobs."
 ---
 
 # Cluster data services backup and restore plan
@@ -28,6 +28,8 @@ Summary: "Implementation plan for off-cluster backups of the shared PostgreSQL, 
 ## Goal
 
 Add real off-cluster backups for the shared PostgreSQL, MySQL, and Redis services and prove that each service can be restored from the produced artifacts.
+
+This plan is no longer hypothetical. The backup jobs are live, and the first scratch restore drills have already been executed. The ticket-local scripts in `scripts/` are the replay surface for the exact operator path that was used.
 
 ## Recommended shape
 
@@ -46,6 +48,21 @@ Then, in each service namespace:
 - sync the object-storage credentials into Kubernetes with VSO
 - run a CronJob that creates the service-specific backup artifact
 - upload that artifact to the shared bucket under the service prefix
+
+## Ticket-local replay scripts
+
+The following scripts under [`scripts/`](../scripts) are the replayable operator surface for this slice:
+
+- `00-common.sh`
+- `01-seed-backup-object-storage-secret.sh`
+- `02-trigger-postgres-backup-job.sh`
+- `03-trigger-mysql-backup-job.sh`
+- `04-trigger-redis-backup-job.sh`
+- `05-list-backup-objects.sh`
+- `06-prune-backup-object.sh`
+- `07-restore-postgres-backup-to-scratch.sh`
+- `08-restore-mysql-backup-to-scratch.sh`
+- `09-restore-redis-backup-to-scratch.sh`
 
 ## Why this shape
 
@@ -105,6 +122,47 @@ Instead:
 3. run verification queries
 4. only then use the same procedure for a real recovery
 
+## Observed scratch restore results
+
+### PostgreSQL
+
+The PostgreSQL scratch restore replayed the latest cluster dump and recreated the logical databases:
+
+- `draft_review`
+- `keycloak`
+- `platform`
+- `postgres`
+
+The validation query against `draft_review.users` returned `2`, which proves the dump is materially useful.
+
+However, the replay also surfaced real foreign-key violations in Draft Review data. `psql` reported missing parent rows under `review_sessions` for several descendant tables, including:
+
+- `reactions`
+- `review_paragraph_progress`
+- `review_section_progress`
+- `review_summaries`
+
+The missing `review_session_id` observed during the drill was:
+
+- `212fdf9c-373d-4a05-bc9e-3082e09f1674`
+
+Treat this as a real data-integrity follow-up, not as a restore-script bug.
+
+### MySQL
+
+The MySQL scratch restore succeeded cleanly once the restore pod used the official `mysql:8.4` image, a local Unix socket for root auth, and an increased redo log capacity. The restored validation query returned:
+
+- `gec_products=8926`
+
+### Redis
+
+The Redis scratch restore succeeded cleanly in a one-shot pod. The restored validation values were:
+
+- `dbsize=1`
+- `cluster_persistence=redis-1774726040`
+
+That proves the durable key used by the Redis validation contract survived the backup and restore round trip.
+
 ## Immediate execution order
 
 1. Create the backup bucket in Terraform.
@@ -115,3 +173,8 @@ Instead:
 6. Run each backup manually once.
 7. Perform one restore drill per service.
 
+## Remaining follow-up
+
+- Define and validate explicit upgrade procedures for PostgreSQL, MySQL, and Redis engine versions.
+- Define rollback procedures for failed version upgrades.
+- Investigate and fix the orphaned Draft Review foreign-key references surfaced during the PostgreSQL restore replay.

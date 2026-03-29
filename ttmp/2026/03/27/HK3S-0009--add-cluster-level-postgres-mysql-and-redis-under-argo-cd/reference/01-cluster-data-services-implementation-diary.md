@@ -12,8 +12,8 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: Chronological diary for introducing shared cluster data services on K3s, starting with MySQL and now including PostgreSQL, Redis, and the first live off-cluster backup path.
-LastUpdated: 2026-03-29T16:45:00-04:00
+Summary: Chronological diary for introducing shared cluster data services on K3s, starting with MySQL and now including PostgreSQL, Redis, live off-cluster backups, and the first scratch restore drills.
+LastUpdated: 2026-03-29T17:25:00-04:00
 WhatFor: Use this to review the exact implementation trail for the shared MySQL, PostgreSQL, and Redis slices.
 WhenToUse: Read this when continuing or reviewing HK3S-0009.
 ---
@@ -608,3 +608,87 @@ I then deleted the earlier invalid 20-byte object with [`06-prune-backup-object.
 ### What should be done in the future
 - Add full scratch restore drills for PostgreSQL, MySQL, and Redis instead of stopping at artifact creation.
 - Add explicit retention rules and upgrade/rollback guidance for the scheduled backup path.
+
+## Step 10: Run scratch restore drills for all three services, harden the replay scripts, and record the real findings
+
+After the backup artifacts were safely in Hetzner Object Storage, I moved to the more important question: can we actually use them? I deliberately did not restore into the live primaries. Instead, I added three replayable scratch-restore scripts to the ticket itself:
+
+- [`07-restore-postgres-backup-to-scratch.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/07-restore-postgres-backup-to-scratch.sh)
+- [`08-restore-mysql-backup-to-scratch.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/08-restore-mysql-backup-to-scratch.sh)
+- [`09-restore-redis-backup-to-scratch.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/09-restore-redis-backup-to-scratch.sh)
+
+I also hardened [`00-common.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/00-common.sh) so the ticket scripts can reuse the standard `~/.vault-token` state instead of requiring operators to export `VAULT_TOKEN` manually.
+
+The PostgreSQL drill was the most interesting because it surfaced a real data problem instead of a script problem. The first attempt failed because `initdb` was being run as root in the scratch pod. I rewrote the restore script to run the local scratch server as the `postgres` user inside a throwaway pod and to validate the restored logical databases plus a known application object count. Once that was fixed, the scratch restore recreated:
+
+- `draft_review`
+- `keycloak`
+- `platform`
+- `postgres`
+
+and the validation query returned:
+
+- `draft_review_users=2`
+
+That proves the dump is materially restorable. But the replay also printed foreign-key violations during `psql -f` for several Draft Review tables that referenced a missing `review_sessions` parent row:
+
+- `reactions`
+- `review_paragraph_progress`
+- `review_section_progress`
+- `review_summaries`
+
+The missing `review_session_id` observed during the restore was:
+
+- `212fdf9c-373d-4a05-bc9e-3082e09f1674`
+
+That is a genuine data-integrity finding in the current Draft Review dump stream, not a restore-script artifact. The PostgreSQL backup is still useful, but the restore drill exposed that it is not yet a perfectly clean replay of all application data.
+
+The MySQL scratch restore had a different class of problem. The first restore path tried to use TCP as root and immediately hit:
+
+- `Host '127.0.0.1' is not allowed to connect to this MySQL server`
+
+I changed the scratch restore to use the local Unix socket instead, which matches how a fresh `mysqld --initialize-insecure` instance is meant to be accessed. The next issue was performance and capacity during replay. The restore log repeatedly printed:
+
+- `Threads are unable to reserve space in redo log`
+
+That meant the scratch instance needed a larger redo log during import. I increased `--innodb-redo-log-capacity` to `1073741824`, kept the restore on the Unix socket, and reran the drill. That replay succeeded cleanly and validated:
+
+- databases: `gec`, `information_schema`, `mysql`, `performance_schema`, `sys`
+- `gec_products=8926`
+
+The Redis scratch restore initially looked like a script hang, but the problem turned out to be script robustness. The first version used BusyBox `sh` with `set -euo pipefail`, which is not portable there, and it did not emit Redis logs if the scratch server failed to boot. I rewrote the pod exec block to use `set -eu`, search recursively for the `.rdb` file, and dump `/tmp/redis.log` on startup failure. After that hardening, the Redis restore drill succeeded and validated:
+
+- `dbsize=1`
+- `cluster_persistence=redis-1774726040`
+
+That is the exact validation key we seeded earlier when proving Redis persistence, so it closes the backup/restore loop for the current Redis contract.
+
+### What I did
+- Added replayable scratch-restore scripts for PostgreSQL, MySQL, and Redis.
+- Hardened the shared script helper so Vault-backed replay works with the standard local token file.
+- Fixed the PostgreSQL restore pod to initialize and run the scratch server as the `postgres` user.
+- Fixed the MySQL restore path to use socket auth and a larger redo log.
+- Fixed the Redis restore path to work on BusyBox `sh` and emit startup logs on failure.
+- Ran all three scratch restore drills and recorded the exact outcomes.
+
+### Why
+- Backup artifacts are not operationally meaningful unless they can be replayed safely into an isolated scratch target.
+- The restore drill is the first place where hidden application-data integrity issues usually show up.
+
+### What worked
+- All three service backup artifacts could be replayed into scratch targets.
+- MySQL and Redis restored cleanly after script hardening.
+- PostgreSQL restored enough real data to validate the dump and surfaced a useful application-data issue instead of silently hiding it.
+
+### What didn't work
+- The first PostgreSQL restore attempt tried to run `initdb` as root.
+- The first MySQL restore path used the wrong local auth method and too-small redo log settings.
+- The first Redis restore path assumed BusyBox `sh` supported `pipefail`.
+
+### What I learned
+- Scratch restore drills are where backup scripts stop being theoretical and start revealing both tooling issues and live application data issues.
+- Restoring into scratch targets is low risk operationally but high value diagnostically.
+
+### What should be done in the future
+- Investigate and resolve the orphaned Draft Review foreign-key references exposed by the PostgreSQL restore replay.
+- Add explicit upgrade and rollback playbooks now that both the backup and restore paths are proven.

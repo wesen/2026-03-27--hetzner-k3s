@@ -22,3 +22,5 @@
 - Step 10: added the Terraform-managed Hetzner Object Storage bucket, seeded the shared Vault backup secret path, extended the PostgreSQL/MySQL/Redis Vault policies and VSO manifests, and deployed live backup CronJobs for all three shared data services
 - Step 10: ran manual backup jobs for PostgreSQL, MySQL, and Redis, verified remote artifacts in the bucket, and preserved the operator trail as replayable HK3S-0009 scripts
 - Step 10: hit two real MySQL backup failures during validation (`self-signed certificate in certificate chain`, then MariaDB client incompatibility with `caching_sha2_password`), fixed them with follow-up commits, and pruned the one invalid 20-byte object from the bucket
+- Step 11: added replayable scratch-restore scripts for PostgreSQL, MySQL, and Redis, hardened the shared helper to reuse the standard local Vault token file, and validated that all three backup artifacts can be replayed into isolated scratch targets
+- Step 11: confirmed clean MySQL and Redis scratch restores, and documented the PostgreSQL restore finding that exposed orphaned Draft Review foreign-key references under `review_sessions`
