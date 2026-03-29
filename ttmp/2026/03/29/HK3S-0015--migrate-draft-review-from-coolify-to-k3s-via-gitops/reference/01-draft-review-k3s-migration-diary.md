@@ -212,3 +212,52 @@ This changed the migration plan in an important way. Restoring ACME issuance sho
 - `ClusterIssuer/letsencrypt-prod`
 
 so future apps do not depend on an old demo-stack bootstrap artifact or a manually recreated issuer.
+
+## 2026-03-29: Hosted Draft Review DB and author identity analyzed for migration
+
+After the K3s app itself was healthy, I switched to the remaining state-migration question: existing content plus the real Manuel author account.
+
+I inspected the application auth code first, because the right migration depends on how Draft Review resolves authors after OIDC login.
+
+Important findings from the code:
+
+- the app looks up existing users by:
+  - `auth_issuer`
+  - `auth_subject`
+- only if no row matches that pair does it fall back to creating or upserting by email
+
+That means the database migration cannot rely on email alone. If I import the old DB unchanged, the existing Manuel row will still point at the **old** Keycloak issuer and **old** subject UUID, so K3s login will not bind back to it automatically.
+
+I then inspected the old Coolify-hosted Postgres container directly on the old host:
+
+- host: `89.167.52.236`
+- Postgres container: `go1o5tbegalwy3kesshq3hcp`
+- database: `draft_review`
+
+The hosted `users` table currently contains exactly two rows:
+
+- `wesen@ruinwesen.com`
+  - name: `Manuel Odendahl`
+  - issuer: `https://auth.scapegoat.dev/realms/draft-review`
+  - subject: `ad1655b1-91ad-4b0b-8200-b33b8526244a`
+- `author@example.com`
+  - name: `Draft Author`
+  - issuer: `https://auth.scapegoat.dev/realms/draft-review`
+  - subject: `3a0357ef-9917-4cd7-9739-613ae23cc94b`
+
+I also verified that the hosted database schema is not fully current:
+
+- there is no `article_assets` table yet in the hosted DB
+
+That rules out a naive full schema restore into K3s. The safer route is:
+
+1. keep the current K3s target schema
+2. import the hosted data into it
+3. create a Terraform-managed `wesen` user in the K3s Keycloak realm
+4. rewrite the imported Manuel row to the new issuer and new subject
+
+I wrote that up as a dedicated ticket document:
+
+- `design/02-draft-review-data-and-author-identity-migration-plan.md`
+
+and expanded the task list so the remaining Draft Review work is now explicit instead of implicit.

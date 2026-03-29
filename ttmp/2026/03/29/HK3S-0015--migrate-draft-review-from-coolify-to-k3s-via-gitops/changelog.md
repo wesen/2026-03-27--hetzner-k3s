@@ -23,3 +23,7 @@ Added the Draft Review GitOps package scaffold, Vault runtime secret and private
 ## 2026-03-29
 
 Performed the first live Draft Review rollout, confirmed the app, private GHCR pull, and database bootstrap were healthy, and discovered that the cluster-wide ACME `ClusterIssuer` had drifted out of the cluster entirely. Added a dedicated platform issuer app as the corrective platform fix.
+
+## 2026-03-29
+
+Inspected the hosted Draft Review database and documented the real author-identity migration constraints: the Manuel row is bound to the old hosted issuer and subject UUID, so the K3s migration needs a Terraform-managed `wesen` Keycloak user plus a DB-side issuer/subject rewrite after data import.

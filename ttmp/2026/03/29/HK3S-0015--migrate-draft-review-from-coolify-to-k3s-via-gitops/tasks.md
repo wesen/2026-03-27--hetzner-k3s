@@ -16,6 +16,13 @@
 - [ ] Validate health, OIDC login, database-backed behavior, and media persistence
 - [ ] Update the canonical deployment docs if the real migration exposes gaps in the current guidance
 - [ ] Restore the missing cluster-wide ACME `ClusterIssuer` as a dedicated GitOps-managed platform app
+- [x] Inspect the hosted Draft Review database and author identity rows
+- [ ] Add a Terraform-managed `wesen` user to the Draft Review `k3s-parallel` Keycloak env
+- [ ] Apply Terraform and capture the new K3s Keycloak subject ID for `wesen`
+- [ ] Add ticket-local scripts to export the hosted Draft Review database and snapshot the cluster target database
+- [ ] Import hosted Draft Review data into the cluster `draft_review` database
+- [ ] Rewrite the imported `wesen@ruinwesen.com` author row to the K3s issuer and K3s Keycloak subject
+- [ ] Validate that logging in as `wesen` on K3s exposes the imported articles and ownership correctly
 
 ## Notes
 
@@ -39,3 +46,9 @@
 - First live rollout exposed a platform gap:
   - the cluster had no `ClusterIssuer` resources at all
   - existing apps still had old TLS secrets, but new apps could only get Traefik's self-signed fallback cert
+- Hosted Draft Review DB findings:
+  - `users` table currently has 2 rows
+  - the Manuel row is bound to:
+    - issuer `https://auth.scapegoat.dev/realms/draft-review`
+    - subject `ad1655b1-91ad-4b0b-8200-b33b8526244a`
+  - the hosted schema predates `article_assets`, so target-schema-first import is safer than full schema restore

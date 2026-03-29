@@ -57,6 +57,7 @@ That is the safest migration target because the current Coolify deployment remai
 ## Key Links
 
 - [Migration Design And Implementation Guide](./design/01-draft-review-k3s-migration-design-and-implementation-guide.md)
+- [Data And Author Identity Migration Plan](./design/02-draft-review-data-and-author-identity-migration-plan.md)
 - [Migration Playbook](./playbooks/01-draft-review-k3s-migration-playbook.md)
 - [Implementation Diary](./reference/01-draft-review-k3s-migration-diary.md)
 
