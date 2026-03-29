@@ -49,3 +49,38 @@ That makes Draft Review a good test of the full private-app migration path:
 - shared Postgres database bootstrap
 - K3s Keycloak parallel realm/client
 - PVC-backed media directory
+
+## 2026-03-29: Source-repo packaging scaffold implemented
+
+The first real implementation slice was the source-repo packaging layer. I deliberately kept this separate from cluster manifests so the release path could be validated in isolation.
+
+Changes made in `/home/manuel/code/wesen/2026-03-24--draft-review`:
+
+- added `.github/workflows/publish-image.yaml`
+- added `deploy/gitops-targets.json`
+- added `scripts/open_gitops_pr.py`
+- updated `README.md` to describe the new GHCR and GitOps PR model
+
+Validation performed:
+
+```bash
+go test ./cmd/... ./pkg/... -count=1
+docker build -t draft-review:local .
+python3 scripts/open_gitops_pr.py --help
+```
+
+Observed result:
+
+- Go tests passed
+- the production Docker image built successfully, including the frontend embed step
+- the PR updater script is executable and exposes the expected CLI
+
+Important implementation note:
+
+- the source repo has many unrelated untracked files already present locally
+- only the new packaging files and README changes should be committed for this task
+
+Important operational note:
+
+- the `gitops-pr` workflow is designed to skip cleanly when `GITOPS_PR_TOKEN` is not configured
+- that means this packaging task can be merged before the K3s target manifest exists, without breaking the repository’s default workflow behavior
