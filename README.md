@@ -1,8 +1,16 @@
 # Hetzner single-node K3s + Argo CD platform
 
-This repo provisions **one Hetzner Cloud VM** with **Terraform**, bootstraps **K3s** and **Argo CD** with **cloud-init**, installs **cert-manager**, and then uses **GitOps** to run platform and application workloads on top of that cluster.
+This repo is the source of truth for a single-node Hetzner K3s cluster. Terraform creates the VM and firewall, cloud-init bootstraps K3s and Argo CD, and Argo CD then reconciles the platform and application packages defined here.
 
-The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik ingress controller**. Shared PostgreSQL, MySQL, Redis, Vault, Keycloak, CoinVault, Pretext, and the public Argo CD UI are all managed from this repository.
+The cluster currently runs:
+- platform services: Vault, Keycloak, PostgreSQL, MySQL, Redis, cert-manager, public Argo CD
+- application services: CoinVault, CoinVault SQL debugger, Pretext explorer
+- public ingress and TLS through the built-in K3s Traefik controller
+
+If you are here because you want to deploy a new app, start with:
+- [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
+
+That is the canonical “bring your repo to this platform” guide.
 
 ## What this stack does
 
@@ -21,6 +29,38 @@ The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik 
   - application services such as CoinVault and Pretext
   - ingress and TLS resources for public endpoints
 
+## Start Here
+
+Choose the entry point that matches what you are trying to do:
+
+- I want to bring a new source repo onto this platform:
+  - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
+- I have a public repo and want the simplest GHCR path:
+  - [docs/public-repo-ghcr-argocd-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/public-repo-ghcr-argocd-deployment-playbook.md)
+- I need the standardized repo and GitOps layout rules:
+  - [docs/app-packaging-and-gitops-pr-standard.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md)
+- I need the private GHCR pull-secret pattern:
+  - [HK3S-0014 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/index.md)
+- I need the base platform bring-up guide:
+  - [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
+
+## Architecture
+
+The operating model is:
+
+```text
+Terraform
+  -> Hetzner VM + firewall
+cloud-init
+  -> K3s + Argo CD bootstrap
+GitOps repo
+  -> Argo CD Applications + Kustomize packages
+Argo CD
+  -> cluster reconciliation
+Vault + VSO
+  -> workload secrets and private registry credentials
+```
+
 ## Requirements
 
 - A Hetzner Cloud project + API token
@@ -30,6 +70,23 @@ The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik 
 - A **Git repository URL for this repo**
   - easiest path: push this repo to a **public** GitHub repo first
   - if you want a private repo, add Argo CD repo credentials after bootstrap
+
+## Repo Layout
+
+- `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`
+  - Hetzner infrastructure
+- `cloud-init.yaml.tftpl`
+  - first-boot bootstrap logic
+- `gitops/applications/`
+  - Argo CD `Application` objects
+- `gitops/kustomize/`
+  - repo-owned workload packages
+- `docs/`
+  - long-form operator and intern-facing playbooks
+- `ttmp/`
+  - ticket workspaces, investigations, diaries, and implementation history
+- `scripts/`
+  - local operator helpers that are intentionally outside GitOps state
 
 ## Quick start
 
@@ -93,35 +150,50 @@ The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik 
    https://coinvault.yolo.scapegoat.dev
    ```
 
+## Day-2 Operations
+
+Common checks:
+
+```bash
+export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+kubectl get nodes
+kubectl -n argocd get applications
+kubectl -n argocd get application coinvault -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}'
+kubectl -n vault get pods
+kubectl -n postgres get pods
+kubectl -n mysql get pods
+kubectl -n redis get pods
+```
+
+Public endpoints:
+
+- `https://argocd.yolo.scapegoat.dev`
+- `https://vault.yolo.scapegoat.dev`
+- `https://auth.yolo.scapegoat.dev`
+- `https://coinvault.yolo.scapegoat.dev`
+- `https://coinvault-sql.yolo.scapegoat.dev`
+- `https://pretext.yolo.scapegoat.dev`
+
 ## Important caveats
 
 - This is **single-node** and **non-HA**.
 - PostgreSQL uses **local-path** storage on the node. If the node dies, the volume dies with it unless you have separate backups.
-- The demo app image is built **locally on the node** and imported into K3s. That is fine for a one-node demo stack, but you would normally move to a real registry for anything larger.
 - The default setup assumes a **public Git repo** so Argo CD can read it without credentials.
 - Use Let's Encrypt **staging** first if you are iterating heavily on DNS/TLS.
 
-## Files
+## Key Documents
 
-- `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf`: Hetzner infra
-- `cloud-init.yaml.tftpl`: first-boot bootstrap logic
-- `docs/`: long-form intern-facing operational guides in Glazed help-page format
-- `docs/coinvault-k3s-deployment-playbook.md`: end-to-end operator guide for the CoinVault K3s deployment path
-- `docs/source-app-deployment-infrastructure-playbook.md`: canonical “bring your repo to this platform” guide, including public vs private image decisions and the full CI -> GHCR -> GitOps PR -> Argo rollout model
-- `docs/public-repo-ghcr-argocd-deployment-playbook.md`: supporting guide for the simplest public-repo/public-package GHCR path
-- `docs/app-packaging-and-gitops-pr-standard.md`: standard package shape for app repos and the CI-created GitOps pull-request model
-- `docs/vault-backed-postgres-bootstrap-job-pattern.md`: how to provision app-specific PostgreSQL databases and roles declaratively with Vault, VSO, and a bootstrap Job
-- `gitops/applications/argocd-public.yaml`: Argo CD `Application` that restores and exposes the Argo CD server itself
-- `gitops/kustomize/argocd-public`: dedicated package that owns `argocd-server`, `argocd-cmd-params-cm`, and the public ingress
-- `gitops/applications/coinvault.yaml`: Argo CD `Application` for the first migrated real app
-- `gitops/applications/vault.yaml`: Argo CD `Application` for the K3s-hosted Vault deployment
-- `gitops/applications/vault-kubernetes-auth.yaml`: Argo CD `Application` for the Kubernetes-auth smoke namespace/service account
-- `gitops/kustomize/vault-kubernetes-auth`: smoke-test Kubernetes objects for the Vault Kubernetes auth path
-- `gitops/charts/demo-stack`: legacy Helm bootstrap compatibility path
-- `scripts/get-kubeconfig.sh`: helper to fetch a usable kubeconfig
-- `scripts/bootstrap-vault-aws-kms-secret.sh`: local helper to create the non-git Kubernetes secret for Vault AWS KMS auto-unseal
-- `scripts/bootstrap-vault-kubernetes-auth.sh`: local helper to enable/configure Vault Kubernetes auth and seed baseline policies/roles
-- `scripts/validate-vault-kubernetes-auth.sh`: local helper to prove service-account login and least-privilege behavior
+- [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
+  - canonical source-repo onboarding guide
+- [docs/coinvault-k3s-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md)
+  - end-to-end operator guide for CoinVault
+- [docs/argocd-app-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/argocd-app-setup.md)
+  - how Argo CD apps are structured here
+- [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
+  - platform bring-up and cluster bootstrap
+- [docs/vault-backed-postgres-bootstrap-job-pattern.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-backed-postgres-bootstrap-job-pattern.md)
+  - declarative app database provisioning pattern
 
 ## Vault workload auth notes
 
@@ -152,6 +224,6 @@ kubectl apply -f gitops/applications/vault.yaml
 ## Suggested first changes
 
 - move PostgreSQL to a managed service or at least a separate volume / backup plan
-- move the demo app image build to CI and push to a registry
 - add repo credentials if you want the GitOps repo private
-- replace the demo secret values with a real secret-management path
+- finish backup and restore playbooks for the shared data services
+- keep moving remaining apps onto the standardized CI -> GHCR -> GitOps PR path

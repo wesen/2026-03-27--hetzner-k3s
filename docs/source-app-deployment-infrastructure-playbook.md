@@ -45,6 +45,20 @@ The concrete example is `mysql-ide`, but the point of the page is broader. A new
 
 This page exists because just knowing how to build a Docker image is not enough. A production-ish deployment path is a small system, not a single file.
 
+## If You Own a Repo and Want It Deployed Here
+
+Use this as the short operator path:
+
+1. Make the source repo buildable on a clean GitHub runner.
+2. Add a production `Dockerfile`.
+3. Add a GitHub Actions workflow that tests and publishes immutable GHCR tags.
+4. Add `deploy/gitops-targets.json` plus a PR updater script.
+5. Decide whether the image will be public or private.
+6. Add or update the matching GitOps package in this repo.
+7. Let CI open GitOps PRs and let Argo CD deploy from this repo, not from the source repo directly.
+
+If the repo is private, stop and wire the private-image pull path before you assume the rollout is done. Publishing successfully to GHCR is not enough for the cluster to pull the image.
+
 ## The System You Are Building
 
 You are not “deploying from GitHub.” You are building a chain of responsibility:
@@ -62,6 +76,26 @@ source repo
 Each arrow is a contract boundary.
 
 If you skip those boundaries mentally, the system becomes confusing. If you preserve them, debugging stays tractable.
+
+## Decision Tree
+
+Use this decision tree before you write manifests:
+
+```text
+Does the app already build cleanly in CI?
+  no -> fix source repo first
+  yes
+    -> Will the published GHCR package be public?
+      yes
+        -> use the normal public-package path
+      no
+        -> add the Vault-backed image pull secret path in GitOps
+    -> Does the app need runtime secrets?
+      yes
+        -> add Vault/VSO resources
+      no
+        -> keep the GitOps package stateless
+```
 
 ## The Three Control Planes
 
