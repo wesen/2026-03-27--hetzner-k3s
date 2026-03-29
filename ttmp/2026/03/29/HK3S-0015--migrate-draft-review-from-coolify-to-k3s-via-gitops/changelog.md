@@ -19,3 +19,7 @@ Created and applied the parallel Keycloak Terraform env for Draft Review against
 ## 2026-03-29
 
 Added the Draft Review GitOps package scaffold, Vault runtime secret and private GHCR pull-secret manifests, the Postgres bootstrap job, and the PVC-backed media wiring, then validated that the package renders cleanly and points at a real published GHCR image.
+
+## 2026-03-29
+
+Performed the first live Draft Review rollout, confirmed the app, private GHCR pull, and database bootstrap were healthy, and discovered that the cluster-wide ACME `ClusterIssuer` had drifted out of the cluster entirely. Added a dedicated platform issuer app as the corrective platform fix.

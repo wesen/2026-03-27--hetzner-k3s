@@ -163,3 +163,52 @@ I also re-read the current hosted deployment docs to confirm the scaffold still 
   - `https://draft-review.yolo.scapegoat.dev/auth/callback`
 
 This was the right moment to checkpoint the K3s scaffold because the migration no longer depends on guesses for the runtime contract or the image supply chain.
+
+## 2026-03-29: First live rollout exposed a missing platform `ClusterIssuer`
+
+After the K3s scaffold was committed and pushed, I bootstrapped Vault Kubernetes auth, seeded the Draft Review runtime secret, and seeded the private GHCR image-pull secret from Vault. That part worked as expected:
+
+- `draft-review-runtime` synced into the namespace
+- `draft-review-ghcr-pull` was created as `kubernetes.io/dockerconfigjson`
+- the database bootstrap Job succeeded
+- the app Deployment pulled the private GHCR image and became `Ready`
+
+The app log showed the expected runtime contract:
+
+- OIDC issuer: `https://auth.yolo.scapegoat.dev/realms/draft-review`
+- auth mode: `oidc`
+- database configured: `true`
+- media root: `/data/media`
+
+The first validation failure was not application health. It was TLS. The validation script hit:
+
+```text
+curl: (60) SSL certificate problem: self-signed certificate
+```
+
+I traced that through cert-manager instead of assuming the app ingress was wrong.
+
+Observed cluster state:
+
+- `CertificateRequest/draft-review-tls-1` existed
+- `Certificate/draft-review-tls` existed
+- no `Order` or `Challenge` resources were created
+- `kubectl get clusterissuer` returned **no resources found**
+
+The critical evidence was the certificate request status:
+
+```text
+Referenced "ClusterIssuer" not found: clusterissuer.cert-manager.io "letsencrypt-prod" not found
+```
+
+That means Draft Review did not introduce a bad issuer name. It exposed a broader platform drift:
+
+- the cluster no longer had any live `ClusterIssuer` resources
+- older apps still looked healthy because their TLS secrets already existed from earlier issuance
+- new apps could only fall back to Traefik's self-signed default cert
+
+This changed the migration plan in an important way. Restoring ACME issuance should not be treated as a Draft Review one-off fix. It belongs in the platform baseline. I therefore added a dedicated GitOps-managed platform app to own:
+
+- `ClusterIssuer/letsencrypt-prod`
+
+so future apps do not depend on an old demo-stack bootstrap artifact or a manually recreated issuer.

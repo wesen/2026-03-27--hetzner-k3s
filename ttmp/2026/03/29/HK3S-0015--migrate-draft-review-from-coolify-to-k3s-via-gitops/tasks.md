@@ -15,6 +15,7 @@
 - [ ] Deploy the Draft Review Argo CD application
 - [ ] Validate health, OIDC login, database-backed behavior, and media persistence
 - [ ] Update the canonical deployment docs if the real migration exposes gaps in the current guidance
+- [ ] Restore the missing cluster-wide ACME `ClusterIssuer` as a dedicated GitOps-managed platform app
 
 ## Notes
 
@@ -35,3 +36,6 @@
   - `KUBECONFIG=... kubectl kustomize gitops/kustomize/draft-review`
 - Source image exists in GHCR as:
   - `ghcr.io/wesen/2026-03-24--draft-review:sha-125c36e`
+- First live rollout exposed a platform gap:
+  - the cluster had no `ClusterIssuer` resources at all
+  - existing apps still had old TLS secrets, but new apps could only get Traefik's self-signed fallback cert
