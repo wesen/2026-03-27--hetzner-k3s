@@ -1,0 +1,93 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: mysql
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  schedule: "45 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: mysql-backup
+        spec:
+          enableServiceLinks: false
+          restartPolicy: OnFailure
+          serviceAccountName: mysql
+          containers:
+            - name: backup
+              image: alpine:3.22
+              imagePullPolicy: IfNotPresent
+              command:
+                - sh
+                - -ec
+                - |
+                  apk add --no-cache mariadb-client aws-cli gzip >/dev/null
+                  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+                  file="/tmp/mysql-${ts}.sql.gz"
+                  mysqldump \
+                    -h "${MYSQL_HOST}" \
+                    -P "${MYSQL_PORT}" \
+                    -uroot \
+                    -p"${MYSQL_ROOT_PASSWORD}" \
+                    --all-databases \
+                    --single-transaction \
+                    --routines \
+                    --events | gzip -9 > "${file}"
+                  AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" \
+                  AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+                  AWS_DEFAULT_REGION="${S3_REGION}" \
+                  aws --endpoint-url "${S3_ENDPOINT}" s3 cp "${file}" "s3://${S3_BUCKET}/${S3_PREFIX}$(basename "${file}")"
+              env:
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-auth
+                      key: service-host
+                - name: MYSQL_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-auth
+                      key: service-port
+                - name: MYSQL_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: mysql-auth
+                      key: mysql-root-password
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-endpoint
+                - name: S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-region
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: bucket-name
+                - name: S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: access-key
+                - name: S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: secret-key
+                - name: S3_PREFIX
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: mysql-prefix

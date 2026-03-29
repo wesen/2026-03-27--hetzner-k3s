@@ -20,8 +20,8 @@ RelatedFiles:
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are now live, with backup and upgrade procedures still remaining as follow-up platform work."
-LastUpdated: 2026-03-28T15:28:10-04:00
+Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, and the active follow-up slice is now off-cluster backup, restore validation, and operational hardening."
+LastUpdated: 2026-03-29T13:20:00-04:00
 WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
 WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
@@ -48,12 +48,14 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 8 is active: the shared PostgreSQL and Redis rollout is complete, and the remaining ticket work is now the deferred backup, restore, upgrade, and rollback guidance.
+Step 9 is active: the shared PostgreSQL and Redis rollout is complete, and the ticket is now implementing real off-cluster backups and restore drills for PostgreSQL, MySQL, and Redis instead of leaving them as deferred guidance.
 
 ## Key Links
 
 - Implementation plan:
   - [01-cluster-data-services-plan.md](./playbooks/01-cluster-data-services-plan.md)
+- Backup and restore plan:
+  - [02-cluster-data-services-backup-and-restore-plan.md](./playbooks/02-cluster-data-services-backup-and-restore-plan.md)
 - MySQL-first design:
   - [01-mysql-first-cluster-data-services-design.md](./design-doc/01-mysql-first-cluster-data-services-design.md)
 - Postgres and Redis follow-on design:

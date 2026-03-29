@@ -18,7 +18,7 @@
 ## Phase 3: State, storage, and backup
 
 - [x] Define persistence and storage-class expectations for each service
-- [ ] Define backup and restore procedures for Postgres, MySQL, and Redis
+- [x] Define backup and restore procedures for Postgres, MySQL, and Redis
 - [ ] Define upgrade and rollback procedures for engine versions and chart/operator versions
 
 ## Phase 4: Secret and access model
@@ -47,3 +47,31 @@
 - [x] Add Vault policy, role, and bootstrap script for `kv/infra/redis/cluster`
 - [x] Add Argo CD application and Kustomize manifests for the shared Redis service
 - [x] Deploy Redis on the cluster and validate auth, persistence, and restart behavior
+
+## Phase 8: Off-cluster backup target
+
+- [ ] Add a Terraform-managed Hetzner Object Storage bucket for cluster data-service backups
+- [ ] Enable bucket versioning and define the bucket-prefix layout for `postgres/`, `mysql/`, and `redis/`
+- [ ] Document the operator input contract for the object-storage management credentials without committing secrets
+
+## Phase 9: Vault and secret-delivery path for backup jobs
+
+- [ ] Define a shared Vault KV path for backup object-storage credentials
+- [ ] Add a replayable HK3S-0009 ticket script that writes the object-storage runtime credentials into Vault
+- [ ] Extend the PostgreSQL, MySQL, and Redis Kubernetes-auth policies so their backup jobs can read the shared backup-storage secret path
+- [ ] Add VSO `VaultStaticSecret` manifests in each service namespace for the backup-storage secret
+
+## Phase 10: Scheduled backup jobs
+
+- [ ] Add a PostgreSQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
+- [ ] Add a MySQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
+- [ ] Add a Redis backup CronJob that snapshots the durable on-disk state and uploads it to the off-cluster bucket
+- [ ] Keep the backup command logic replayable by storing the operator scripts under the HK3S-0009 ticket `scripts/` folder
+
+## Phase 11: Validation and restore drills
+
+- [ ] Run each backup path manually once and verify that an artifact lands in object storage under the expected prefix
+- [ ] Restore PostgreSQL into a scratch database or scratch namespace and verify real objects come back
+- [ ] Restore MySQL into a scratch database or scratch namespace and verify real tables come back
+- [ ] Restore Redis into a scratch namespace or one-shot pod and verify the validation key survives the round trip
+- [ ] Update the diary, changelog, and ticket index with the backup/restore outcomes and the remaining upgrade/rollback work

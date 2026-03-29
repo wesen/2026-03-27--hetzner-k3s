@@ -1,0 +1,87 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  schedule: "15 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: redis-backup
+        spec:
+          enableServiceLinks: false
+          restartPolicy: OnFailure
+          serviceAccountName: redis
+          containers:
+            - name: backup
+              image: redis:7-alpine
+              imagePullPolicy: IfNotPresent
+              command:
+                - sh
+                - -ec
+                - |
+                  apk add --no-cache aws-cli tar gzip >/dev/null
+                  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+                  rdb="/tmp/redis-${ts}.rdb"
+                  archive="/tmp/redis-${ts}.tar.gz"
+                  REDISCLI_AUTH="${REDIS_PASSWORD}" redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" --rdb "${rdb}"
+                  tar -C /tmp -czf "${archive}" "$(basename "${rdb}")"
+                  AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY}" \
+                  AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY}" \
+                  AWS_DEFAULT_REGION="${S3_REGION}" \
+                  aws --endpoint-url "${S3_ENDPOINT}" s3 cp "${archive}" "s3://${S3_BUCKET}/${S3_PREFIX}$(basename "${archive}")"
+              env:
+                - name: REDIS_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: redis-auth
+                      key: service-host
+                - name: REDIS_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: redis-auth
+                      key: service-port
+                - name: REDIS_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: redis-auth
+                      key: redis-password
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-endpoint
+                - name: S3_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-region
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: bucket-name
+                - name: S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: access-key
+                - name: S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: secret-key
+                - name: S3_PREFIX
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: redis-prefix

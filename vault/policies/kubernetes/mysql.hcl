@@ -5,3 +5,7 @@ path "kv/data/infra/mysql/*" {
 path "kv/metadata/infra/mysql/*" {
   capabilities = ["read", "list"]
 }
+
+path "kv/data/infra/backups/object-storage" {
+  capabilities = ["read"]
+}

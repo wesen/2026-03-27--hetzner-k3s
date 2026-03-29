@@ -9,6 +9,8 @@ resources:
   - vault-connection.yaml
   - vault-auth.yaml
   - vault-static-secret.yaml
+  - backup-storage-vault-static-secret.yaml
   - headless-service.yaml
   - service.yaml
   - statefulset.yaml
+  - backup-cronjob.yaml
