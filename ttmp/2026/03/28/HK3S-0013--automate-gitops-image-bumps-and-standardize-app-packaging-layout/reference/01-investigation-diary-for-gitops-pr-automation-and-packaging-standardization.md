@@ -21,7 +21,7 @@ RelatedFiles:
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize
 ExternalSources: []
 Summary: This diary records the concrete local evidence used to recommend CI-created GitOps pull requests and a categorized app packaging contract, and the first mysql-ide implementation slice.
-LastUpdated: 2026-03-29T13:10:00-04:00
+LastUpdated: 2026-03-29T13:20:00-04:00
 WhatFor: Preserve the reasoning trail behind the design recommendation.
 WhenToUse: Use when reviewing how the recommendations were derived from the current repo state.
 ---
@@ -206,6 +206,53 @@ This refined the packaging standard in two important ways:
 
 - the updater must derive exactly the same image tag shape that the publish job emits
 - operator access to the cluster depends on keeping Hetzner `admin_cidrs` current, even when public apps remain healthy
+
+### 2026-03-29: CoinVault packaging scaffold started
+
+The next implementation target is now the real CoinVault source repository:
+
+- `/home/manuel/code/gec/2026-03-16--gec-rag`
+
+Initial findings:
+
+- the repo had no root deployment-oriented `README.md`
+- there was no GitHub Actions image-publish workflow
+- there was no `deploy/gitops-targets.json`
+- there was no deterministic GitOps PR updater script
+- the committed `go.mod` still contained workstation-local `replace` directives for `geppetto` and `pinocchio`
+- a raw `go test ./...` is too broad because ticket scratch programs in `ttmp/` contain multiple `main` packages
+
+Corrections made in the app repo:
+
+- removed the committed local `replace` directives from `go.mod`
+- refreshed `go.sum` so clean-runner testing works without the local replacements
+- added `.github/workflows/publish-image.yaml`
+- added `deploy/gitops-targets.json`
+- added `scripts/open_gitops_pr.py`
+- added a root `README.md`
+- tightened `.gitignore` to ignore local binaries, SQLite files, and `.idea/`
+- defined the CI test contract as:
+
+```bash
+go test $(go list ./... | grep -v '/ttmp/') -count=1
+```
+
+Local validation:
+
+- `go test $(go list ./... | grep -v '/ttmp/') -count=1` passed
+- `docker build -t coinvault:ci-test .` passed
+
+Source-repo commit:
+
+- `d074c80` `feat: package coinvault for ghcr and gitops pr automation`
+
+First live workflow evidence:
+
+- workflow: `publish-image`
+- run: `23709831574`
+- state at diary update time: tests passed and image build/push was in progress
+
+This means CoinVault has crossed from “special-case local image import only” into the same packaging model as `mysql-ide`, even though the K3s manifest still points at the node-local image for now.
 
 ## Related
 

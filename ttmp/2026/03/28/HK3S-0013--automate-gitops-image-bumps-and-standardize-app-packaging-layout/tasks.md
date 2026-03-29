@@ -18,8 +18,11 @@
 - [x] Correct the `mysql-ide` GitOps PR tag shape so it matches the actual GHCR-published short SHA tags
 - [x] Merge the corrective `mysql-ide` GitOps PR and re-validate `coinvault` as `Synced Healthy`
 - [ ] Inventory the current CoinVault source-repo packaging and identify the minimum changes needed to become CI-buildable without local workstation `replace` assumptions
-- [ ] Add the app-repo deployment packaging contract to CoinVault: repo README updates, `deploy/gitops-targets.json`, and deterministic GitOps PR updater script
-- [ ] Add GitHub Actions image publishing for CoinVault and switch the K3s deployment from node-local `coinvault:hk3s-0007` to a GHCR image tag
+- [x] Inventory the current CoinVault source-repo packaging and identify the minimum changes needed to become CI-buildable without local workstation `replace` assumptions
+- [x] Add the app-repo deployment packaging contract to CoinVault: repo README updates, `deploy/gitops-targets.json`, and deterministic GitOps PR updater script
+- [x] Add GitHub Actions image publishing for CoinVault
+- [ ] Validate the first CoinVault GHCR image publish and confirm whether CI-created GitOps PR creation is enabled or still blocked on `GITOPS_PR_TOKEN`
+- [ ] Switch the K3s deployment from node-local `coinvault:hk3s-0007` to a GHCR image tag
 - [ ] Validate the first CoinVault CI-created GitOps PR and live rollout
 
 ## Notes
