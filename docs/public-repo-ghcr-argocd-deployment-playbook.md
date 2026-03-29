@@ -339,6 +339,22 @@ GitHub Actions build -> GHCR package -> cluster pull -> pod starts
 
 After you commit the manifest change in the GitOps repo, Argo CD should detect it and sync.
 
+That assumes the `Application` object already exists in the cluster.
+
+For an existing app such as `coinvault`, that is already true, so a merged GitOps PR is enough for Argo to notice the new image pin.
+
+For a brand-new app, there is a one-time bootstrap step first:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+kubectl apply -f gitops/applications/<app>.yaml
+kubectl -n argocd annotate application <app> argocd.argoproj.io/refresh=hard --overwrite
+```
+
+This repo does not currently auto-create every `Application` from the `gitops/applications/` directory, so the very first deployment of a new app always needs that initial apply.
+
 Useful checks:
 
 ```bash

@@ -101,6 +101,23 @@ app repo
         -> new pod rollout in cluster
 ```
 
+One additional rule is easy to miss during the first rollout of a new app:
+
+- a new file under `gitops/applications/<name>.yaml` is only a Git declaration
+- it is not automatically a live Kubernetes object unless something applies it
+
+This repo does not currently have an app-of-apps or `ApplicationSet` layer that auto-materializes every new Argo `Application`. So the first deployment of a new app always includes a one-time bootstrap step:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+kubectl apply -f gitops/applications/<name>.yaml
+kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --overwrite
+```
+
+After that initial apply, later GitOps PR merges are enough because Argo already has the `Application` object and can keep reconciling its source path.
+
 ## Why We Use CI-Created GitOps Pull Requests
 
 This section explains the central design choice.
@@ -200,6 +217,8 @@ This script should:
 - open a PR
 
 It should also support local dry-run validation so operators can test it safely before relying on CI.
+
+The existence of this script does not remove the one-time Argo bootstrap step for a brand-new app. CI can update manifests that an existing `Application` watches, but CI cannot rely on Argo to sync an `Application` object that does not yet exist in the cluster.
 
 ## Standard Packaging for GitOps Repo App Layout
 

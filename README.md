@@ -153,6 +153,8 @@ Vault + VSO
    kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite
    ```
 
+   This is the same pattern you use for any brand-new app `Application` in this repo. A merged file under `gitops/applications/` is only Git state until that `Application` object exists in the cluster once.
+
 10. Open one of the live public endpoints:
 
    ```

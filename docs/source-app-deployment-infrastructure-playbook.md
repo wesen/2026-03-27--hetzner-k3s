@@ -59,6 +59,41 @@ Use this as the short operator path:
 
 If the repo is private, stop and wire the private-image pull path before you assume the rollout is done. Publishing successfully to GHCR is not enough for the cluster to pull the image.
 
+## The Most Common Misunderstanding
+
+Publishing an image to GHCR is not deployment by itself.
+
+Merging a GitOps PR is also not always sufficient by itself.
+
+There are two separate facts a new operator needs to keep in mind:
+
+1. Argo CD only reconciles desired state it can already see through an `Application` object.
+2. A brand-new file under `gitops/applications/<name>.yaml` does not become live just because it was merged into Git.
+
+This repo does not currently use an app-of-apps or `ApplicationSet` layer that auto-creates every new `Application` object from the `gitops/applications/` directory. That means the first rollout of a new app has a one-time bootstrap step:
+
+- apply the `Application` object to the cluster once
+- optionally force a hard refresh
+- then let Argo continuously reconcile the Kustomize package it points at
+
+The first-time bootstrap commands are:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+kubectl apply -f gitops/applications/<app>.yaml
+kubectl -n argocd annotate application <app> argocd.argoproj.io/refresh=hard --overwrite
+```
+
+After that, the application behaves the way most people expect:
+
+- future GitOps PR merges change the manifests or image pin
+- Argo sees those changes through the already-existing `Application`
+- the cluster reconciles without another manual `kubectl apply`
+
+That distinction matters because otherwise an operator can merge the right GitOps PR, wait for Argo, and still see nothing happen simply because the `Application` object itself was never created in the cluster.
+
 ## The System You Are Building
 
 You are not “deploying from GitHub.” You are building a chain of responsibility:
@@ -76,6 +111,16 @@ source repo
 Each arrow is a contract boundary.
 
 If you skip those boundaries mentally, the system becomes confusing. If you preserve them, debugging stays tractable.
+
+There is one more boundary that matters during the first rollout of a brand-new app:
+
+```text
+Git repo contains gitops/applications/<app>.yaml
+  !=
+cluster already has Application/<app>
+```
+
+The first time an app is introduced, you must create the `Application` custom resource in the cluster once. After that bootstrap step, Argo can do the continuous reconciliation work you actually want.
 
 ## Decision Tree
 
