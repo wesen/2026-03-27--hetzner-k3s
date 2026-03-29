@@ -28,6 +28,12 @@ SectionType: Tutorial
 
 This page is the full operator playbook for building deployment infrastructure around a normal source repository.
 
+This should now be the canonical document to hand to someone who owns an application repository and wants to get it onto this K3s platform. The other deployment docs are now supporting references:
+
+- use this page first for the full system model
+- use the public-repo GHCR page when the repository and image are intentionally public
+- use the HK3S-0014 ticket bundle when the source repository is private and needs a Vault-backed GHCR pull secret
+
 The concrete example is `mysql-ide`, but the point of the page is broader. A new intern should be able to read this once and understand:
 
 - what belongs in the app repository
@@ -81,6 +87,12 @@ For `mysql-ide`, this is:
 - [gitops-targets.json](/home/manuel/code/wesen/2026-03-27--mysql-ide/deploy/gitops-targets.json)
 - [open_gitops_pr.py](/home/manuel/code/wesen/2026-03-27--mysql-ide/scripts/open_gitops_pr.py)
 
+For `coinvault`, the same pattern now exists in a private-source repo:
+
+- [publish-image.yaml](/home/manuel/code/gec/2026-03-16--gec-rag/.github/workflows/publish-image.yaml)
+- [gitops-targets.json](/home/manuel/code/gec/2026-03-16--gec-rag/deploy/gitops-targets.json)
+- [open_gitops_pr.py](/home/manuel/code/gec/2026-03-16--gec-rag/scripts/open_gitops_pr.py)
+
 ### 2. GitOps repository
 
 This repo owns:
@@ -119,6 +131,13 @@ That means a private-source app needs an explicit decision:
 - or use a documented one-node image import bridge while migrating
 
 CoinVault exercised this exact path. The GitOps PR flow itself worked, but the node could not pull the image anonymously. The short-term recovery was to import the exact GHCR-tagged image into the node’s containerd store so the `IfNotPresent` rollout could succeed while the package visibility issue remained open.
+
+That gap is now closed by the implemented pattern in `HK3S-0014`:
+
+- Vault stores the GHCR credential
+- VSO renders `coinvault-ghcr-pull` as `kubernetes.io/dockerconfigjson`
+- the `coinvault` `ServiceAccount` references that pull secret
+- the cluster can roll after removing the cached image from the node
 
 ### 3. Cluster runtime
 
@@ -227,6 +246,11 @@ For `mysql-ide`, packaging now means the repository can do all of these:
 - define where it should be proposed for deployment
 - open a PR that changes only the intended manifest line
 
+For a private-source app such as CoinVault, packaging includes one more boundary:
+
+- the source repo still publishes the image and opens the GitOps PR
+- but the runtime image pull contract lives in the GitOps repo plus Vault/VSO, not in the source repo itself
+
 ## Standard App Repository Shape
 
 An app repo that follows this pattern should look roughly like this:
@@ -245,6 +269,56 @@ app-repo/
   scripts/
     open_gitops_pr.py
 ```
+
+The same app-repo shape works for both public and private repositories. The difference is not the packaging shape. The difference is how the cluster authenticates when it pulls the published image.
+
+### Decision point: public image or private image
+
+Before onboarding a repo, answer this explicitly:
+
+1. Will the published GHCR package be public?
+2. If not, has the private-image pull path been wired in the GitOps repo?
+
+The decision table is:
+
+```text
+public repo + public package
+  -> simplest path
+  -> no imagePullSecret needed
+
+private repo + public package
+  -> technically valid
+  -> but treat as an explicit visibility policy choice
+
+private repo + private package
+  -> requires Vault-backed image pull secret pattern
+  -> current reference implementation: coinvault / HK3S-0014
+```
+
+### Standard onboarding checklist for a new source repo
+
+Use this checklist before you start writing manifests:
+
+- The repo builds on a clean GitHub runner.
+- The repo has a deterministic test command.
+- The repo has a production `Dockerfile`.
+- The repo has `deploy/gitops-targets.json`.
+- The repo has a PR updater script.
+- The repo has a GitHub Actions workflow that publishes immutable GHCR tags.
+- The repo has `GITOPS_PR_TOKEN` configured if it should open GitOps PRs automatically.
+- The GitOps repo has a target package and `Application`.
+- If the image will be private, the GitOps repo has a pull-secret path and the workload `ServiceAccount` references it.
+
+### Supporting documents
+
+After reading this page, branch into the more specific guide you need:
+
+- [public-repo-ghcr-argocd-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/public-repo-ghcr-argocd-deployment-playbook.md)
+  - use this when the package is public and you want the simplest path
+- [app-packaging-and-gitops-pr-standard.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md)
+  - use this for the standardized repo and GitOps layout rules
+- [HK3S-0014 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/index.md)
+  - use this when the package is private and you need the implemented GHCR pull-secret pattern
 
 ### Why each file exists
 

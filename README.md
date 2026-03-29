@@ -107,9 +107,9 @@ The cluster exposes workloads over **HTTPS** through the **K3s-packaged Traefik 
 - `cloud-init.yaml.tftpl`: first-boot bootstrap logic
 - `docs/`: long-form intern-facing operational guides in Glazed help-page format
 - `docs/coinvault-k3s-deployment-playbook.md`: end-to-end operator guide for the CoinVault K3s deployment path
-- `docs/public-repo-ghcr-argocd-deployment-playbook.md`: how to publish public-repo images to GHCR and deploy them through Argo CD
+- `docs/source-app-deployment-infrastructure-playbook.md`: canonical “bring your repo to this platform” guide, including public vs private image decisions and the full CI -> GHCR -> GitOps PR -> Argo rollout model
+- `docs/public-repo-ghcr-argocd-deployment-playbook.md`: supporting guide for the simplest public-repo/public-package GHCR path
 - `docs/app-packaging-and-gitops-pr-standard.md`: standard package shape for app repos and the CI-created GitOps pull-request model
-- `docs/source-app-deployment-infrastructure-playbook.md`: detailed end-to-end guide for building deployment infrastructure around a source repository, from CI to GitOps PR to live rollout
 - `docs/vault-backed-postgres-bootstrap-job-pattern.md`: how to provision app-specific PostgreSQL databases and roles declaratively with Vault, VSO, and a bootstrap Job
 - `gitops/applications/argocd-public.yaml`: Argo CD `Application` that restores and exposes the Argo CD server itself
 - `gitops/kustomize/argocd-public`: dedicated package that owns `argocd-server`, `argocd-cmd-params-cm`, and the public ingress
