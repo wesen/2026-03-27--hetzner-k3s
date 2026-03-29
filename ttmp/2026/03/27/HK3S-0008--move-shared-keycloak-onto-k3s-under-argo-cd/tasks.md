@@ -52,3 +52,15 @@
 - [x] Remove the old `demo-stack` Argo application from the cluster and from Git
 - [x] Remove the no-longer-needed `gitops/kustomize/demo-stack` package if nothing else depends on it
 - [x] Re-run validation and update the diary, changelog, and ticket index after the CoinVault migration and demo-stack cleanup
+
+## Phase 7: CoinVault bootstrap users and credential escrow
+
+- [x] Add Terraform-managed local users for the K3s `coinvault` realm:
+  `wesen` and `clint`
+- [x] Generate non-temporary bootstrap passwords locally and keep them only in ignored local Terraform input, not in git
+- [x] Apply the updated `coinvault` `k3s-parallel` Terraform environment and capture the resulting Keycloak subject IDs
+- [x] Add a replayable ticket-local script to escrow the CoinVault bootstrap credentials into `vault.yolo.scapegoat.dev`
+- [x] Store the bootstrap credentials under:
+  `kv/apps/coinvault/prod/keycloak-users/wesen` and `kv/apps/coinvault/prod/keycloak-users/clint`
+- [x] Validate that Vault now holds the expected usernames and subject IDs without printing the passwords
+- [x] Update the diary, changelog, and ticket index to record the new declarative user provisioning slice

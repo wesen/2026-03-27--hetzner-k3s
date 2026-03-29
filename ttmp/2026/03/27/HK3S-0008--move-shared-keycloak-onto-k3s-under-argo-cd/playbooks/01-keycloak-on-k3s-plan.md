@@ -149,6 +149,7 @@ The following are now true on the live cluster:
 - `https://auth.yolo.scapegoat.dev` serves a valid certificate
 - the `infra` realm and `vault-oidc` client exist on the in-cluster Keycloak through the Terraform `k3s-parallel` environment
 - the `coinvault` realm and `coinvault-web` client exist on the in-cluster Keycloak through the Terraform `k3s-parallel` environment
+- the `coinvault` realm also has Terraform-managed bootstrap users `wesen` and `clint`, and their bootstrap credentials are escrowed in Vault under `kv/apps/coinvault/prod/keycloak-users/*`
 - Vault `oidc/` now points at `https://auth.yolo.scapegoat.dev/realms/infra`
 - browser login to Vault works through the new Keycloak instance
 - browser login to CoinVault works through `https://auth.yolo.scapegoat.dev/realms/coinvault`
@@ -169,4 +170,4 @@ Those validations prove the new identity plane can authenticate humans, back its
 Current acceptance note:
 
 - the criteria above are satisfied for the `infra` realm parallel slice
-- the remaining open question is business/operator cutover, not technical feasibility
+- the `coinvault` realm now also has declarative bootstrap users, so the remaining open question is business/operator cutover and broader user migration, not technical feasibility

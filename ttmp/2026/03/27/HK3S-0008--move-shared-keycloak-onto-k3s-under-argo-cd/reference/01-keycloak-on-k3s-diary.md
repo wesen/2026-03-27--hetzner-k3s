@@ -440,3 +440,117 @@ No database migration is needed for that rollback because this slice only change
 ### What should be done in the future
 - Decide whether other shared application realms should also move to the in-cluster Keycloak.
 - Decide whether `auth.scapegoat.dev` should ever cut over to the K3s instance or remain the long-lived external rollback boundary.
+
+## Step 7: Add declarative CoinVault bootstrap users and escrow their credentials in Vault
+
+With the `coinvault` realm already live against the in-cluster Keycloak, the next missing piece was operator bootstrap. The realm migration was proven at the client level, but it still had no declarative local users for the people who actually need to sign in.
+
+I kept the control-plane split consistent with the rest of the migration:
+
+- Terraform manages Keycloak realm, client, and selected user objects.
+- Vault stores the generated bootstrap credentials after apply.
+- Vault is not treated as the live password backend for Keycloak local users.
+
+That distinction matters. Keycloak local users still authenticate against Keycloak's own database. Vault is only the escrow location for the initial passwords assigned through Terraform.
+
+I reused the same user-resource pattern that already worked for Draft Review and extended the CoinVault `k3s-parallel` Terraform environment:
+
+- [`/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/main.tf`](/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/main.tf)
+- [`/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/variables.tf`](/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/variables.tf)
+- [`/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/outputs.tf`](/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/outputs.tf)
+- [`/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/terraform.tfvars.example`](/home/manuel/code/wesen/terraform/keycloak/apps/coinvault/envs/k3s-parallel/terraform.tfvars.example)
+
+The two new users are:
+
+- `wesen` / `wesen@ruinwesen.com` / `Manuel Odendahl`
+- `clint` / `clint@goldeneaglecoin.com` / `Clint Stelfox`
+
+I generated non-temporary bootstrap passwords locally and wrote them only into the ignored local `terraform.tfvars` file for the CoinVault `k3s-parallel` environment. They were not committed to git.
+
+Then I ran:
+
+- `terraform fmt`
+- `terraform validate`
+- `terraform apply -auto-approve`
+
+The apply succeeded and returned these Keycloak subject IDs:
+
+- `wesen`: `39bf147e-6b78-4e7a-b87a-f038de11aab0`
+- `clint`: `3cee731b-61f4-4e15-b1c4-d99743771485`
+
+At that point the users existed in Keycloak, but the bootstrap passwords still only lived in ignored local Terraform input. To make the workflow replayable and operationally discoverable, I added the ticket-local escrow script:
+
+- [`01-store-coinvault-keycloak-bootstrap-users-in-vault.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0008--move-shared-keycloak-onto-k3s-under-argo-cd/scripts/01-store-coinvault-keycloak-bootstrap-users-in-vault.sh)
+
+That script:
+
+- reads the local ignored CoinVault Terraform input
+- pulls the Keycloak subject IDs from `terraform output`
+- writes per-user secrets to Vault at:
+  - `kv/apps/coinvault/prod/keycloak-users/wesen`
+  - `kv/apps/coinvault/prod/keycloak-users/clint`
+
+Each Vault secret includes:
+
+- username
+- email
+- first name
+- last name
+- issuer URL
+- realm
+- subject
+- password
+
+The first script run failed with a remote-state access error:
+
+- `Failed to load state ... api error Forbidden: Forbidden`
+
+That turned out not to be a Vault issue. I had launched the script from the K3s repo shell, which did not have the same Terraform-backend AWS profile context as the earlier apply. Re-running the script with:
+
+- `AWS_PROFILE=manuel`
+
+fixed the backend access path, and the script then seeded both Vault entries successfully.
+
+I validated the escrow without printing the passwords by reading back only the usernames and subject IDs:
+
+- `vault kv get -field=username kv/apps/coinvault/prod/keycloak-users/wesen`
+- `vault kv get -field=subject kv/apps/coinvault/prod/keycloak-users/wesen`
+- `vault kv get -field=username kv/apps/coinvault/prod/keycloak-users/clint`
+- `vault kv get -field=subject kv/apps/coinvault/prod/keycloak-users/clint`
+
+That confirmed:
+
+- `wesen` -> `39bf147e-6b78-4e7a-b87a-f038de11aab0`
+- `clint` -> `3cee731b-61f4-4e15-b1c4-d99743771485`
+
+### What I did
+- Added Terraform-managed CoinVault bootstrap users for `wesen` and `clint`.
+- Generated local non-temporary bootstrap passwords in ignored Terraform input.
+- Applied the CoinVault `k3s-parallel` Terraform environment and captured the new subject IDs.
+- Added a replayable HK3S-0008 ticket script to escrow those credentials into Vault.
+- Stored the bootstrap credentials at `kv/apps/coinvault/prod/keycloak-users/*`.
+- Validated the stored usernames and subject IDs without printing passwords.
+
+### Why
+- Realm/client migration is not enough for real operator handoff if no human users exist in the new realm.
+- Terraform is already the right source of truth for Keycloak realm and client objects in this setup.
+- Vault is a better escrow location for bootstrap passwords than leaving them only in ignored local Terraform input.
+
+### What worked
+- The CoinVault Terraform env accepted the same user-resource pattern already proven in Draft Review.
+- The apply returned stable Keycloak subject IDs for both users.
+- Vault accepted the escrowed secrets at predictable CoinVault KV paths.
+
+### What didn't work
+- The first Vault escrow script run failed because the K3s repo shell lacked the right AWS backend profile to read Terraform remote state.
+
+### What I learned
+- For this platform, the clean split is:
+  - Terraform manages Keycloak realm, client, and selected bootstrap users.
+  - Vault stores bootstrap credentials after apply.
+  - Vault is not the live password backend for Keycloak local users.
+- Ticket-local scripts are worth the extra effort; they make the operator trail replayable instead of forcing people to reconstruct one-off shell history.
+
+### What should be done in the future
+- Decide whether these bootstrap users should be temporary onboarding accounts or long-lived manually managed local users.
+- Decide whether additional CoinVault users should be recreated declaratively or migrated from another source.
