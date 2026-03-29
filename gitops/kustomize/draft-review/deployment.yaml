@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: draft-review
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: draft-review
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: draft-review
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: draft-review
+        app.kubernetes.io/component: app
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: draft-review
+      containers:
+        - name: draft-review
+          image: ghcr.io/wesen/2026-03-24--draft-review:sha-125c36e
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: DRAFT_REVIEW_LISTEN_HOST
+              value: 0.0.0.0
+            - name: DRAFT_REVIEW_LISTEN_PORT
+              value: "8080"
+            - name: DRAFT_REVIEW_AUTO_MIGRATE
+              value: "true"
+            - name: DRAFT_REVIEW_APP_BASE_URL
+              value: https://draft-review.yolo.scapegoat.dev
+            - name: DRAFT_REVIEW_MEDIA_ROOT
+              value: /data/media
+            - name: DRAFT_REVIEW_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: draft-review-runtime
+                  key: dsn
+            - name: DRAFT_REVIEW_AUTH_MODE
+              value: oidc
+            - name: DRAFT_REVIEW_AUTH_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: draft-review-runtime
+                  key: session_secret
+            - name: DRAFT_REVIEW_AUTH_SESSION_TTL
+              value: 12h
+            - name: DRAFT_REVIEW_AUTH_SESSION_SLIDING_RENEWAL
+              value: "true"
+            - name: DRAFT_REVIEW_AUTH_SESSION_RENEW_BEFORE
+              value: 1h
+            - name: DRAFT_REVIEW_OIDC_ISSUER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: draft-review-runtime
+                  key: oidc_issuer_url
+            - name: DRAFT_REVIEW_OIDC_CLIENT_ID
+              value: draft-review-web
+            - name: DRAFT_REVIEW_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: draft-review-runtime
+                  key: oidc_client_secret
+            - name: DRAFT_REVIEW_OIDC_REDIRECT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: draft-review-runtime
+                  key: oidc_redirect_url
+          volumeMounts:
+            - name: media
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: draft-review-media

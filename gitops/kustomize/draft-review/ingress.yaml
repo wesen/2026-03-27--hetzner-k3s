@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: draft-review
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: draft-review
+    app.kubernetes.io/component: app
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - draft-review.yolo.scapegoat.dev
+      secretName: draft-review-tls
+  rules:
+    - host: draft-review.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: draft-review
+                port:
+                  number: 80

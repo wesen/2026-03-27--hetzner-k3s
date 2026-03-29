@@ -68,7 +68,9 @@ Current scope:
 
 - migration ticket created
 - current Coolify runtime contract inspected
-- K3s migration design and tasks being defined
+- source-repo packaging scaffold merged and GHCR image published
+- parallel K3s Keycloak realm/client applied
+- Draft Review K3s package scaffold rendered successfully and is ready for first cluster commit
 
 ## Topics
 

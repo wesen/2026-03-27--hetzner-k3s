@@ -15,3 +15,7 @@ Implemented the first migration task in the Draft Review source repo: added GitH
 ## 2026-03-29
 
 Created and applied the parallel Keycloak Terraform env for Draft Review against the in-cluster Keycloak instance, producing the `draft-review` realm and `draft-review-web` client for `https://draft-review.yolo.scapegoat.dev`.
+
+## 2026-03-29
+
+Added the Draft Review GitOps package scaffold, Vault runtime secret and private GHCR pull-secret manifests, the Postgres bootstrap job, and the PVC-backed media wiring, then validated that the package renders cleanly and points at a real published GHCR image.

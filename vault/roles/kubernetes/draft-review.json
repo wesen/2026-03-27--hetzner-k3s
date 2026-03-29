@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": ["draft-review"],
+  "bound_service_account_namespaces": ["draft-review"],
+  "policies": ["draft-review"],
+  "token_ttl": "1h"
+}
