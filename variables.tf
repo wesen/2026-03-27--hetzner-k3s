@@ -44,6 +44,12 @@ variable "allow_kube_api" {
   default     = true
 }
 
+variable "server_backups_enabled" {
+  description = "Whether to enable Hetzner automatic server Backups for coarse full-node recovery"
+  type        = bool
+  default     = true
+}
+
 variable "repo_url" {
   description = "Git URL for this repo. Use a public repo for the simplest bootstrap. Example: https://github.com/you/hetzner-k3s-argocd-demo.git"
   type        = string

@@ -54,6 +54,7 @@ resource "hcloud_server" "node" {
   server_type = var.server_type
   image       = var.server_image
   location    = var.location
+  backups     = var.server_backups_enabled
 
   ssh_keys     = [hcloud_ssh_key.default.id]
   firewall_ids = [hcloud_firewall.default.id]
