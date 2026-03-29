@@ -143,3 +143,195 @@ pkg/server/server.go
 ```
 
 Runtime: binary serves from `--dir <path>` (default `.`) and uses embedded precompiled bundles as optimization layer.
+
+## Step 2: Implementation — App Repo Packaging and GitOps Manifests
+
+Implemented all the packaging files in the app repo and all GitOps manifests in the infra repo, then pushed both to trigger the CI pipeline and Argo CD sync.
+
+The main surprise was that the initial Dockerfile used `CGO_ENABLED=0`, but the app depends on `go-sqlite3` which requires cgo. The container crashed immediately with a clear error. Switching to `CGO_ENABLED=1` fixed it — the distroless base image already includes glibc.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Execute the implementation plan from Step 1 — create all files, test locally, commit and push.
+
+**Inferred user intent:** Get the full CI/CD pipeline and GitOps deployment wired up and running.
+
+**Commit (code):** 0f000f7 — "feat: add CI/CD pipeline for GHCR publishing and GitOps PR automation" (app repo)
+**Commit (code):** 700de99 — "feat: scaffold artifacts deployment for serve-claude-experiments" (GitOps repo)
+
+### What I did
+
+1. Created `Dockerfile` in serve-claude-experiments:
+   - Multi-stage build: `golang:1.25-bookworm` -> `gcr.io/distroless/base-debian12:nonroot`
+   - `go generate ./pkg/server` runs JSX precompilation in the build stage
+   - Copies `imports/` directory into runtime image for artifact serving
+   - Default CMD: `serve --dir /app/imports --port 8080`
+
+2. Tested Docker build locally:
+   - Build succeeded: `go generate` produced 15 precompiled JSX artifacts
+   - First run failed: `go-sqlite3 requires cgo to work` (binary compiled with `CGO_ENABLED=0`)
+   - Fixed: changed to `CGO_ENABLED=1`
+   - Second run succeeded: container serves artifact index on port 8080, HTTP 200
+
+3. Copied `scripts/open_gitops_pr.py` from mysql-ide (generic script, no changes needed)
+
+4. Created `deploy/gitops-targets.json` targeting `gitops/kustomize/artifacts/deployment.yaml`
+
+5. Created `.github/workflows/publish-image.yaml` (identical structure to mysql-ide)
+
+6. Created GitOps manifests in hetzner-k3s:
+   - `gitops/applications/artifacts.yaml` — Argo CD Application
+   - `gitops/kustomize/artifacts/` — namespace, deployment, service, ingress, kustomization
+   - Initial image set to `sha-0f000f7` (the commit that added the Dockerfile)
+
+7. Validated kustomize render: `kubectl kustomize gitops/kustomize/artifacts` — clean output
+
+8. Committed and pushed both repos
+
+### Why
+
+Follow the established platform pattern: app repo publishes to GHCR via CI, GitOps repo declares desired state, Argo CD reconciles.
+
+### What worked
+
+- Docker build with `go generate` works cleanly in the `golang:1.25-bookworm` image — esbuild is a Go dependency, no Node.js needed
+- The mysql-ide CI workflow and PR updater script are completely generic and reusable
+- The pretext GitOps package provides a clean minimal template for Category 1 apps
+- Kustomize render validates correctly
+
+### What didn't work
+
+- **CGO_ENABLED=0 crashed at runtime:** The app uses `go-sqlite3` (transitive dependency via Glazed) which requires cgo. The container started but immediately crashed with `Binary was compiled with 'CGO_ENABLED=0', go-sqlite3 requires cgo to work`. Fixed by switching to `CGO_ENABLED=1`. The `distroless/base-debian12` image already includes glibc, so the dynamically linked binary works fine.
+
+### What I learned
+
+1. **go-sqlite3 requires cgo:** Even if the app doesn't directly use SQLite, Glazed pulls in go-sqlite3 as a dependency. Always check transitive dependencies before assuming CGO_ENABLED=0 is safe.
+
+2. **distroless base includes glibc:** `gcr.io/distroless/base-debian12:nonroot` has glibc, so CGO-enabled Go binaries work. The `static` variant does not.
+
+3. **Generic PR updater script:** The `open_gitops_pr.py` script is completely app-agnostic. It reads target metadata from JSON and patches the image field. Can be copied as-is.
+
+### What was tricky to build
+
+The CGO issue was the only unexpected problem. The error message was clear and the fix was straightforward (change `CGO_ENABLED=0` to `CGO_ENABLED=1`). The real lesson is to always test the container before pushing to CI.
+
+### What warrants a second pair of eyes
+
+- The GHCR package visibility: public repos can still produce private packages. Need to check after first publish.
+- The initial deployment image `sha-0f000f7` must match what GHCR actually publishes. The metadata action uses a 7-char SHA prefix, and the commit hash is `0f000f7`.
+
+### What should be done in the future
+
+- Add `GITOPS_PR_TOKEN` to the app repo settings for automated GitOps PRs
+- Set GHCR package visibility to public after first publish
+
+### Code review instructions
+
+- App repo: `git log --oneline -1` shows `0f000f7`
+  - Review `Dockerfile` for CGO_ENABLED=1 and the go generate step
+  - Review `.github/workflows/publish-image.yaml` for correct metadata and push conditions
+  - Review `deploy/gitops-targets.json` for correct manifest path and container name
+- GitOps repo: `git log --oneline -1` shows `700de99`
+  - Review `gitops/applications/artifacts.yaml` for correct source path
+  - Review `gitops/kustomize/artifacts/deployment.yaml` for correct image, probes, and resource limits
+  - Review `gitops/kustomize/artifacts/ingress.yaml` for correct hostname and TLS
+
+### Technical details
+
+Docker build output (key step):
+```
+#15 [build 8/9] RUN go generate ./pkg/server
+#15 9.809 generated 15 precompiled JSX artifacts in ./precompiled
+#15 DONE 10.0s
+```
+
+CGO crash error (before fix):
+```
+{"level":"fatal","error":"failed to create tables: failed to create sections table: Binary was compiled with 'CGO_ENABLED=0', go-sqlite3 requires cgo to work. This is a stub","time":"2026-03-29T16:03:22Z","message":"Failed to create in-memory store"}
+```
+
+Container test (after fix):
+```
+$ docker run --rm -d -p 8081:8080 serve-artifacts:test
+$ curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/
+200
+```
+
+## Step 3: CI Pipeline Verification and GITOPS_PR_TOKEN Lesson
+
+The CI pipeline ran successfully — Docker image was built and pushed to GHCR in 4m27s. Argo CD synced the deployment and the pod came up healthy. However, the GitOps PR job silently skipped because `GITOPS_PR_TOKEN` was not configured yet.
+
+This was a real deployment bug: the image was published to GHCR, the pod was running with the initial image tag from the GitOps commit, but no automated PR was opened to update the image. The workflow's silent `exit 0` on missing token masked the problem.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I set up the GITOPS_PR_TOKEN secret, which was keeping us from opening the gitops PR. We should make sure that we fail when the gitops PR doesn't work [...] Make sure to update the documentation where necessary so we don't do the same mistake next time"
+
+**Assistant interpretation:** Change the workflow to fail loudly when GITOPS_PR_TOKEN is missing, and update the implementation guide to emphasize configuring the token before the first push.
+
+**Inferred user intent:** Prevent silent failures in the deployment pipeline where the image publishes but no deployment update is proposed.
+
+**Commit (code):** c2f7237 — "fix: fail loudly when GITOPS_PR_TOKEN is missing instead of silently skipping" (app repo)
+
+### What I did
+
+1. Changed `.github/workflows/publish-image.yaml`:
+   - `exit 0` -> `exit 1` when GH_TOKEN is empty
+   - Added `::error::` annotation for GitHub Actions UI visibility
+
+2. Updated the implementation guide:
+   - Changed the workflow code block to show the new `exit 1` behavior
+   - Updated the description to explain the token is required, not optional
+   - Moved GITOPS_PR_TOKEN setup to Phase 1 (before the first push), not Phase 3 (after)
+   - Updated CI validation section to note the workflow fails if token is missing
+
+### Why
+
+The mysql-ide workflow pattern uses silent skip (`exit 0`) for the GITOPS_PR_TOKEN check. This was inherited from the docs which recommended it as a safety measure so PR builds don't fail. But for a main-branch push where the intent is always to open a GitOps PR, a silent skip is worse than a failure — it creates a gap in the deployment pipeline that's hard to notice.
+
+### What worked
+
+- The fix is minimal: two lines changed in the workflow
+- The documentation updates make the ordering explicit: configure the token first, then push
+
+### What didn't work
+
+- The original silent-skip pattern from the platform playbooks was copied without questioning whether it fit this use case. For the `gitops-pr` job (which only runs on main pushes, not PRs), a missing token always means something is wrong.
+
+### What I learned
+
+1. **Silent skips are dangerous for required steps.** The `exit 0` pattern makes sense for optional features, but the GitOps PR is not optional — it's the whole point of the CI pipeline. A failure is more helpful than a silent skip.
+
+2. **Configure secrets before the first push.** The phased implementation plan originally had GITOPS_PR_TOKEN in Phase 3 (after the first push). It should be in Phase 1 (before the first push) because the workflow now fails without it.
+
+### What was tricky to build
+
+Nothing tricky — the fix was straightforward. The tricky part was noticing the problem in the first place. The CI run showed as "successful" because the skip step exited 0.
+
+### What warrants a second pair of eyes
+
+- Should the mysql-ide workflow also be updated to fail loudly? The same pattern exists there but the token is already configured, so the bug never manifests.
+
+### What should be done in the future
+
+- Consider updating the platform playbook (`source-app-deployment-infrastructure-playbook.md`) to recommend `exit 1` instead of `exit 0` for the token check, or at least document the tradeoff explicitly.
+
+### Code review instructions
+
+- App repo: `git diff 0f000f7..c2f7237` shows the two-line change
+- GitOps repo: review the updated implementation guide sections on GITOPS_PR_TOKEN
+
+### Technical details
+
+The original CI output that masked the problem:
+```
+GITOPS_PR_TOKEN is not configured; skipping GitOps PR creation.
+```
+
+This appeared as a green checkmark in GitHub Actions. The new behavior:
+```
+::error::GITOPS_PR_TOKEN is not configured. Add it as a repository secret.
+```
+This will appear as a red X with a clear error annotation.

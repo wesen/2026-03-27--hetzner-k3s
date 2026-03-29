@@ -284,8 +284,8 @@ jobs:
           GITOPS_PR_GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           if [ -z "${GH_TOKEN}" ]; then
-            echo "GITOPS_PR_TOKEN is not configured; skipping GitOps PR creation."
-            exit 0
+            echo "::error::GITOPS_PR_TOKEN is not configured. Add it as a repository secret."
+            exit 1
           fi
           image_tag="sha-${GITHUB_SHA::7}"
           python3 scripts/open_gitops_pr.py \
@@ -296,7 +296,7 @@ jobs:
             --open-pr
 ```
 
-This is identical to the mysql-ide workflow with only the metadata labels changed. The same `GITOPS_PR_TOKEN` secret pattern is used — the shell guard exits cleanly if the token is not configured.
+This is identical to the mysql-ide workflow with only the metadata labels changed. The `GITOPS_PR_TOKEN` secret **must** be configured before the first push to `main` — the workflow will fail with a clear error if it is missing. This is intentional: a silent skip caused a missed GitOps PR during the initial rollout of this app (the image was published but no deployment update was proposed).
 
 #### 1.3 Deployment Targets
 
@@ -530,8 +530,9 @@ The same token type used for mysql-ide can be reused or a new one can be created
 3. Copy `scripts/open_gitops_pr.py` from mysql-ide
 4. Create `deploy/gitops-targets.json`
 5. Create `.github/workflows/publish-image.yaml`
-6. Commit and push to `main`
-7. Verify GitHub Actions builds and pushes to GHCR
+6. **Configure `GITOPS_PR_TOKEN` secret in the repo settings BEFORE pushing to `main`.** The workflow will fail if this secret is missing — this is intentional to prevent silent skips where the image is published but no GitOps PR is opened.
+7. Commit and push to `main`
+8. Verify GitHub Actions builds, pushes to GHCR, and opens a GitOps PR
 8. Verify GHCR package is publicly pullable:
    ```bash
    docker pull ghcr.io/wesen/2026-03-29--serve-claude-experiments:sha-<hash>
@@ -549,12 +550,11 @@ The same token type used for mysql-ide can be reused or a new one can be created
 
 ### Phase 3: First Deployment
 
-1. Wait for Argo CD to pick up the new Application
-2. The initial `sha-INITIAL` image will fail — that is expected
-3. Add `GITOPS_PR_TOKEN` secret to the app repo
-4. Push any commit to `main` in the app repo to trigger the full pipeline
-5. Merge the CI-created GitOps PR
-6. Verify Argo syncs and the pod starts
+1. Apply the Argo CD Application manually: `kubectl apply -f gitops/applications/artifacts.yaml`
+2. Force a refresh: `kubectl -n argocd annotate application artifacts argocd.argoproj.io/refresh=hard --overwrite`
+3. The initial image will either succeed (if GHCR already has it) or fail with ImagePullBackOff
+4. Merge the CI-created GitOps PR to update the image tag
+5. Verify Argo syncs and the pod starts
 
 ### Phase 4: Validation
 
@@ -611,7 +611,7 @@ docker run --rm -p 8080:8080 serve-artifacts:test
 
 - GitHub Actions workflow completes successfully
 - GHCR image is published with `sha-<hash>`, `main`, and `latest` tags
-- GitOps PR is opened automatically (if `GITOPS_PR_TOKEN` is set)
+- GitOps PR is opened automatically (workflow fails if `GITOPS_PR_TOKEN` is missing)
 
 ### Cluster Validation
 
