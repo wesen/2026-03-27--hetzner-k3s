@@ -38,3 +38,14 @@ Packaged `mysql-ide` as the first concrete app-repo implementation of the new st
 - /home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml — Release workflow extended with the `gitops-pr` job
 - /home/manuel/code/wesen/2026-03-27--mysql-ide/README.md — Operator docs for the new target metadata and secret boundary
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded local dry-run validation and the remaining live-proof step
+
+
+## 2026-03-29
+
+Validated the first real CI-created GitOps pull request from `mysql-ide` into this repo and documented the GitHub Actions parse gotcha around using `secrets.*` inside `if:` expressions.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md — Updated with the optional-secret shell-guard pattern
+- /home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml — Fixed to avoid `secrets.*` in `if:` expressions
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Captured the failed parse, fix commits, successful workflow run, and resulting GitOps PR

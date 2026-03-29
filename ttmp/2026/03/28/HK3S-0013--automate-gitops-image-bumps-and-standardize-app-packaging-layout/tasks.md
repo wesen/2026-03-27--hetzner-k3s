@@ -14,11 +14,12 @@
 - [x] Extend the `mysql-ide` GitHub Actions release pipeline to invoke the GitOps PR workflow on successful `main` builds
 - [x] Validate the updater locally against a temporary clone of this GitOps repo and document the exact required GitHub secret boundary
 - [x] Update the ticket diary and changelog with the implementation results
-- [ ] Configure `GITOPS_PR_TOKEN` in the `wesen/2026-03-27--mysql-ide` GitHub repository and verify the first real CI-created pull request into this GitOps repo
+- [x] Configure `GITOPS_PR_TOKEN` in the `wesen/2026-03-27--mysql-ide` GitHub repository and verify the first real CI-created pull request into this GitOps repo
+- [ ] Roll the same app-repo packaging and CI-created GitOps PR pattern into the next eligible service after `mysql-ide`
 
 ## Notes
 
 - Recommended first implementation target: `mysql-ide`
 - Recommended first GitOps target file: `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/mysql-ide-deployment.yaml`
 - Keep Argo CD Image Updater out of the first implementation slice
-- The remaining live-proof step is GitHub secret configuration, not local tooling
+- The first live proof now exists as PR `#1` in `wesen/2026-03-27--hetzner-k3s`

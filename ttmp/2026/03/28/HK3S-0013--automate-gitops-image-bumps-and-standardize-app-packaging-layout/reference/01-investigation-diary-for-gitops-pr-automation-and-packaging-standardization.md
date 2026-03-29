@@ -21,7 +21,7 @@ RelatedFiles:
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize
 ExternalSources: []
 Summary: This diary records the concrete local evidence used to recommend CI-created GitOps pull requests and a categorized app packaging contract, and the first mysql-ide implementation slice.
-LastUpdated: 2026-03-29T17:20:00-04:00
+LastUpdated: 2026-03-29T17:40:00-04:00
 WhatFor: Preserve the reasoning trail behind the design recommendation.
 WhenToUse: Use when reviewing how the recommendations were derived from the current repo state.
 ---
@@ -139,6 +139,37 @@ Observed result:
 Remaining live boundary:
 
 - the first real CI-created PR is still blocked on configuring `GITOPS_PR_TOKEN` in the GitHub repository for `wesen/2026-03-27--mysql-ide`
+
+### 2026-03-29: first live CI-created GitOps PR succeeded
+
+After `GITOPS_PR_TOKEN` was configured in the GitHub repository, the first live push exposed one real workflow issue and then validated the full pattern.
+
+First failure:
+
+- the workflow used `secrets.GITOPS_PR_TOKEN` in a GitHub Actions `if:` expression
+- GitHub rejected the workflow during parse for both push and workflow-dispatch evaluation
+- the fix was to move the optional-secret check into the shell script itself and guard on `GH_TOKEN` there
+
+Follow-up commits in `mysql-ide`:
+
+- `190cdde` `fix: make gitops pr workflow dispatchable`
+- `4757a35` `fix: guard gitops pr token in shell`
+
+Successful live proof:
+
+- workflow run: `23709186122`
+- result: `success`
+- published image: `ghcr.io/wesen/2026-03-27--mysql-ide:sha-4757a354464846d36cb52c1b5af0bd89a4fcffea`
+- created GitOps PR: `wesen/2026-03-27--hetzner-k3s#1`
+
+Observed PR contract:
+
+- title: `chore(2026-03-27--mysql-ide): bump coinvault-prod image to sha-4757a354464846d36cb52c1b5af0bd89a4fcffea`
+- branch: `ci/2026-03-27--mysql-ide/coinvault-prod/sha-4757a354464846d36cb52c1b5af0bd89a4fcffea`
+- diff: exactly one image-line change in `gitops/kustomize/coinvault/mysql-ide-deployment.yaml`
+- body included source commit, workflow run URL, target manifest, and rollback guidance
+
+This closes the original proof-of-concept question for the ticket. The remaining work is adopting the same pattern in additional services.
 
 ## Related
 

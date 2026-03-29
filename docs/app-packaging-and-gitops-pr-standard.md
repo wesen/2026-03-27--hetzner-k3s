@@ -139,6 +139,14 @@ It should emit immutable tags such as:
 - `sha-<git-sha>`
 - plus convenience tags like `main` and `latest`
 
+If GitOps pull-request creation is optional, do not gate the job or step with `if: secrets.MY_SECRET != ''`. The safer pattern is:
+
+- expose the secret through `env:`
+- check for an empty value inside the shell script
+- exit `0` when the token is not configured
+
+This matters because GitHub Actions workflow parsing for pushes and manual dispatch can reject `secrets.*` in `if` expressions even though the intent seems straightforward.
+
 ### `deploy/gitops-targets.json`
 
 This file tells CI where that image should be proposed for deployment.
