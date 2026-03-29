@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sanitize
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: sanitize
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - sanitize.yolo.scapegoat.dev
+      secretName: sanitize-tls
+  rules:
+    - host: sanitize.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sanitize
+                port:
+                  name: http
