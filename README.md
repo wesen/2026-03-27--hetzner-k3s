@@ -33,6 +33,12 @@ That is the canonical “bring your repo to this platform” guide.
 
 Choose the entry point that matches what you are trying to do:
 
+- I need the shortest day-2 operator path for SSH, `kubectl`, Argo, and platform checks:
+  - [docs/operator-quickstart.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-quickstart.md)
+- I hit a cluster or Argo error and want the common fixes first:
+  - [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
+- I need to understand what the platform baseline actually is and what is app-specific:
+  - [docs/platform-baseline-overview.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/platform-baseline-overview.md)
 - I want to bring a new source repo onto this platform:
   - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
 - I have a public repo and want the simplest GHCR path:
@@ -190,6 +196,12 @@ Public endpoints:
 
 - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
   - canonical source-repo onboarding guide
+- [docs/operator-quickstart.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-quickstart.md)
+  - shortest safe day-2 operator path for the live cluster
+- [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
+  - common failures, what they mean, and how to fix them
+- [docs/platform-baseline-overview.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/platform-baseline-overview.md)
+  - explains which services are cluster-first shared infrastructure and why
 - [docs/coinvault-k3s-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md)
   - end-to-end operator guide for CoinVault
 - [docs/argocd-app-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/argocd-app-setup.md)

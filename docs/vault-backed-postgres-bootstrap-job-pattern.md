@@ -230,6 +230,8 @@ metadata:
   namespace: keycloak
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   template:
     spec:
@@ -261,6 +263,8 @@ spec:
               ...
               SQL
 ```
+
+The Argo hook annotations matter. A bootstrap database `Job` is not a long-lived workload like a `Deployment`. Kubernetes treats much of a `Job`'s pod template and selector identity as immutable after creation. If Argo manages the bootstrap action as an ordinary named `Job` and later tries to replace it in place, sync can fail with errors about immutable `spec.selector` or mismatched template labels. Treating the bootstrap action as a hook tells Argo to delete the old run and create a fresh one instead of mutating the existing `Job`.
 
 ## Why Not Give the App the Admin Credential
 
