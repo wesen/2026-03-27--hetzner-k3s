@@ -388,6 +388,20 @@ Use this checklist before you start writing manifests:
 - The GitOps repo has a target package and `Application`.
 - If the image will be private, the GitOps repo has a pull-secret path and the workload `ServiceAccount` references it.
 
+For the initial setup, configure the secret in the source repo before you rely on the workflow:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo <source-repo>
+```
+
+Current `wesen-os` example:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo wesen/wesen-os
+```
+
+The pasted secret should be a token that can push branches and open pull requests in the GitOps repo.
+
 ### Supporting documents
 
 After reading this page, branch into the more specific guide you need:
@@ -619,20 +633,40 @@ if: ${{ secrets.GITOPS_PR_TOKEN != '' }}
 
 That looks reasonable, but GitHub workflow parsing can reject `secrets.*` in `if:` expressions during push or manual-dispatch evaluation.
 
-The safer pattern is:
+The safer pattern is to expose the secret through `env:` and check it inside the shell.
+
+If the GitOps PR is optional for an early prototype, you can still choose to skip the step when the token is missing.
+
+If the GitOps PR is part of the real deployment contract, the workflow should fail hard when the token is missing. That is the recommended standard for production-ish app repos on this platform, because a “successful image publish but no GitOps PR” is an incomplete release.
+
+Recommended pattern:
 
 ```yaml
 env:
   GH_TOKEN: ${{ secrets.GITOPS_PR_TOKEN }}
 run: |
   if [ -z "${GH_TOKEN}" ]; then
-    echo "GITOPS_PR_TOKEN is not configured; skipping GitOps PR creation."
-    exit 0
+    echo "GITOPS_PR_TOKEN is not configured; failing because GitOps PR creation is part of the release contract."
+    exit 1
   fi
   python3 scripts/open_gitops_pr.py ...
 ```
 
-That is the pattern now used in:
+That is now the pattern to use when the GitOps PR handoff is required.
+
+Initial secret bootstrap for a repo looks like:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo <source-repo>
+```
+
+For `wesen-os` specifically:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo wesen/wesen-os
+```
+
+That is the pattern now used or expected in:
 
 - [publish-image.yaml](/home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml)
 

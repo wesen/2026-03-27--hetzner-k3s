@@ -175,13 +175,26 @@ It should emit immutable tags such as:
 - `sha-<git-sha>`
 - plus convenience tags like `main` and `latest`
 
-If GitOps pull-request creation is optional, do not gate the job or step with `if: secrets.MY_SECRET != ''`. The safer pattern is:
+Do not gate the job or step with `if: secrets.MY_SECRET != ''`. The safer pattern is:
 
 - expose the secret through `env:`
 - check for an empty value inside the shell script
-- exit `0` when the token is not configured
+- fail with `exit 1` when GitOps PR creation is part of the required release path
+- only use `exit 0` when the GitOps PR step is intentionally optional for that repository
 
 This matters because GitHub Actions workflow parsing for pushes and manual dispatch can reject `secrets.*` in `if` expressions even though the intent seems straightforward.
+
+Initial repo bootstrap should also include setting the secret explicitly:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo <source-repo>
+```
+
+Current `wesen-os` example:
+
+```bash
+gh secret set GITOPS_PR_TOKEN --repo wesen/wesen-os
+```
 
 ### `deploy/gitops-targets.json`
 
