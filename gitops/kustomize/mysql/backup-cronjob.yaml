@@ -23,19 +23,19 @@ spec:
           serviceAccountName: mysql
           containers:
             - name: backup
-              image: alpine:3.22
+              image: mysql:8.4
               imagePullPolicy: IfNotPresent
               command:
-                - sh
-                - -ec
+                - bash
+                - -lc
                 - |
-                  set -o pipefail
-                  apk add --no-cache mariadb-client aws-cli gzip >/dev/null
+                  set -euo pipefail
+                  microdnf install -y awscli >/dev/null
                   ts="$(date -u +%Y%m%dT%H%M%SZ)"
                   dump_file="/tmp/mysql-${ts}.sql"
                   file="${dump_file}.gz"
-                  mariadb-dump \
-                    --skip-ssl \
+                  mysqldump \
+                    --ssl-mode=DISABLED \
                     -h "${MYSQL_HOST}" \
                     -P "${MYSQL_PORT}" \
                     -uroot \
