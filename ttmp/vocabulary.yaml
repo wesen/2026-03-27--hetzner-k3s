@@ -59,6 +59,14 @@ topics:
       description: Secure Shell operator access to servers and nodes
     - slug: tailscale
       description: Tailscale tailnet networking for stable private access
+    - slug: backup
+      description: Backup creation, retention, and validation workflows
+    - slug: disaster-recovery
+      description: Recovery planning and restoration after severe failures
+    - slug: hetzner
+      description: Hetzner cloud infrastructure and provider behavior
+    - slug: restore
+      description: Restore procedures and validation after backup recovery
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -14,7 +14,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: "Chronological implementation diary for adding Hetzner automatic server Backups and a Vault Raft snapshot pipeline."
-LastUpdated: 2026-03-29T18:10:00-04:00
+LastUpdated: 2026-03-29T20:15:00-04:00
 WhatFor: "Use this to continue or review the exact operator trail for HK3S-0017."
 WhenToUse: "Read this when implementing or auditing the backup posture for the VM and Vault."
 ---
@@ -203,3 +203,89 @@ Static validation passed:
 - Commit and push the scaffold.
 - Bootstrap the live Vault policy and role.
 - Apply the Argo application and run the first manual snapshot job.
+
+## Step 4: Re-bootstrap the live Vault auth path, sync the backup app, and prove the first snapshot upload
+
+With the scaffold already merged, the next question was whether it would actually run live with the real Vault auth backend and the real object-storage secret. I first reran the ticket bootstrap script against `https://vault.yolo.scapegoat.dev` so I did not have to assume the live `vault-backup` policy and role were still present from the earlier partial pass.
+
+### What I did
+- Ran:
+  - `VAULT_ADDR=https://vault.yolo.scapegoat.dev bash .../scripts/01-bootstrap-vault-backup-auth.sh`
+- Created and refreshed the Argo application:
+  - `kubectl apply -f gitops/applications/vault-backup.yaml`
+  - annotated the application for a hard refresh
+- Verified the synced runtime surface in namespace `vault`:
+  - `serviceaccount/vault-backup`
+  - `vaultauth/vault-backup`
+  - `vaultconnection/vault-connection`
+  - `vaultstaticsecret/backup-storage`
+  - `secret/backup-storage`
+  - `cronjob/vault-backup`
+- Triggered the first manual backup run with:
+  - `scripts/02-trigger-vault-backup-job.sh`
+- Listed the resulting object-storage prefix with:
+  - `scripts/03-list-vault-backup-objects.sh`
+
+### Why
+- Static YAML validation was not enough. The real question was whether the end-to-end path would work:
+  - Kubernetes service account JWT
+  - Vault Kubernetes auth login
+  - Raft snapshot read
+  - gzip
+  - Hetzner Object Storage upload
+
+### What worked
+- The bootstrap rerun completed cleanly.
+- Argo synced the `vault-backup` application successfully.
+- The VSO `VaultStaticSecret` reconciled and created `secret/backup-storage`.
+- The first manual job completed successfully on the first real attempt.
+- The job log reported:
+  - `uploaded=vault/vault-20260329T201050Z.snap.gz`
+- The object-storage listing showed:
+  - `2026-03-29 16:10:51     134956 vault/vault-20260329T201050Z.snap.gz`
+
+### What didn't work
+- The very first direct `kubectl get vaultstaticsecret backup-storage` I ran immediately after creating the application returned `NotFound`, but that turned out not to be a real failure. Argo had not finished materializing the resource yet. A second check a few seconds later showed the CR and the synced Kubernetes secret normally.
+
+### What I learned
+- The live Vault snapshot path is considerably cleaner than the earlier MySQL backup rollout. No policy or endpoint surprises surfaced once the runtime surface existed.
+- The one operational gotcha is timing: immediately after Argo app creation, give the secrets operator a few seconds to reconcile before deciding something is missing.
+
+### What should be done in the future
+- Write the permanent operator playbook next so the restore model and Hetzner whole-node backup layer are not trapped inside the ticket diary.
+
+## Step 5: Decide the restore stance and write the permanent operator playbook
+
+Once the first artifact existed, the remaining question was not “can we back up Vault?” It was “what restore stance is safe enough to document honestly for this environment?”
+
+### What I did
+- Wrote the top-level operator document:
+  - [`docs/vault-snapshot-and-server-backup-playbook.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-snapshot-and-server-backup-playbook.md)
+- Updated the repo README to link the new playbook.
+- Updated the ticket index, tasks, and changelog to reflect the now-proven live state.
+- Explicitly decided that a Vault scratch restore drill should stay documented-only for now.
+
+### Why
+- Vault restore is more dangerous than the shared data-service scratch restores.
+- This cluster is single-node and the live Vault instance is itself part of the control plane.
+- I did not want to produce a fake “validated restore” claim by improvising a risky live restore exercise.
+
+### What worked
+- The repo now has a stable operator-facing document for:
+  - enabling and understanding Hetzner server Backups
+  - re-running the Vault snapshot job
+  - verifying off-cluster artifacts
+  - understanding the restore decision boundary
+
+### What didn't work
+- No safe live scratch restore path was implemented in this slice, by design.
+
+### What I learned
+- The honest and correct operational stance is:
+  - snapshot creation is validated live
+  - restore procedure is documented
+  - restore drill remains a separate deliberate future activity if the platform design makes it safer
+
+### What should be done in the future
+- Re-run `docmgr doctor`
+- commit and push the final HK3S-0017 closeout

@@ -43,6 +43,8 @@ Choose the entry point that matches what you are trying to do:
   - [HK3S-0014 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/index.md)
 - I need to operate backups and scratch restores for the shared data services:
   - [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
+- I need stable SSH and `kubectl` access through Tailscale:
+  - [docs/tailscale-k3s-admin-access-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/tailscale-k3s-admin-access-playbook.md)
 - I need the base platform bring-up guide:
   - [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
 
@@ -196,6 +198,8 @@ Public endpoints:
   - platform bring-up and cluster bootstrap
 - [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
   - operator playbook for shared PostgreSQL, MySQL, and Redis backups and scratch restores
+- [docs/tailscale-k3s-admin-access-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/tailscale-k3s-admin-access-playbook.md)
+  - operator playbook for moving SSH and `kubectl` onto the Tailscale tailnet path
 - [docs/vault-backed-postgres-bootstrap-job-pattern.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-backed-postgres-bootstrap-job-pattern.md)
   - declarative app database provisioning pattern
 

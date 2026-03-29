@@ -22,7 +22,7 @@ RelatedFiles:
       Note: Existing shared data-service backup work that this ticket should align with
 ExternalSources: []
 Summary: "Implement the two missing recovery layers for this cluster: Vault Raft snapshots uploaded off-cluster and Hetzner automatic server backups for coarse full-node recovery."
-LastUpdated: 2026-03-29T18:10:00-04:00
+LastUpdated: 2026-03-29T20:15:00-04:00
 WhatFor: "Use this ticket to add real backup coverage for Vault itself and the full Hetzner node."
 WhenToUse: "Read this when extending or reviewing the disaster-recovery posture of the single-node K3s platform."
 ---
@@ -50,7 +50,7 @@ The goal of this ticket is to implement both in a way that matches the rest of t
 
 ## Current Step
 
-Step 1 is active: define the implementation contract and add the actual rollout tasks before touching Terraform or the live cluster.
+Step 8 is active: the live snapshot pipeline is proven, the operator playbook is written, and the remaining work is closeout plus any future restore-drill decision.
 
 ## Key Links
 
@@ -77,6 +77,24 @@ Why:
 - VM-level backups are not enough for disciplined Vault recovery
 - Vault OSS does not give us enterprise auto-snapshots, so we need a repo-owned CronJob
 - the platform already has a proven off-cluster object-storage path from HK3S-0009
+
+## Live Status
+
+Current live state:
+
+- Hetzner automatic Backups are enabled on the K3s server
+- the `vault-backup` Argo application is `Synced Healthy`
+- the `vault-backup` CronJob exists in namespace `vault`
+- the `backup-storage` secret is synced into the `vault` namespace
+- the first manual snapshot job succeeded
+- the first verified object is:
+  - `vault/vault-20260329T201050Z.snap.gz`
+  - size `134956` bytes
+
+Current restore decision:
+
+- Vault scratch restore stays documented-only for now
+- no ad hoc live restore drill will be run in this environment without a separate deliberate incident-style plan
 
 ## Tasks
 
