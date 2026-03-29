@@ -22,7 +22,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: serve-artifacts
-          image: ghcr.io/wesen/2026-03-29--serve-claude-experiments:sha-0f000f7
+          image: ghcr.io/wesen/2026-03-29--serve-claude-experiments:sha-c2f7237
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
