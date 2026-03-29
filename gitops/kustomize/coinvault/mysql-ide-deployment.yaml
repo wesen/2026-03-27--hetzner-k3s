@@ -23,7 +23,7 @@ spec:
       serviceAccountName: coinvault
       containers:
         - name: mysql-ide
-          image: ghcr.io/wesen/2026-03-27--mysql-ide:sha-2c3003f
+          image: ghcr.io/wesen/2026-03-27--mysql-ide:sha-4757a354464846d36cb52c1b5af0bd89a4fcffea
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
