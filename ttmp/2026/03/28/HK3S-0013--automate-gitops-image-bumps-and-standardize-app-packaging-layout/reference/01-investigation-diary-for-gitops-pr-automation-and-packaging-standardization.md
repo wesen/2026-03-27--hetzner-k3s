@@ -20,8 +20,8 @@ RelatedFiles:
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize
 ExternalSources: []
-Summary: This diary records the concrete local evidence used to recommend CI-created GitOps pull requests and a categorized app packaging contract.
-LastUpdated: 2026-03-28T23:38:26.968307062-04:00
+Summary: This diary records the concrete local evidence used to recommend CI-created GitOps pull requests and a categorized app packaging contract, and the first mysql-ide implementation slice.
+LastUpdated: 2026-03-29T17:20:00-04:00
 WhatFor: Preserve the reasoning trail behind the design recommendation.
 WhenToUse: Use when reviewing how the recommendations were derived from the current repo state.
 ---
@@ -94,6 +94,51 @@ The next implementation slice is in the app repo itself:
 - add `deploy/gitops-targets.json`
 - add the PR updater script
 - extend the GitHub Actions flow so successful `main` builds can propose GitOps image bumps automatically
+
+### 2026-03-29: mysql-ide packaging scaffold completed
+
+The first real implementation target now exists in `/home/manuel/code/wesen/2026-03-27--mysql-ide`.
+
+Files added:
+
+- [`deploy/gitops-targets.json`](/home/manuel/code/wesen/2026-03-27--mysql-ide/deploy/gitops-targets.json)
+  - declares `coinvault-prod` as the first deployment target and points at `gitops/kustomize/coinvault/mysql-ide-deployment.yaml`
+- [`scripts/open_gitops_pr.py`](/home/manuel/code/wesen/2026-03-27--mysql-ide/scripts/open_gitops_pr.py)
+  - deterministic updater that can patch the target manifest, create a branch, push, and open a pull request
+
+Files updated:
+
+- [`publish-image.yaml`](/home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml)
+  - added the `gitops-pr` job
+  - gated the job on `secrets.GITOPS_PR_TOKEN != ''`
+- [`README.md`](/home/manuel/code/wesen/2026-03-27--mysql-ide/README.md)
+  - documents the target metadata, updater flow, and the exact GitHub secret boundary
+
+Validation performed:
+
+- `python3 scripts/open_gitops_pr.py --help`
+- `go test ./...`
+- local dry-run against a temporary clone of this repo:
+
+```bash
+tmpdir=$(mktemp -d)
+git clone --depth 1 /home/manuel/code/wesen/2026-03-27--hetzner-k3s "$tmpdir"
+python3 scripts/open_gitops_pr.py \
+  --config deploy/gitops-targets.json \
+  --target coinvault-prod \
+  --image ghcr.io/wesen/2026-03-27--mysql-ide:sha-localtest \
+  --gitops-repo-dir "$tmpdir" \
+  --dry-run
+```
+
+Observed result:
+
+- exactly one image line changed in `gitops/kustomize/coinvault/mysql-ide-deployment.yaml`
+- the updater did not touch unrelated YAML
+
+Remaining live boundary:
+
+- the first real CI-created PR is still blocked on configuring `GITOPS_PR_TOKEN` in the GitHub repository for `wesen/2026-03-27--mysql-ide`
 
 ## Related
 
