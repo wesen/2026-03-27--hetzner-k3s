@@ -71,7 +71,12 @@ Current scope:
 - current Coolify runtime contract inspected
 - source-repo packaging scaffold merged and GHCR image published
 - parallel K3s Keycloak realm/client applied
-- Draft Review K3s package scaffold rendered successfully and is ready for first cluster commit
+- Draft Review K3s app is live with valid Let's Encrypt TLS on `draft-review.yolo.scapegoat.dev`
+- platform ACME issuer has been restored as a dedicated GitOps-managed app
+- Terraform-managed `wesen` user created in the K3s Draft Review realm
+- hosted Draft Review data imported into cluster Postgres with target-schema-first normalization
+- imported `wesen` author row rewritten to the K3s issuer and K3s Keycloak subject
+- browser login as `wesen` now exposes the imported Draft Review content on K3s
 
 ## Topics
 

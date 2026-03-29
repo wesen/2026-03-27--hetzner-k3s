@@ -58,6 +58,13 @@ cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
 export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
 kubectl -n argocd get applications
 kubectl kustomize gitops/kustomize/draft-review
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/01-seed-draft-review-vault-secrets.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/02-validate-draft-review-k3s.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/03-export-hosted-draft-review-db.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/04-snapshot-k3s-draft-review-db.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/05-import-draft-review-data-into-k3s.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/06-rewrite-draft-review-wesen-identity.sh
+./ttmp/2026/03/29/HK3S-0015--migrate-draft-review-from-coolify-to-k3s-via-gitops/scripts/07-validate-draft-review-data-migration.sh
 ```
 
 ## Exit criteria
@@ -68,3 +75,6 @@ kubectl kustomize gitops/kustomize/draft-review
 - Draft Review has a dedicated database and role on shared cluster Postgres
 - Draft Review authenticates against K3s Keycloak on the parallel hostname
 - `https://draft-review.yolo.scapegoat.dev` works end to end
+- hosted Draft Review data has been imported into the cluster DB
+- the `wesen` author row points at the K3s issuer and K3s Keycloak subject
+- browser login as `wesen` shows the imported Draft Review content on K3s

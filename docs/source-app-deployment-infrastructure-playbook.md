@@ -647,6 +647,37 @@ This is what a healthy PR diff should look like conceptually:
 
 If the PR changes more than that for a simple app rollout, stop and inspect why.
 
+## Stateful App Migration Note
+
+If the app already has durable data, do not treat data migration as an afterthought after the deployment works. Treat it as a first-class migration slice with ticket-local scripts and explicit validation.
+
+The Draft Review migration established the practical pattern that works on this platform:
+
+- keep all migration automation in the ticket `scripts/` folder with ordered names such as `00-...`, `01-...`, `02-...`
+- snapshot the target database before import
+- prefer a target-schema-first restore over replaying an old schema wholesale into the cluster
+- normalize the export artifact in code when client-version drift or source-schema drift shows up
+- for larger SQL payloads, prefer `kubectl cp` plus `psql -f` in the Postgres pod over streaming the whole dump through `kubectl exec -i`
+
+Two concrete migration failures are worth remembering:
+
+- PostgreSQL 18 `pg_dump` output introduced header statements and metacommands that had to be stripped before replay into the cluster restore path
+- the hosted Draft Review schema still had `article_sections.body_plaintext`, which no longer exists in the target schema, so the export had to rebuild that table's `INSERT` statements against the current column set
+
+For stateful apps, the real rollout sequence becomes:
+
+```text
+deploy app skeleton
+  -> prove secrets, ingress, and health
+  -> inspect source schema and identity bindings
+  -> export source data with compatibility normalization
+  -> snapshot target
+  -> import target-schema-first
+  -> rewrite identity rows if issuer/subject changed
+  -> validate counts
+  -> validate real browser behavior
+```
+
 ## Step 10: Plan for Multiple Deployment Destinations
 
 Do not redesign the app repo when a second environment appears.

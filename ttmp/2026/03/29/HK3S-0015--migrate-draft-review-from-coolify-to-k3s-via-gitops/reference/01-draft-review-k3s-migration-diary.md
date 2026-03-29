@@ -261,3 +261,150 @@ I wrote that up as a dedicated ticket document:
 - `design/02-draft-review-data-and-author-identity-migration-plan.md`
 
 and expanded the task list so the remaining Draft Review work is now explicit instead of implicit.
+
+## 2026-03-29: Terraform-managed `wesen` user created in the K3s Draft Review realm
+
+I resumed the migration by finishing the identity side first, because the Draft Review user row rewrite needs a real target issuer and a real target subject UUID. Without that, the database migration would still be guessing at the future login identity.
+
+I reused the existing Keycloak Terraform pattern from the repo's local fixtures module instead of inventing a new resource shape. The Draft Review parallel env now creates:
+
+- `keycloak_user.wesen`
+
+with:
+
+- username `wesen`
+- email `wesen@ruinwesen.com`
+- first name `Manuel`
+- last name `Odendahl`
+- non-temporary initial password from local `terraform.tfvars`
+
+I extended the env files at:
+
+- `keycloak/apps/draft-review/envs/k3s-parallel/main.tf`
+- `keycloak/apps/draft-review/envs/k3s-parallel/variables.tf`
+- `keycloak/apps/draft-review/envs/k3s-parallel/outputs.tf`
+- `keycloak/apps/draft-review/envs/k3s-parallel/terraform.tfvars.example`
+
+Then I generated a password locally, added it to the uncommitted `terraform.tfvars`, and applied the env with:
+
+```bash
+AWS_PROFILE=manuel terraform -chdir=keycloak/apps/draft-review/envs/k3s-parallel validate
+AWS_PROFILE=manuel terraform -chdir=keycloak/apps/draft-review/envs/k3s-parallel apply -auto-approve
+```
+
+That succeeded cleanly and returned the new K3s Keycloak subject:
+
+- `e0dfdba3-69f8-4b72-8033-d03c958af720`
+
+I immediately stored the generated password in 1Password so the credential does not remain stranded in local Terraform state as the only recoverable copy. The item is:
+
+- `draft-review yolo k3s wesen keycloak user 2026-03-29`
+
+This completes the identity prerequisite for the DB migration. The next step is now purely data-side:
+
+1. export the hosted Draft Review DB with ticket-local scripts
+2. snapshot the target K3s DB before import
+3. import the hosted rows into the cluster DB
+4. rewrite the imported Manuel row from:
+   - issuer `https://auth.scapegoat.dev/realms/draft-review`
+   - subject `ad1655b1-91ad-4b0b-8200-b33b8526244a`
+   to:
+   - issuer `https://auth.yolo.scapegoat.dev/realms/draft-review`
+   - subject `e0dfdba3-69f8-4b72-8033-d03c958af720`
+
+## 2026-03-29: Ticket-local migration scripts standardized and the hosted Draft Review data was imported
+
+Before I continued with the database move, I normalized the ticket script inventory so the whole migration could be replayed later from the ticket itself instead of from shell history fragments. The ticket `scripts/` folder now uses an ordered naming scheme:
+
+- `00-common.sh`
+- `01-seed-draft-review-vault-secrets.sh`
+- `02-validate-draft-review-k3s.sh`
+- `03-export-hosted-draft-review-db.sh`
+- `04-snapshot-k3s-draft-review-db.sh`
+- `05-import-draft-review-data-into-k3s.sh`
+- `06-rewrite-draft-review-wesen-identity.sh`
+- `07-validate-draft-review-data-migration.sh`
+
+That was not just cosmetic. While executing the real import, those scripts became the exact record of what worked and what broke.
+
+The first source export succeeded, but replay into the cluster failed immediately on:
+
+```text
+ERROR:  unrecognized configuration parameter "transaction_timeout"
+```
+
+I inspected the dump header and found PostgreSQL 18 client drift in the export artifact:
+
+- `SET transaction_timeout = 0;`
+- `\restrict`
+- `\unrestrict`
+
+I fixed that in the export and snapshot scripts so future reruns normalize the dump automatically instead of relying on a hand-edited file.
+
+Once that was fixed, the restore advanced further but then failed on the circular `articles` / `article_versions` relationship, which matched the earlier `pg_dump` warning. I changed the import script to replay with:
+
+- `SET session_replication_role = replica;`
+
+for the replay window only.
+
+The next real failure was source-schema drift:
+
+```text
+column "body_plaintext" of relation "article_sections" does not exist
+```
+
+The hosted `article_sections` table still had `body_plaintext`, but the target K3s schema no longer does. I replaced the brittle line-by-line SQL rewrite attempt with a cleaner export strategy:
+
+- skip the hosted `article_sections` block from `pg_dump`
+- append a custom SQL export for `article_sections` that emits only the target columns
+
+After that, another operational issue appeared: streaming the whole SQL replay through `kubectl exec -i` caused a connection reset and only partially imported the data. I made the import script more reliable by:
+
+- wrapping the SQL locally
+- copying it into the Postgres pod with `kubectl cp`
+- running `psql -f` inside the pod
+
+That completed cleanly.
+
+The final durable counts in the K3s `draft_review` database now match the hosted source:
+
+- `article_reaction_types = 16`
+- `article_sections = 4`
+- `article_versions = 4`
+- `articles = 4`
+- `default_reaction_types = 4`
+- `reactions = 34`
+- `reader_invites = 8`
+- `review_paragraph_progress = 3`
+- `review_section_progress = 3`
+- `review_summaries = 3`
+- `users = 2`
+
+I then ran the identity rewrite script, which updated the imported Manuel row to:
+
+- issuer `https://auth.yolo.scapegoat.dev/realms/draft-review`
+- subject `e0dfdba3-69f8-4b72-8033-d03c958af720`
+
+## 2026-03-29: Browser login validated imported Draft Review ownership on K3s
+
+Database counts alone were not enough. The ticket task required proof that the K3s app actually resolves the imported Manuel content under the new K3s Keycloak identity.
+
+I finished that with a real browser login through the K3s Keycloak realm:
+
+- opened `https://draft-review.yolo.scapegoat.dev`
+- clicked `Sign In With Keycloak`
+- logged in as `wesen`
+- returned to the Draft Review UI on K3s
+
+The post-login UI showed:
+
+- header identity `Manuel Odendahl`
+- two author-owned draft articles in the left article list
+- one of the imported Manuel drafts opened in the detail pane
+- section title `Claude feeling dumb? Time to do some engineering.`
+
+That matters because the hosted source database has four total articles but only two belong to Manuel. Seeing exactly those two after the issuer/subject rewrite is strong proof that:
+
+- the imported user row is binding to the new Keycloak subject correctly
+- article ownership is preserved
+- the K3s Draft Review app is serving the migrated user state correctly
