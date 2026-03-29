@@ -39,6 +39,8 @@ topics:
       description: Pretext source and deployments
     - slug: static-site
       description: Static web applications and deployments
+    - slug: packaging
+      description: Application and infrastructure package layout conventions in the GitOps repository
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
