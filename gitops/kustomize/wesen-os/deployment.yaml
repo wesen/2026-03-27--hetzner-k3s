@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wesen-os
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: wesen-os
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wesen-os
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wesen-os
+        app.kubernetes.io/component: web
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: wesen-os
+          image: ghcr.io/wesen/wesen-os@sha256:751929d27806403965bc7998ed1e4dfec168b1ee81723535dd695b04b8e8fbf2
+          imagePullPolicy: IfNotPresent
+          args:
+            - --addr=:8091
+            - --arc-enabled=false
+            - --profile=default
+            - --profile-registries=/config/profiles.runtime.yaml
+          ports:
+            - containerPort: 8091
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /api/os/apps
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /api/os/apps
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: launcher-config
+              mountPath: /config/profiles.runtime.yaml
+              subPath: profiles.runtime.yaml
+              readOnly: true
+            - name: launcher-data
+              mountPath: /app/data
+      volumes:
+        - name: launcher-config
+          configMap:
+            name: wesen-os-config
+        - name: launcher-data
+          emptyDir: {}

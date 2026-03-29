@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wesen-os
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: wesen-os
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - wesen-os.yolo.scapegoat.dev
+      secretName: wesen-os-tls
+  rules:
+    - host: wesen-os.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wesen-os
+                port:
+                  name: http
