@@ -50,28 +50,28 @@
 
 ## Phase 8: Off-cluster backup target
 
-- [ ] Add a Terraform-managed Hetzner Object Storage bucket for cluster data-service backups
-- [ ] Enable bucket versioning and define the bucket-prefix layout for `postgres/`, `mysql/`, and `redis/`
-- [ ] Document the operator input contract for the object-storage management credentials without committing secrets
+- [x] Add a Terraform-managed Hetzner Object Storage bucket for cluster data-service backups
+- [x] Enable bucket versioning and define the bucket-prefix layout for `postgres/`, `mysql/`, and `redis/`
+- [x] Document the operator input contract for the object-storage management credentials without committing secrets
 
 ## Phase 9: Vault and secret-delivery path for backup jobs
 
-- [ ] Define a shared Vault KV path for backup object-storage credentials
-- [ ] Add a replayable HK3S-0009 ticket script that writes the object-storage runtime credentials into Vault
-- [ ] Extend the PostgreSQL, MySQL, and Redis Kubernetes-auth policies so their backup jobs can read the shared backup-storage secret path
-- [ ] Add VSO `VaultStaticSecret` manifests in each service namespace for the backup-storage secret
+- [x] Define a shared Vault KV path for backup object-storage credentials
+- [x] Add a replayable HK3S-0009 ticket script that writes the object-storage runtime credentials into Vault
+- [x] Extend the PostgreSQL, MySQL, and Redis Kubernetes-auth policies so their backup jobs can read the shared backup-storage secret path
+- [x] Add VSO `VaultStaticSecret` manifests in each service namespace for the backup-storage secret
 
 ## Phase 10: Scheduled backup jobs
 
-- [ ] Add a PostgreSQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
-- [ ] Add a MySQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
-- [ ] Add a Redis backup CronJob that snapshots the durable on-disk state and uploads it to the off-cluster bucket
-- [ ] Keep the backup command logic replayable by storing the operator scripts under the HK3S-0009 ticket `scripts/` folder
+- [x] Add a PostgreSQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
+- [x] Add a MySQL backup CronJob that produces a logical dump and uploads it to the off-cluster bucket
+- [x] Add a Redis backup CronJob that snapshots the durable on-disk state and uploads it to the off-cluster bucket
+- [x] Keep the backup command logic replayable by storing the operator scripts under the HK3S-0009 ticket `scripts/` folder
 
 ## Phase 11: Validation and restore drills
 
-- [ ] Run each backup path manually once and verify that an artifact lands in object storage under the expected prefix
+- [x] Run each backup path manually once and verify that an artifact lands in object storage under the expected prefix
 - [ ] Restore PostgreSQL into a scratch database or scratch namespace and verify real objects come back
 - [ ] Restore MySQL into a scratch database or scratch namespace and verify real tables come back
 - [ ] Restore Redis into a scratch namespace or one-shot pod and verify the validation key survives the round trip
-- [ ] Update the diary, changelog, and ticket index with the backup/restore outcomes and the remaining upgrade/rollback work
+- [x] Update the diary, changelog, and ticket index with the backup/restore outcomes and the remaining upgrade/rollback work

@@ -11,17 +11,17 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: gitops/kustomize/demo-stack/postgres-statefulset.yaml
-      Note: Current per-app Postgres deployment that shows the existing baseline data-service pattern in this repo
-    - Path: gitops/kustomize/demo-stack/postgres-service.yaml
-      Note: Current per-app Postgres service wiring in the live demo stack
+    - Path: gitops/kustomize/postgres/statefulset.yaml
+      Note: Live shared PostgreSQL StatefulSet that now defines the cluster-level Postgres baseline in this repo
+    - Path: gitops/kustomize/postgres/service.yaml
+      Note: Live shared PostgreSQL service wiring for the cluster-level Postgres endpoint
     - Path: ttmp/2026/03/27/HK3S-0006--deploy-vault-secrets-operator-on-k3s-and-prove-secret-sync/index.md
       Note: Secret-delivery dependency for any cluster-level service credentials
     - Path: ttmp/2026/03/27/HK3S-0007--recreate-the-first-application-on-k3s-using-vault-managed-secrets/index.md
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
-Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, and the active follow-up slice is now off-cluster backup, restore validation, and operational hardening."
-LastUpdated: 2026-03-29T13:20:00-04:00
+Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, off-cluster backups now land in Hetzner Object Storage, and the remaining follow-up is scratch restore drills plus upgrade and rollback guidance."
+LastUpdated: 2026-03-29T16:45:00-04:00
 WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
 WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
@@ -48,7 +48,7 @@ This ticket exists so that later work does not have to rediscover the design que
 
 ## Current Step
 
-Step 9 is active: the shared PostgreSQL and Redis rollout is complete, and the ticket is now implementing real off-cluster backups and restore drills for PostgreSQL, MySQL, and Redis instead of leaving them as deferred guidance.
+Step 10 is active: scheduled off-cluster backups for PostgreSQL, MySQL, and Redis are live, and the remaining work in this ticket is scratch restore drills plus explicit upgrade and rollback procedures.
 
 ## Key Links
 
@@ -74,6 +74,7 @@ Current decision:
 - implement MySQL now as the first shared cluster data service
 - use the now-proven shared-service pattern to add PostgreSQL and Redis next, which is now done
 - keep MySQL on repo-managed Kustomize manifests instead of the external Bitnami chart
+- store data-service backups in a shared Hetzner Object Storage bucket reached through Vault/VSO-delivered runtime credentials
 
 Why:
 
@@ -82,6 +83,7 @@ Why:
 - proving one shared data-service pattern first is still better than building all three at once
 - the external Bitnami chart path proved brittle during live rollout, while repo-managed manifests gave a stable and reviewable operational surface
 - that same repo-managed manifest path successfully brought up shared PostgreSQL and Redis too
+- a single off-cluster object-storage target is the simplest operational baseline for this single-node cluster, and the live backup jobs now prove that path end to end
 
 ## Topics
 

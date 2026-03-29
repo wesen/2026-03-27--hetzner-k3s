@@ -12,8 +12,8 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: Chronological diary for introducing shared cluster data services on K3s, starting with MySQL and now including PostgreSQL and Redis.
-LastUpdated: 2026-03-28T15:28:10-04:00
+Summary: Chronological diary for introducing shared cluster data services on K3s, starting with MySQL and now including PostgreSQL, Redis, and the first live off-cluster backup path.
+LastUpdated: 2026-03-29T16:45:00-04:00
 WhatFor: Use this to review the exact implementation trail for the shared MySQL, PostgreSQL, and Redis slices.
 WhenToUse: Read this when continuing or reviewing HK3S-0009.
 ---
@@ -530,3 +530,81 @@ Everything passed, which means the next step is no longer design work. It is liv
 
 ### What should be done in the future
 - Commit the scaffold as its own checkpoint, then move into live Vault bootstrap and Argo rollout.
+
+## Step 9: Add a real Hetzner Object Storage backup target, wire Vault/VSO delivery, and validate backup jobs for all three services
+
+Once PostgreSQL, MySQL, and Redis were stable, the next real platform risk was obvious: the cluster had stateful services but no off-cluster backup target. I reused the existing Hetzner Object Storage Terraform pattern from the other Terraform repo slices instead of inventing a new storage control plane. That produced a new Terraform environment at [`storage/platform/k3s-backups/envs/prod`](/home/manuel/code/wesen/terraform/storage/platform/k3s-backups/envs/prod), and `terraform apply` created the private bucket `scapegoat-k3s-backups` with versioning enabled plus the service-prefix contract:
+
+- `postgres/`
+- `mysql/`
+- `redis/`
+
+The next step was wiring runtime delivery. I wrote the object-storage credentials into Vault at `kv/infra/backups/object-storage` using the new replayable ticket script [`01-seed-backup-object-storage-secret.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/01-seed-backup-object-storage-secret.sh), then extended the service Vault policies so the PostgreSQL, MySQL, and Redis service accounts could read that path. Each namespace got a matching `VaultStaticSecret` called `backup-storage`, and each Kustomize package got a CronJob:
+
+- [`gitops/kustomize/postgres/backup-cronjob.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/postgres/backup-cronjob.yaml)
+- [`gitops/kustomize/mysql/backup-cronjob.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/mysql/backup-cronjob.yaml)
+- [`gitops/kustomize/redis/backup-cronjob.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/redis/backup-cronjob.yaml)
+
+I deliberately stored the operational helpers in the ticket itself so the path is replayable later:
+
+- [`00-common.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/00-common.sh)
+- [`02-trigger-postgres-backup-job.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/02-trigger-postgres-backup-job.sh)
+- [`03-trigger-mysql-backup-job.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/03-trigger-mysql-backup-job.sh)
+- [`04-trigger-redis-backup-job.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/04-trigger-redis-backup-job.sh)
+- [`05-list-backup-objects.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/05-list-backup-objects.sh)
+- [`06-prune-backup-object.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/06-prune-backup-object.sh)
+
+The PostgreSQL and Redis runs worked on the first attempt:
+
+- PostgreSQL uploaded `postgres/postgres-20260329T162549Z.sql.gz`
+- Redis uploaded `redis/redis-20260329T163605Z.tar.gz`
+
+MySQL was the tricky one, and the exact failures matter because they changed the manifest design twice. The first backup job uploaded a 20-byte object because `mysqldump` failed with:
+
+- `TLS/SSL error: self-signed certificate in certificate chain`
+
+That revealed two problems:
+
+- the client was trying to verify the in-cluster self-signed TLS chain
+- the shell path was too optimistic because the dump pipeline still produced a tiny artifact
+
+I first changed the job to dump to a real file and fail if the file was empty. That avoided silent success but surfaced the second runtime mismatch. Alpine’s MariaDB client could not authenticate against the MySQL 8 server because the server uses `caching_sha2_password`. The exact error was:
+
+- `Plugin caching_sha2_password could not be loaded`
+
+I then tried the MariaDB-compatible `--skip-ssl` path, but that still left the wrong client family in place. The final fix was to replace the one-off Alpine client with the official `mysql:8.4` image and install `awscli` there. That gave the CronJob the correct `mysqldump` binary for the live server and restored support for `--ssl-mode=DISABLED`.
+
+After that change, the corrected MySQL backup completed and uploaded:
+
+- `mysql/mysql-20260329T163525Z.sql.gz`
+
+I then deleted the earlier invalid 20-byte object with [`06-prune-backup-object.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/27/HK3S-0009--add-cluster-level-postgres-mysql-and-redis-under-argo-cd/scripts/06-prune-backup-object.sh), leaving the bucket with one good artifact per service.
+
+### What I did
+- Added the Terraform-managed Hetzner Object Storage bucket and pushed it from the Terraform repo.
+- Seeded `kv/infra/backups/object-storage` in Vault.
+- Extended the PostgreSQL, MySQL, and Redis Vault policies plus VSO manifests.
+- Added backup CronJobs for all three services and pushed them through Argo CD.
+- Ran the PostgreSQL, MySQL, and Redis backup jobs manually.
+- Listed the remote bucket contents and deleted the one invalid MySQL test artifact.
+
+### Why
+- The cluster already had real stateful services and needed an off-cluster recovery baseline before more applications land on top of them.
+
+### What worked
+- The shared Vault/VSO object-storage secret pattern generalized cleanly across all three services.
+- PostgreSQL and Redis produced valid off-cluster artifacts on the first validation run.
+- The final MySQL design using the official `mysql:8.4` image produced a valid 44.2 MiB dump artifact.
+
+### What didn't work
+- The first backup seeding script depended unnecessarily on `terraform output`, which failed outside the Terraform direnv context.
+- The first MySQL backup path failed on self-signed TLS verification.
+- The second MySQL backup path failed because Alpine's MariaDB client could not load the MySQL 8 auth plugin.
+
+### What I learned
+- For backup jobs, client binary compatibility matters just as much as service reachability.
+- Ticket-local replay scripts immediately earn their keep because they force the operator path through the same sharp edges the documentation claims to handle.
+
+### What should be done in the future
+- Add full scratch restore drills for PostgreSQL, MySQL, and Redis instead of stopping at artifact creation.
+- Add explicit retention rules and upgrade/rollback guidance for the scheduled backup path.

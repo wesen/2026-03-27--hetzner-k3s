@@ -19,3 +19,6 @@
 ## 2026-03-29
 
 - Step 9: reactivated HK3S-0009 for operational hardening, expanded the ticket tasks for off-cluster backups and restore drills, and added the dedicated backup-and-restore implementation plan anchored on Hetzner Object Storage plus Vault/VSO-delivered runtime credentials
+- Step 10: added the Terraform-managed Hetzner Object Storage bucket, seeded the shared Vault backup secret path, extended the PostgreSQL/MySQL/Redis Vault policies and VSO manifests, and deployed live backup CronJobs for all three shared data services
+- Step 10: ran manual backup jobs for PostgreSQL, MySQL, and Redis, verified remote artifacts in the bucket, and preserved the operator trail as replayable HK3S-0009 scripts
+- Step 10: hit two real MySQL backup failures during validation (`self-signed certificate in certificate chain`, then MariaDB client incompatibility with `caching_sha2_password`), fixed them with follow-up commits, and pruned the one invalid 20-byte object from the bucket
