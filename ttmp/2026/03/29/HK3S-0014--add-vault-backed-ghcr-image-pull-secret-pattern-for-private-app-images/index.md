@@ -25,7 +25,7 @@ RelatedFiles:
       Note: Existing Vault-to-Kubernetes secret sync pattern to extend for registry auth
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-29T10:05:00-04:00
+LastUpdated: 2026-03-29T10:40:00-04:00
 WhatFor: Capture the design and implementation plan for pulling private GHCR images in-cluster through Vault-managed image pull credentials.
 WhenToUse: Use when wiring a private-source app like CoinVault to a registry-backed rollout without relying on node-local image imports.
 ---
@@ -60,7 +60,7 @@ The long-term standard this ticket defines is:
 4. Attach that secret to app `ServiceAccount`s or workload specs
 5. Let the cluster pull private GHCR images normally
 
-This ticket is documentation and planning only. It does not yet implement the secret path.
+This ticket is now implemented for `coinvault`, with the ticket bundle preserving both the design rationale and the exact operator scripts used during rollout.
 
 ## Key Links
 
@@ -77,7 +77,9 @@ Scope status:
 - problem reproduced
 - design recommendation drafted
 - implementation tasks defined
-- no cluster changes made yet under this ticket
+- `coinvault` image-pull path implemented
+- Vault-backed `dockerconfigjson` secret proven live
+- node-cache bridge removed from the normal operational story
 
 ## Topics
 

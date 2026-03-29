@@ -33,3 +33,16 @@ Added the first GitOps implementation scaffold: a CoinVault image-pull Vault boo
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/vault-static-secret-image-pull.yaml — New image-pull secret render resource
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/serviceaccount.yaml — ServiceAccount now prepared for `imagePullSecrets`
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/kustomization.yaml — Includes the new resource in the CoinVault package
+
+## 2026-03-29
+
+Executed the first live rollout of the private GHCR pull-secret path for `coinvault`: seeded `kv/apps/coinvault/prod/image-pull`, let VSO materialize `coinvault-ghcr-pull`, removed the cached CoinVault image from the node, and verified that a fresh rollout returned `Synced Healthy`.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/vault-static-secret-image-pull.yaml — Live `VaultStaticSecret` that renders the pull secret
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/serviceaccount.yaml — `imagePullSecrets` attachment used by the workload
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/scripts/bootstrap-coinvault-image-pull-secret.sh — Ticket-local retrace script for seeding Vault
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/scripts/seed-coinvault-image-pull-secret-via-op.sh — Ticket-local helper for replaying the operator path
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/scripts/validate-coinvault-ghcr-image-pull.sh — Validation helper for the implemented runtime path
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/scripts/cleanup-vso-ghcr-template-proof.sh — Cleanup helper for the earlier template-proof artifacts

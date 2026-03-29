@@ -15,7 +15,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Step-by-step implementation plan for wiring a Vault-managed GHCR dockerconfigjson secret into app workloads.
-LastUpdated: 2026-03-29T10:05:00-04:00
+LastUpdated: 2026-03-29T10:40:00-04:00
 WhatFor: Give operators a repeatable sequence for implementing private GHCR image pulls through Vault-managed credentials.
 WhenToUse: Use when implementing the first `coinvault` pull-secret path or repeating the pattern for later private apps.
 ---
@@ -60,42 +60,41 @@ kubectl -n coinvault get deployment coinvault \
 kubectl -n argocd get application coinvault \
   -o jsonpath='{.status.sync.status} {.status.health.status} {.status.sync.revision}{"\n"}'
 
-# 2. Decide or create the GHCR credential
-# Expected minimum: a GitHub credential with package-pull capability.
-
-# 3. Store the credential in Vault
-# Example logical path, not yet implemented:
-# kv/apps/coinvault/prod/image-pull
+# 2. Store the credential in Vault
+# The ticket-local retrace helper uses GITHUB_DEPLOY_PAT once and writes:
+#   kv/apps/coinvault/prod/image-pull
 #
-# Expected fields:
-#   server=ghcr.io
-#   username=<github-user-or-machine-account>
-#   password=<token>
+# Ticket-local helper paths:
+#   ttmp/.../HK3S-0014.../scripts/bootstrap-coinvault-image-pull-secret.sh
+#   ttmp/.../HK3S-0014.../scripts/seed-coinvault-image-pull-secret-via-op.sh
 
-# 4. Add GitOps resources
-# Likely files to create:
+# 3. Add GitOps resources
+# Implemented files:
 #   gitops/kustomize/coinvault/vault-static-secret-image-pull.yaml
-#   gitops/kustomize/coinvault/<transform-resource>.yaml   # if needed
-#
-# Likely file to update:
 #   gitops/kustomize/coinvault/serviceaccount.yaml
+#   gitops/kustomize/coinvault/kustomization.yaml
 
-# 5. Apply and sync through Git
+# 4. Apply and sync through Git
 git status --short
 git add ...
 git commit -m "feat: add coinvault ghcr image pull secret"
 git push origin main
 
-# 6. Watch the resulting state
+# 5. Watch the resulting state
 kubectl -n argocd get application coinvault \
   -o jsonpath='{.status.sync.status} {.status.health.status} {.status.sync.revision}{"\n"}'
-kubectl -n coinvault get secret
-kubectl -n coinvault get serviceaccount coinvault -o yaml
+kubectl -n coinvault get secret coinvault-ghcr-pull -o jsonpath='{.type}{"\n"}'
+kubectl -n coinvault get serviceaccount coinvault -o jsonpath='{.imagePullSecrets[*].name}{"\n"}'
 kubectl -n coinvault rollout status deployment/coinvault --timeout=180s
 
-# 7. Validate the runtime path
+# 6. Validate the runtime path
 kubectl -n coinvault get pods -l app.kubernetes.io/name=coinvault -o wide
 curl -fsS https://coinvault.yolo.scapegoat.dev/healthz | jq '.'
+
+# 7. Prove the node-cache bridge is no longer needed
+ssh root@91.98.46.169 'k3s ctr images rm ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80'
+kubectl -n coinvault rollout restart deployment/coinvault
+kubectl -n coinvault rollout status deployment/coinvault --timeout=240s
 ```
 
 ### Expected logical sequence
@@ -108,6 +107,26 @@ Vault path created
   -> rollout restarts cleanly
   -> kubelet pulls private GHCR image without manual node import
 ```
+
+### Implemented secret schema
+
+Vault path:
+
+- `kv/apps/coinvault/prod/image-pull`
+
+Expected Vault fields:
+
+- `server`
+- `username`
+- `password`
+- `auth`
+
+Resulting Kubernetes secret:
+
+- name: `coinvault-ghcr-pull`
+- type: `kubernetes.io/dockerconfigjson`
+- required data key: `.dockerconfigjson`
+- observed extra key from VSO: `_raw`
 
 ### Suggested implementation breakdown
 
@@ -135,7 +154,7 @@ Vault path created
 
 - `coinvault` remains `Synced Healthy`
 - the `coinvault` `ServiceAccount` includes the intended `imagePullSecrets`
-- the private GHCR-tagged image can be pulled after deleting the current pod
+- the private GHCR-tagged image can be pulled after evicting the cached image from the node
 - no manual `ctr images import` step is needed to recover the rollout
 - the ticket diary records the exact token, Vault path, secret shape, and validation procedure
 

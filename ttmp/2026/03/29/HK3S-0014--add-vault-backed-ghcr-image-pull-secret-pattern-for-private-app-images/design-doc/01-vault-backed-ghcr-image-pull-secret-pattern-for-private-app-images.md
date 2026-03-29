@@ -15,7 +15,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Design the long-term Kubernetes image pull secret pattern for private GHCR-backed apps, with CoinVault as the first target.
-LastUpdated: 2026-03-29T10:05:00-04:00
+LastUpdated: 2026-03-29T10:40:00-04:00
 WhatFor: Explain the architecture, tradeoffs, and implementation shape for pulling private GHCR images in-cluster through Vault-managed credentials.
 WhenToUse: Use when designing private-image rollout paths for apps that already publish to GHCR but cannot be pulled anonymously by K3s.
 ---
@@ -137,6 +137,8 @@ whose decoded JSON looks like:
 }
 ```
 
+In the implemented CoinVault path, VSO also leaves an extra `_raw` key in the generated secret. That key is harmless for kubelet because the required `.dockerconfigjson` key is present and the secret type is correct. Operators should validate the required key rather than assume the secret will contain only one key.
+
 ### The control-plane split
 
 The app source repo still owns:
@@ -177,6 +179,12 @@ coinvault Deployment
   imagePullPolicy: IfNotPresent
 ```
 
+The implemented Kubernetes object names are:
+
+- `VaultStaticSecret/coinvault-ghcr-pull`
+- `Secret/coinvault-ghcr-pull`
+- `ServiceAccount/coinvault`
+
 ### Pseudocode for the end state
 
 ```text
@@ -186,6 +194,18 @@ on pod startup:
   kubelet authenticates to ghcr.io
   kubelet pulls image
   pod starts
+```
+
+### Pseudocode for the validation proof
+
+```text
+remove cached image from node
+  -> restart deployment
+  -> kubelet consults imagePullSecrets
+  -> kubelet authenticates to ghcr.io
+  -> kubelet pulls the image again
+  -> pod becomes Ready
+  -> Argo remains Synced Healthy
 ```
 
 ## Design Decisions

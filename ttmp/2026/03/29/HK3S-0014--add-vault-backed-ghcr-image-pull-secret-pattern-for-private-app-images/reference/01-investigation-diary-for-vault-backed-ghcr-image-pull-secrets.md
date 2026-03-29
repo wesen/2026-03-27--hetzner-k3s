@@ -15,7 +15,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Chronological research and implementation diary for the private-image pull-secret pattern.
-LastUpdated: 2026-03-29T10:05:00-04:00
+LastUpdated: 2026-03-29T10:40:00-04:00
 WhatFor: Preserve the actual reasoning trail behind the private GHCR pull-secret design.
 WhenToUse: Use when reviewing why this pattern was proposed and which current files it needs to touch.
 ---
@@ -215,6 +215,84 @@ This is the right place for the first commit because it isolates:
 - before secret writes
 - before Argo reconciliation
 - before any risky rollout test
+
+### 2026-03-29: Seeded the real Vault path and forced a fresh pull
+
+After the scaffold commit, I seeded the real Vault record for CoinVault image pulls.
+
+Operational wrinkle:
+
+- plain non-interactive `op read` calls hung from the ad-hoc exec shell
+- the older `hk3s-data` tmux session still had a working 1Password app bridge
+- I therefore replayed the seed step through tmux rather than fighting a new non-interactive session
+
+That was the right choice because it kept the root-token retrieval path inside an environment that was already known to work and avoided pasting any credential into the chat flow.
+
+Observed seed result:
+
+```text
+seeded kv/apps/coinvault/prod/image-pull into https://vault.yolo.scapegoat.dev
+registry server: ghcr.io
+github username: wesen
+no secret values were printed
+```
+
+Once the commit was pushed and Argo refreshed, the cluster state showed:
+
+- `VaultStaticSecret/coinvault-ghcr-pull` present in namespace `coinvault`
+- `Secret/coinvault-ghcr-pull` present
+- secret type `kubernetes.io/dockerconfigjson`
+- required key `.dockerconfigjson` present
+- observed extra key `_raw`
+
+The extra `_raw` key is notable because it was not part of the intended minimal output. It did not block kubelet, so I treated it as an implementation detail worth documenting rather than a reason to redesign the secret path.
+
+### 2026-03-29: Removed the node-cache bridge and proved the runtime path
+
+The critical validation for this ticket was not “does the secret exist?” It was “can CoinVault still roll after the node-local image cache is gone?”
+
+Commands executed:
+
+```bash
+ssh root@91.98.46.169 'k3s ctr images rm ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80'
+kubectl -n coinvault rollout restart deployment/coinvault
+kubectl -n coinvault rollout status deployment/coinvault --timeout=240s
+```
+
+Observed result:
+
+- the cached CoinVault image was removed from the node
+- the deployment restarted cleanly
+- the new pod became `Running` and `Ready`
+- the app stayed healthy
+- Argo stayed `Synced Healthy`
+
+Validation evidence:
+
+```text
+deployment "coinvault" successfully rolled out
+ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80 IfNotPresent
+Synced Healthy 8d48d6d3402f51aed3294bd7ff58b7e7ff5d71b7
+```
+
+That is the actual proof that the pull-secret pattern works. Before this step, the cluster could still have been riding on the imported image from the earlier emergency bridge.
+
+### 2026-03-29: Cleaned up the earlier template-proof artifacts
+
+The earlier VSO template experiment was useful, but leaving it around would muddy the ticket history.
+
+Cleanup completed:
+
+- deleted `VaultStaticSecret/vso-ghcr-template-inspect`
+- deleted `Secret/vso-ghcr-template-inspect`
+- deleted `kv/apps/vso-smoke/dev/ghcr-template`
+
+I also copied the operator helpers into the ticket-local `scripts/` folder so the ticket bundle can be replayed later without reconstructing commands from prose alone:
+
+- `bootstrap-coinvault-image-pull-secret.sh`
+- `seed-coinvault-image-pull-secret-via-op.sh`
+- `validate-coinvault-ghcr-image-pull.sh`
+- `cleanup-vso-ghcr-template-proof.sh`
 
 ## Related
 

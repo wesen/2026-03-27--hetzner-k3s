@@ -11,11 +11,11 @@
 - [x] Create or identify the GitHub credential to use for private package pulls
 - [x] Define the Vault path contract for image-pull credentials
 - [x] Decide whether VSO can materialize `kubernetes.io/dockerconfigjson` directly or needs a small transform step
-- [ ] Add the first `coinvault` image-pull secret resources in GitOps
-- [ ] Attach the pull secret to the `coinvault` `ServiceAccount`
-- [ ] Validate a private GHCR-backed `coinvault` rollout without node-local containerd imports
-- [ ] Remove the temporary node-cache bridge from the operational story once the pull-secret path is working
-- [ ] Update the ticket design doc, playbook, and diary with the exact implemented secret schema and validation steps
+- [x] Add the first `coinvault` image-pull secret resources in GitOps
+- [x] Attach the pull secret to the `coinvault` `ServiceAccount`
+- [x] Validate a private GHCR-backed `coinvault` rollout without node-local containerd imports
+- [x] Remove the temporary node-cache bridge from the operational story once the pull-secret path is working
+- [x] Update the ticket design doc, playbook, and diary with the exact implemented secret schema and validation steps
 
 ## Notes
 
@@ -29,3 +29,13 @@
 - This ticket exists because private GHCR package visibility is a separate boundary from GitOps PR automation
 - Current decision: use the locally supplied `GITHUB_DEPLOY_PAT` once, import it into Vault, and stop depending on `.envrc` after that
 - Current design choice: use `VaultStaticSecret.spec.destination.type = kubernetes.io/dockerconfigjson` with `destination.transformation.templates` to render `.dockerconfigjson` directly
+- Implemented secret path:
+  - Vault: `kv/apps/coinvault/prod/image-pull`
+  - Kubernetes secret: `coinvault/coinvault-ghcr-pull`
+  - Secret type: `kubernetes.io/dockerconfigjson`
+  - ServiceAccount attachment: `coinvault.imagePullSecrets = [coinvault-ghcr-pull]`
+- Validation result:
+  - removed `ghcr.io/wesen/2026-03-16--gec-rag:sha-d074c80` from the node cache
+  - restarted `deployment/coinvault`
+  - rollout returned `Synced Healthy`
+  - `https://coinvault.yolo.scapegoat.dev/healthz` stayed healthy
