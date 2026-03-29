@@ -23,7 +23,7 @@ spec:
       serviceAccountName: coinvault
       containers:
         - name: coinvault
-          image: ghcr.io/wesen/2026-03-16--gec-rag:sha-4cad3ae
+          image: ghcr.io/wesen/2026-03-16--gec-rag:sha-427d89e
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
