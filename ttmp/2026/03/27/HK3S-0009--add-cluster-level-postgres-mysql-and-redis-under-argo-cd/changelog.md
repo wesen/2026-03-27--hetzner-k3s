@@ -24,3 +24,4 @@
 - Step 10: hit two real MySQL backup failures during validation (`self-signed certificate in certificate chain`, then MariaDB client incompatibility with `caching_sha2_password`), fixed them with follow-up commits, and pruned the one invalid 20-byte object from the bucket
 - Step 11: added replayable scratch-restore scripts for PostgreSQL, MySQL, and Redis, hardened the shared helper to reuse the standard local Vault token file, and validated that all three backup artifacts can be replayed into isolated scratch targets
 - Step 11: confirmed clean MySQL and Redis scratch restores, and documented the PostgreSQL restore finding that exposed orphaned Draft Review foreign-key references under `review_sessions`
+- Step 12: added a detailed backup-pipeline postmortem under the ticket and a project-level operator playbook in `docs/` so future backup and restore work can start from durable documentation instead of raw ticket history

@@ -21,7 +21,7 @@ RelatedFiles:
       Note: First app-migration ticket that will eventually consume shared services
 ExternalSources: []
 Summary: "Implementation ticket for shared cluster data services under Argo CD; MySQL, PostgreSQL, and Redis are live, off-cluster backups and scratch restore drills now work, and the remaining follow-up is upgrade/rollback guidance plus one PostgreSQL data-integrity finding from the Draft Review dump."
-LastUpdated: 2026-03-29T17:25:00-04:00
+LastUpdated: 2026-03-29T17:55:00-04:00
 WhatFor: "Use this ticket to implement shared MySQL, PostgreSQL, and Redis service slices on K3s using the platform's repo-managed manifest and Vault/VSO patterns."
 WhenToUse: "Read this when the platform needs stable in-cluster MySQL, PostgreSQL, or Redis endpoints and the Vault/VSO path is already available."
 ---
@@ -58,6 +58,8 @@ Step 11 is active: scheduled off-cluster backups and scratch restore drills for 
   - [01-cluster-data-services-plan.md](./playbooks/01-cluster-data-services-plan.md)
 - Backup and restore plan:
   - [02-cluster-data-services-backup-and-restore-plan.md](./playbooks/02-cluster-data-services-backup-and-restore-plan.md)
+- Backup pipeline postmortem:
+  - [02-cluster-data-services-backup-pipeline-postmortem.md](./reference/02-cluster-data-services-backup-pipeline-postmortem.md)
 - MySQL-first design:
   - [01-mysql-first-cluster-data-services-design.md](./design-doc/01-mysql-first-cluster-data-services-design.md)
 - Postgres and Redis follow-on design:

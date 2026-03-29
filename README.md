@@ -41,6 +41,8 @@ Choose the entry point that matches what you are trying to do:
   - [docs/app-packaging-and-gitops-pr-standard.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md)
 - I need the private GHCR pull-secret pattern:
   - [HK3S-0014 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/index.md)
+- I need to operate backups and scratch restores for the shared data services:
+  - [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
 - I need the base platform bring-up guide:
   - [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
 
@@ -192,6 +194,8 @@ Public endpoints:
   - how Argo CD apps are structured here
 - [docs/hetzner-k3s-server-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md)
   - platform bring-up and cluster bootstrap
+- [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
+  - operator playbook for shared PostgreSQL, MySQL, and Redis backups and scratch restores
 - [docs/vault-backed-postgres-bootstrap-job-pattern.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/vault-backed-postgres-bootstrap-job-pattern.md)
   - declarative app database provisioning pattern
 
@@ -225,5 +229,5 @@ kubectl apply -f gitops/applications/vault.yaml
 
 - move PostgreSQL to a managed service or at least a separate volume / backup plan
 - add repo credentials if you want the GitOps repo private
-- finish backup and restore playbooks for the shared data services
+- finish upgrade and rollback playbooks for the shared data services
 - keep moving remaining apps onto the standardized CI -> GHCR -> GitOps PR path
