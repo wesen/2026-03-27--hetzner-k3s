@@ -119,6 +119,103 @@ registry auth success
 - the workload recovered only after importing the tagged image into the single node’s containerd cache
 - therefore the missing layer is image pull auth, not image build or GitOps release automation
 
+### 2026-03-29: First implementation decisions
+
+Before touching Vault or GitOps state, I verified the VSO capabilities already installed in the cluster.
+
+Commands:
+
+```bash
+KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml \
+  kubectl explain vaultstaticsecret.spec.destination --api-version=secrets.hashicorp.com/v1beta1
+
+KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml \
+  kubectl explain vaultstaticsecret.spec.destination.transformation --api-version=secrets.hashicorp.com/v1beta1
+
+KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml \
+  kubectl explain vaultstaticsecret.spec.destination.transformation.templates --api-version=secrets.hashicorp.com/v1beta1
+```
+
+Observed result:
+
+- `destination.type` is supported
+- `destination.transformation` is supported
+- `destination.transformation.templates` is supported
+- templates are Go text templates
+
+That is enough to choose the clean path:
+
+- create a Vault record with raw GHCR fields
+- let `VaultStaticSecret` render `.dockerconfigjson` directly
+- avoid inventing a second controller or ad-hoc transform job unless the first render attempt proves insufficient
+
+Implementation decisions made at this checkpoint:
+
+1. Credential source
+   - use the locally supplied `GITHUB_DEPLOY_PAT` once
+   - import it into Vault
+   - stop depending on `.envrc` after that
+
+2. Vault path contract
+   - use a dedicated CoinVault path rather than overloading the runtime secret
+   - recommended path:
+     - `kv/apps/coinvault/prod/image-pull`
+
+3. Secret materialization model
+   - target Kubernetes secret type:
+     - `kubernetes.io/dockerconfigjson`
+   - target data key:
+     - `.dockerconfigjson`
+
+4. Workload attachment model
+   - attach the resulting secret through the existing `coinvault` `ServiceAccount`
+   - avoid duplicating `imagePullSecrets` directly in every pod spec unless a later app has a stronger reason
+
+This was the right moment to lock those choices down because they affect every YAML resource that comes next.
+
+### 2026-03-29: First GitOps scaffold added
+
+After the design choices were explicit, I added the first real implementation slice in Git:
+
+- [`scripts/bootstrap-coinvault-image-pull-secret.sh`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/scripts/bootstrap-coinvault-image-pull-secret.sh)
+  - seeds `kv/apps/coinvault/prod/image-pull`
+  - requires `GITHUB_DEPLOY_PAT`
+  - computes the base64 `auth` field once at write time
+- [`vault-static-secret-image-pull.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/vault-static-secret-image-pull.yaml)
+  - renders `.dockerconfigjson` directly with `destination.type = kubernetes.io/dockerconfigjson`
+- [`serviceaccount.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/serviceaccount.yaml)
+  - adds `imagePullSecrets: [coinvault-ghcr-pull]`
+- [`kustomization.yaml`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/kustomization.yaml)
+  - includes the new `VaultStaticSecret`
+
+The important implementation detail here is that I chose not to compute base64 inside the template. The installed VSO template path clearly supports `text/template`, but there was no reason to depend on extra helper functions when the source secret can simply carry:
+
+- `server`
+- `username`
+- `password`
+- `auth`
+
+That keeps the Kubernetes-side template intentionally dumb.
+
+Validation at this checkpoint:
+
+```bash
+chmod +x scripts/bootstrap-coinvault-image-pull-secret.sh
+KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml kubectl kustomize gitops/kustomize/coinvault >/dev/null
+```
+
+Observed result:
+
+- Kustomize rendered successfully
+- no YAML schema error blocked the new resource set
+
+This is the right place for the first commit because it isolates:
+
+- repo-side scaffold changes
+- before secret writes
+- before Argo reconciliation
+- before any risky rollout test
+
 ## Related
 
 - [01-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images.md](../design-doc/01-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images.md)

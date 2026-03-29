@@ -11,6 +11,7 @@ resources:
   - vault-auth.yaml
   - vault-static-secret-runtime.yaml
   - vault-static-secret-pinocchio.yaml
+  - vault-static-secret-image-pull.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
