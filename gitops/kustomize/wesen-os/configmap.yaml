@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wesen-os-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  profiles.runtime.yaml: |
+    slug: cluster-default
+    profiles:
+      default:
+        slug: default
+        runtime:
+          step_settings_patch:
+            ai-chat:
+              ai-engine: gpt-4.1-mini
+
