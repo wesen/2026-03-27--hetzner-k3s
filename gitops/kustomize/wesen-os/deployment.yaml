@@ -23,7 +23,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: wesen-os
-          image: ghcr.io/wesen/wesen-os:main
+          image: ghcr.io/wesen/wesen-os@sha256:751929d27806403965bc7998ed1e4dfec168b1ee81723535dd695b04b8e8fbf2
           imagePullPolicy: IfNotPresent
           args:
             - --addr=:8091
@@ -71,4 +71,3 @@ spec:
             name: wesen-os-config
         - name: launcher-data
           emptyDir: {}
-
