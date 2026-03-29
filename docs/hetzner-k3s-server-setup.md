@@ -133,6 +133,25 @@ Fill in at least these values in `terraform.tfvars`:
 
 Do not commit `terraform.tfvars`. The repo already ignores `*.tfvars`.
 
+Important operator note:
+
+- `admin_cidrs` controls both SSH on `22` and the Kubernetes API on `6443`
+- if your laptop or home IP changes later, public app HTTPS on `80/443` may continue to work while `ssh` and `kubectl` both start timing out
+- that is a Hetzner firewall symptom, not a cluster failure
+
+Quick diagnosis:
+
+```bash
+curl -4 https://ifconfig.me
+terraform state show hcloud_firewall.default
+```
+
+If the current public IP does not match the CIDR allowed on ports `22` and `6443`, update `admin_cidrs` locally and re-run:
+
+```bash
+terraform apply
+```
+
 ## Step 2: Provision the Hetzner Infrastructure
 
 This step creates the Hetzner server, firewall, and uploaded SSH key. Terraform also injects the cloud-init template into the server’s `user_data`.
@@ -193,6 +212,20 @@ kubectl -n argocd get applications
 ```
 
 The node should be `Ready`. The applications may still be progressing at this stage, but you should at least see Argo CD running and the repo-managed `Application` objects present.
+
+If `kubectl` hangs with messages like:
+
+```text
+dial tcp <server-ip>:6443: i/o timeout
+```
+
+or:
+
+```text
+Client.Timeout exceeded while awaiting headers
+```
+
+check the Hetzner firewall before debugging K3s itself. In this setup, the Kubernetes API is intentionally restricted to `admin_cidrs`.
 
 ## Step 6: Validate the Public Endpoints
 

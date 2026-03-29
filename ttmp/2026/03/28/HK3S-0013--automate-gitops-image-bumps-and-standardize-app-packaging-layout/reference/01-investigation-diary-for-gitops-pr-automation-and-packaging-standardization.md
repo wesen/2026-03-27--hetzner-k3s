@@ -21,7 +21,7 @@ RelatedFiles:
     - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize
 ExternalSources: []
 Summary: This diary records the concrete local evidence used to recommend CI-created GitOps pull requests and a categorized app packaging contract, and the first mysql-ide implementation slice.
-LastUpdated: 2026-03-29T17:40:00-04:00
+LastUpdated: 2026-03-29T13:10:00-04:00
 WhatFor: Preserve the reasoning trail behind the design recommendation.
 WhenToUse: Use when reviewing how the recommendations were derived from the current repo state.
 ---
@@ -170,6 +170,42 @@ Observed PR contract:
 - body included source commit, workflow run URL, target manifest, and rollback guidance
 
 This closes the original proof-of-concept question for the ticket. The remaining work is adopting the same pattern in additional services.
+
+### 2026-03-29: firewall drift and short-SHA correction
+
+Two operational follow-ups mattered immediately after the first live proof.
+
+First, local operator access broke:
+
+- public app ingress still worked over `80/443`
+- `ssh` and `kubectl` both timed out
+- the cause was not K3s; it was stale Hetzner `admin_cidrs`
+- the firewall still allowed `22` and `6443` only from `100.40.113.156/32`
+- the current workstation IP had changed to `98.186.213.7`
+
+That was fixed by updating local `terraform.tfvars` and re-running `terraform apply`. The lesson is now documented in `docs/hetzner-k3s-server-setup.md`.
+
+Second, the first `mysql-ide` image-bump PR had a tag-shape bug:
+
+- the workflow published `sha-4757a35`
+- the GitOps PR updater proposed `sha-4757a354464846d36cb52c1b5af0bd89a4fcffea`
+- Kubernetes could not pull that nonexistent tag and `mysql-ide` went `ImagePullBackOff`
+
+Follow-up fix in `mysql-ide`:
+
+- `11b4bbd` `fix: use published short sha tag for gitops prs`
+
+Follow-up live proof:
+
+- workflow run: `23709583837`
+- corrective GitOps PR: `wesen/2026-03-27--hetzner-k3s#2`
+- merged GitOps revision: `3047511425f091763d7e9ab97211464d66ac0b13`
+- final cluster status: `coinvault` returned to `Synced Healthy`
+
+This refined the packaging standard in two important ways:
+
+- the updater must derive exactly the same image tag shape that the publish job emits
+- operator access to the cluster depends on keeping Hetzner `admin_cidrs` current, even when public apps remain healthy
 
 ## Related
 

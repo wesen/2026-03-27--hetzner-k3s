@@ -259,6 +259,25 @@ For this repo, the workflow emits:
 
 The deployment should use the immutable-looking SHA tag, not `latest`.
 
+Important implementation detail:
+
+- the tag you pin in GitOps must exactly match the tag that the workflow publishes
+- do not assume the deployment updater should use the full `github.sha` string if the publish step emits a shortened `sha-<7 chars>` tag
+
+In this environment, the first live `mysql-ide` rollout failed because the CI-created PR pinned:
+
+```text
+ghcr.io/wesen/2026-03-27--mysql-ide:sha-4757a354464846d36cb52c1b5af0bd89a4fcffea
+```
+
+but GHCR had actually published:
+
+```text
+ghcr.io/wesen/2026-03-27--mysql-ide:sha-4757a35
+```
+
+The result was an `ImagePullBackOff` in Kubernetes. The fix was to make the GitOps PR job derive the same short-SHA tag shape that the publish step emits.
+
 Why:
 
 - `latest` is ambiguous

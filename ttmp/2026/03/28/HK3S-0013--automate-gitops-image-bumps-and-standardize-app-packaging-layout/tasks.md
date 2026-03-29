@@ -15,7 +15,12 @@
 - [x] Validate the updater locally against a temporary clone of this GitOps repo and document the exact required GitHub secret boundary
 - [x] Update the ticket diary and changelog with the implementation results
 - [x] Configure `GITOPS_PR_TOKEN` in the `wesen/2026-03-27--mysql-ide` GitHub repository and verify the first real CI-created pull request into this GitOps repo
-- [ ] Roll the same app-repo packaging and CI-created GitOps PR pattern into the next eligible service after `mysql-ide`
+- [x] Correct the `mysql-ide` GitOps PR tag shape so it matches the actual GHCR-published short SHA tags
+- [x] Merge the corrective `mysql-ide` GitOps PR and re-validate `coinvault` as `Synced Healthy`
+- [ ] Inventory the current CoinVault source-repo packaging and identify the minimum changes needed to become CI-buildable without local workstation `replace` assumptions
+- [ ] Add the app-repo deployment packaging contract to CoinVault: repo README updates, `deploy/gitops-targets.json`, and deterministic GitOps PR updater script
+- [ ] Add GitHub Actions image publishing for CoinVault and switch the K3s deployment from node-local `coinvault:hk3s-0007` to a GHCR image tag
+- [ ] Validate the first CoinVault CI-created GitOps PR and live rollout
 
 ## Notes
 
@@ -23,3 +28,4 @@
 - Recommended first GitOps target file: `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/coinvault/mysql-ide-deployment.yaml`
 - Keep Argo CD Image Updater out of the first implementation slice
 - The first live proof now exists as PR `#1` in `wesen/2026-03-27--hetzner-k3s`
+- The next implementation target is `CoinVault` in `/home/manuel/code/gec/2026-03-16--gec-rag`

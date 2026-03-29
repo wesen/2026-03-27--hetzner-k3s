@@ -49,3 +49,14 @@ Validated the first real CI-created GitOps pull request from `mysql-ide` into th
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md — Updated with the optional-secret shell-guard pattern
 - /home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml — Fixed to avoid `secrets.*` in `if:` expressions
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Captured the failed parse, fix commits, successful workflow run, and resulting GitOps PR
+
+
+## 2026-03-29
+
+Recorded the two operational corrections discovered immediately after the first live proof: stale Hetzner `admin_cidrs` blocking `ssh` and `kubectl`, and the `mysql-ide` full-SHA vs short-SHA tag mismatch that caused the first rollout to enter `ImagePullBackOff`.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/hetzner-k3s-server-setup.md — Added the `admin_cidrs` firewall diagnosis and recovery guidance
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/public-repo-ghcr-argocd-deployment-playbook.md — Added the short-SHA tag-shape warning for CI-created image bump PRs
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/28/HK3S-0013--automate-gitops-image-bumps-and-standardize-app-packaging-layout/reference/01-investigation-diary-for-gitops-pr-automation-and-packaging-standardization.md — Recorded the firewall drift and corrective `mysql-ide` PR `#2`
