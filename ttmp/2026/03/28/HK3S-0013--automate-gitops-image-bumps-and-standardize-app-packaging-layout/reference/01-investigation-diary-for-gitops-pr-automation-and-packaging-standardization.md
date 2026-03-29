@@ -79,6 +79,22 @@ The user asked for the next architectural cleanup after:
 - Use `mysql-ide` as the first automation target because it already has the cleanest build/publish setup.
 - Derive the package contract from the current repo instead of writing a theoretical standard that ignores `coinvault`, `keycloak`, or `argocd-public`.
 
+## Implementation Notes
+
+### 2026-03-29: First implementation slice started
+
+The first implementation slice turned the high-level design into concrete operator work:
+
+- expanded `HK3S-0013` from analysis-only tasks into implementation tasks
+- wrote the operator-facing packaging standard at [`docs/app-packaging-and-gitops-pr-standard.md`](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md)
+- anchored the standard around the existing `mysql-ide` GHCR workflow and the current app package categories in this repo
+
+The next implementation slice is in the app repo itself:
+
+- add `deploy/gitops-targets.json`
+- add the PR updater script
+- extend the GitHub Actions flow so successful `main` builds can propose GitOps image bumps automatically
+
 ## Related
 
 - [01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md](../design-doc/01-ci-created-gitops-pull-requests-and-standard-app-packaging-layout.md)
