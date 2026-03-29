@@ -10,7 +10,7 @@
 
 - [x] Add the ticket index, design guide, implementation guide, diary, and task list
 - [ ] Keep the diary updated as each implementation slice lands
-- [ ] Add replayable operator scripts under the ticket `scripts/` directory
+- [x] Add replayable operator scripts under the ticket `scripts/` directory
 
 ## Phase 3: Hetzner server backup implementation
 
@@ -22,10 +22,10 @@
 
 ## Phase 4: Vault snapshot architecture
 
-- [ ] Define the Vault policy needed for snapshot creation
-- [ ] Define the Kubernetes auth role and service-account boundary for the snapshot job
-- [ ] Decide how the Vault snapshot job consumes object-storage credentials
-- [ ] Reuse the existing Hetzner Object Storage bucket through a new `vault/` prefix
+- [x] Define the Vault policy needed for snapshot creation
+- [x] Define the Kubernetes auth role and service-account boundary for the snapshot job
+- [x] Decide how the Vault snapshot job consumes object-storage credentials
+- [x] Reuse the existing Hetzner Object Storage bucket through a new `vault/` prefix
 
 ## Phase 5: Vault snapshot implementation
 

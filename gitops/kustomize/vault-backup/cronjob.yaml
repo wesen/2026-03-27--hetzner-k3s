@@ -1,0 +1,91 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-backup
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  schedule: "23 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: vault-backup
+          restartPolicy: Never
+          containers:
+            - name: vault-backup
+              image: alpine:3.22
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -lc
+                - |
+                  set -eu
+                  apk add --no-cache aws-cli curl jq gzip >/dev/null
+
+                  now="$(date -u +%Y%m%dT%H%M%SZ)"
+                  jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+                  login_payload="$(jq -n --arg role "vault-backup" --arg jwt "$jwt" '{role: $role, jwt: $jwt}')"
+                  login_response="$(curl -sS --fail-with-body \
+                    --request POST \
+                    --header 'Content-Type: application/json' \
+                    --data "$login_payload" \
+                    "${VAULT_ADDR}/v1/auth/kubernetes/login")"
+
+                  client_token="$(printf '%s' "$login_response" | jq -r '.auth.client_token')"
+                  [ -n "$client_token" ] && [ "$client_token" != "null" ]
+
+                  snapshot_path="/tmp/vault-${now}.snap"
+                  archive_path="${snapshot_path}.gz"
+                  object_key="vault/$(basename "${archive_path}")"
+
+                  curl -sS --fail-with-body \
+                    --header "X-Vault-Token: ${client_token}" \
+                    "${VAULT_ADDR}/v1/sys/storage/raft/snapshot" \
+                    --output "${snapshot_path}"
+
+                  test -s "${snapshot_path}"
+                  gzip -c "${snapshot_path}" > "${archive_path}"
+                  test -s "${archive_path}"
+
+                  aws --endpoint-url "${BACKUP_STORAGE_ENDPOINT_URL}" \
+                    s3 cp "${archive_path}" "s3://${BACKUP_STORAGE_BUCKET_NAME}/${object_key}" >/dev/null
+
+                  printf 'uploaded=%s\n' "${object_key}"
+              env:
+                - name: VAULT_ADDR
+                  value: http://vault.vault.svc.cluster.local:8200
+                - name: BACKUP_STORAGE_ENDPOINT_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-endpoint
+                - name: BACKUP_STORAGE_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-region
+                - name: BACKUP_STORAGE_BUCKET_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: bucket-name
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: access-key
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: secret-key
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-storage
+                      key: storage-region

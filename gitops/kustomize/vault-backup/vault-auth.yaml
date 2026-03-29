@@ -1,0 +1,14 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-backup
+  namespace: vault
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  vaultConnectionRef: vault-connection
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: vault-backup
+    serviceAccount: vault-backup
