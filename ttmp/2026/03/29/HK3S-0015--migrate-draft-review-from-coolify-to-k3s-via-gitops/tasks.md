@@ -6,7 +6,7 @@
 - [x] Write the Draft Review K3s migration design and implementation guide
 - [x] Write the migration playbook and initial diary
 - [x] Package the Draft Review source repo for GHCR publishing and CI-created GitOps PRs
-- [ ] Add the Draft Review parallel Keycloak env in the Terraform repo
+- [x] Add the Draft Review parallel Keycloak env in the Terraform repo
 - [ ] Add the Draft Review GitOps package in this repo
 - [ ] Add Vault runtime secret delivery for Draft Review
 - [ ] Add the Vault-backed private GHCR pull-secret path for Draft Review
@@ -27,3 +27,7 @@
   - `docker build -t draft-review:local .`
   - `python3 scripts/open_gitops_pr.py --help`
 - The `gitops-pr` workflow will still skip harmlessly until `GITOPS_PR_TOKEN` is configured in the Draft Review repo.
+- Parallel Keycloak env created at:
+  - `/home/manuel/code/wesen/terraform/keycloak/apps/draft-review/envs/k3s-parallel`
+- Applied callback target:
+  - `https://draft-review.yolo.scapegoat.dev/auth/callback`
