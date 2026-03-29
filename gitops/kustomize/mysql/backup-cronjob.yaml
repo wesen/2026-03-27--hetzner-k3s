@@ -35,7 +35,7 @@ spec:
                   dump_file="/tmp/mysql-${ts}.sql"
                   file="${dump_file}.gz"
                   mariadb-dump \
-                    --ssl-mode=DISABLED \
+                    --skip-ssl \
                     -h "${MYSQL_HOST}" \
                     -P "${MYSQL_PORT}" \
                     -uroot \
