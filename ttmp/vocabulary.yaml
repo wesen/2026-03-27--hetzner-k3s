@@ -47,6 +47,8 @@ topics:
       description: Keycloak identity and OIDC configuration
     - slug: postgres
       description: PostgreSQL runtime, provisioning, and migration work
+    - slug: deployment
+      description: Container and Kubernetes deployment workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
