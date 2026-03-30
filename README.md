@@ -94,9 +94,57 @@ Vault + VSO
 - `scripts/`
   - local operator helpers that are intentionally outside GitOps state
 
+## Deploy a New App to This Cluster
+
+**Read first:** [docs/source-app-deployment-infrastructure-playbook.md](docs/source-app-deployment-infrastructure-playbook.md) — it has a "Quick Checklist" section.
+
+### 1. App repo: Dockerfile + CI
+
+Create a `Dockerfile`. If your app uses CGO, you need `build-base` and `CGO_ENABLED=1` (see sanitize's Dockerfile). If not, copy `app/Dockerfile` from this repo.
+
+Create `.github/workflows/publish-image.yaml` — copy from sanitize or mysql-ide and adjust the image name and test command.
+
+Push to main. Verify the image appears in GHCR with a `sha-XXXXXXX` tag.
+
+### 2. GitOps repo: 6 files
+
+In this repo, create:
+
+- `gitops/kustomize/<app>/` — namespace.yaml, deployment.yaml, service.yaml, ingress.yaml, kustomization.yaml
+- `gitops/applications/<app>.yaml`
+
+Copy from `gitops/kustomize/sanitize/` and find-replace. Pin the exact `sha-` tag from GHCR in the deployment. Push to main.
+
+### 3. Bootstrap (the step you'll forget)
+
+```bash
+# Use Tailscale kubeconfig — public 6443 is blocked
+export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
+# Or just cd into the repo if you have direnv
+
+kubectl apply -f gitops/applications/<app>.yaml
+```
+
+Argo does **not** auto-discover new Application YAMLs from Git. You must apply it once.
+
+### 4. Verify
+
+```bash
+kubectl -n argocd get application <app>   # Synced Healthy
+kubectl -n <app> get pods                  # Running
+curl https://<app>.yolo.scapegoat.dev/     # 200
+```
+
+### Traps
+
+- **Kubeconfig**: Use Tailscale, not the public IP. Run `./scripts/get-kubeconfig-tailscale.sh`.
+- **GHCR visibility**: Public repo ≠ public package. Verify with `docker pull` from a clean machine.
+- **SHA tag mismatch**: The tag GHCR publishes is 7 chars (`sha-cebe68d`), not the full 40-char SHA.
+- **CGO**: If your Go app links C code, `CGO_ENABLED=0` will silently produce a broken binary.
+
 ## Initial Cluster Bring-Up
 
-> If the cluster is already running and you want to deploy a new app, skip this section and go to [docs/source-app-deployment-infrastructure-playbook.md](docs/source-app-deployment-infrastructure-playbook.md).
+> If the cluster is already running and you want to deploy a new app, use the "Deploy a New App" section above.
 
 1. Push this directory to a Git repository.
 2. Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in the values.

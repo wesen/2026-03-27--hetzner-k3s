@@ -172,9 +172,14 @@ This step puts the repo-managed `Application` into the cluster and forces Argo t
 
 Why this matters: Argo CD polls Git, but for migration work you usually want an immediate refresh so you can watch the transition and catch adoption problems quickly.
 
+**Important:** For a brand-new app, this is not optional. Argo CD does not auto-discover new `Application` manifests just because they exist in Git. You must `kubectl apply` the Application once to bootstrap it into the cluster. After that, Argo handles continuous reconciliation.
+
 ```bash
 cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+
+# Use the Tailscale kubeconfig (public K8s API on 6443 is disabled)
+# See operator-quickstart.md or use: ./scripts/get-kubeconfig-tailscale.sh
+export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
 
 kubectl apply -f gitops/applications/argocd-public.yaml
 kubectl -n argocd annotate application argocd-public argocd.argoproj.io/refresh=hard --overwrite
