@@ -67,6 +67,10 @@ topics:
       description: Hetzner cloud infrastructure and provider behavior
     - slug: restore
       description: Restore procedures and validation after backup recovery
+    - slug: operations
+      description: Day-2 operational workflows, release execution, and operator runbooks
+    - slug: cli
+      description: Command-line interfaces and operator tooling
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
