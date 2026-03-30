@@ -33,12 +33,8 @@ That is the canonical “bring your repo to this platform” guide.
 
 Choose the entry point that matches what you are trying to do:
 
-- I need the shortest day-2 operator path for SSH, `kubectl`, Argo, and platform checks:
-  - [docs/operator-quickstart.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-quickstart.md)
 - I hit a cluster or Argo error and want the common fixes first:
   - [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
-- I need to understand what the platform baseline actually is and what is app-specific:
-  - [docs/platform-baseline-overview.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/platform-baseline-overview.md)
 - I want to bring a new source repo onto this platform:
   - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
 - I have a public repo and want the simplest GHCR path:
@@ -98,7 +94,9 @@ Vault + VSO
 - `scripts/`
   - local operator helpers that are intentionally outside GitOps state
 
-## Quick start
+## Initial Cluster Bring-Up
+
+> If the cluster is already running and you want to deploy a new app, skip this section and go to [docs/source-app-deployment-infrastructure-playbook.md](docs/source-app-deployment-infrastructure-playbook.md).
 
 1. Push this directory to a Git repository.
 2. Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in the values.
@@ -125,10 +123,19 @@ Vault + VSO
 6. Fetch a kubeconfig that points at the server:
 
    ```bash
+   # For initial setup (public IP still open on 6443):
    ./scripts/get-kubeconfig.sh <server-ip>
    export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+   # After Tailscale is configured (preferred for day-2 operations):
+   # See docs/tailscale-k3s-admin-access-playbook.md
+   ./scripts/get-kubeconfig-tailscale.sh
+   export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
+
    kubectl get nodes
    ```
+
+   If you use `direnv`, the `.envrc` in this repo sets up the Tailscale environment variables and provides `kcfg-refresh` and `kcfg-use` helper functions.
 
 7. Check Argo CD:
 
@@ -167,7 +174,9 @@ Vault + VSO
 Common checks:
 
 ```bash
-export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+# Preferred: Tailscale kubeconfig
+export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
+# Or if using direnv, just cd into the repo
 
 kubectl get nodes
 kubectl -n argocd get applications
@@ -186,6 +195,7 @@ Public endpoints:
 - `https://coinvault.yolo.scapegoat.dev`
 - `https://coinvault-sql.yolo.scapegoat.dev`
 - `https://pretext.yolo.scapegoat.dev`
+- `https://sanitize.yolo.scapegoat.dev`
 
 ## Important caveats
 
@@ -198,12 +208,8 @@ Public endpoints:
 
 - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
   - canonical source-repo onboarding guide
-- [docs/operator-quickstart.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-quickstart.md)
-  - shortest safe day-2 operator path for the live cluster
 - [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
   - common failures, what they mean, and how to fix them
-- [docs/platform-baseline-overview.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/platform-baseline-overview.md)
-  - explains which services are cluster-first shared infrastructure and why
 - [docs/coinvault-k3s-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md)
   - end-to-end operator guide for CoinVault
 - [docs/argocd-app-setup.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/argocd-app-setup.md)
@@ -237,7 +243,8 @@ That split keeps AWS credentials out of git while still making the actual Vault 
 Example:
 
 ```bash
-export KUBECONFIG=$PWD/kubeconfig-91.98.46.169.yaml
+# Use Tailscale kubeconfig (see docs/tailscale-k3s-admin-access-playbook.md)
+export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
 export AWS_PROFILE=manuel
 ./scripts/bootstrap-vault-aws-kms-secret.sh
 kubectl apply -f gitops/applications/vault.yaml
