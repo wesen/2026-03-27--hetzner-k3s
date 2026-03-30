@@ -26,7 +26,7 @@ spec:
           emptyDir: {}
       containers:
         - name: pretext-trace
-          image: ghcr.io/wesen/2026-03-30--pretext-wasm-trace-server:sha-36515c2
+          image: ghcr.io/wesen/2026-03-30--pretext-wasm-trace-server:sha-8d2c169
           imagePullPolicy: IfNotPresent
           env:
             - name: HOST
