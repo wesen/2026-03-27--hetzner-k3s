@@ -14,4 +14,15 @@ data:
           step_settings_patch:
             ai-chat:
               ai-engine: gpt-4.1-mini
-
+  federation.registry.json: |
+    {
+      "version": 1,
+      "remotes": [
+        {
+          "remoteId": "inventory",
+          "mode": "remote-manifest",
+          "enabled": false,
+          "manifestUrl": "https://assets.example.invalid/remotes/inventory/versions/latest/mf-manifest.json"
+        }
+      ]
+    }

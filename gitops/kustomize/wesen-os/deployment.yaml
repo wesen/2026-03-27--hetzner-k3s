@@ -30,6 +30,7 @@ spec:
             - --arc-enabled=false
             - --profile=default
             - --profile-registries=/config/profiles.runtime.yaml
+            - --federation-registry=/config/federation.registry.json
           ports:
             - containerPort: 8091
               name: http
@@ -62,6 +63,10 @@ spec:
             - name: launcher-config
               mountPath: /config/profiles.runtime.yaml
               subPath: profiles.runtime.yaml
+              readOnly: true
+            - name: launcher-config
+              mountPath: /config/federation.registry.json
+              subPath: federation.registry.json
               readOnly: true
             - name: launcher-data
               mountPath: /app/data
