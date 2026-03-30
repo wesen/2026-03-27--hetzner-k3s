@@ -59,6 +59,15 @@ Use this as the short operator path:
 
 If the repo is private, stop and wire the private-image pull path before you assume the rollout is done. Publishing successfully to GHCR is not enough for the cluster to pull the image.
 
+There is one more operator rule worth stating explicitly: if GitHub CI cannot publish the GHCR image, stop and ask for guidance instead of trying to solve the publish failure yourself with a local workaround. A broken GHCR publish usually means one of the control-plane assumptions is wrong:
+
+- the workflow permissions are wrong
+- the package visibility or package linkage is wrong
+- the credential scopes are wrong
+- the intended image path is wrong
+
+Local pushes, alternate registries, and node-local image imports are all possible emergency bridges, but they change the release contract. Treat them as explicit exceptions, not as the default response to a broken GitHub CI publish.
+
 ## The Most Common Misunderstanding
 
 Publishing an image to GHCR is not deployment by itself.
@@ -819,6 +828,7 @@ If any one of those is missing, the app is not fully integrated yet.
 | Problem | Cause | Solution |
 | --- | --- | --- |
 | Workflow publishes image but opens no PR | `GITOPS_PR_TOKEN` missing or updater step skipped | Add the secret and verify the shell guard behavior |
+| Workflow cannot publish GHCR image from GitHub CI | workflow permissions, package visibility, token scopes, or image path are wrong | Stop and ask for guidance before inventing a local workaround |
 | Workflow fails before starting jobs | GitHub rejects workflow syntax | Avoid `secrets.*` in `if:` expressions |
 | PR changes many lines | updater script is rewriting YAML too broadly | narrow the patch logic to the exact container image field |
 | Cluster does not pick up merged image | GitOps PR merged, but Argo app is not syncing | inspect the Argo `Application` status and refresh if needed |

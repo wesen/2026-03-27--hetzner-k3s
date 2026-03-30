@@ -247,6 +247,15 @@ Important implementation notes:
 - use `packages: write` so `GITHUB_TOKEN` can push to GHCR
 - build `linux/amd64` unless you know you need more architectures
 
+Operator rule: if the GitHub Actions workflow does not successfully publish the GHCR image, stop and ask for guidance instead of trying to solve the publish problem yourself with an alternate local push path. A CI publish failure usually means the intended deployment contract is wrong:
+
+- the workflow permissions are wrong
+- the package visibility is wrong
+- the repository/package link is wrong
+- the image name or tag plan is wrong
+
+You can recover from those mistakes, but the recovery should be deliberate. Do not silently replace the GitHub CI publish step with manual registry pushes unless the owner of the deployment path explicitly asks for that exception.
+
 ## Step 4: Tag Images in a Way Operators Can Use
 
 Use tags that are human-meaningful and rollback-friendly.

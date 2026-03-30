@@ -170,6 +170,15 @@ This defines the build artifact. It should be usable on a clean GitHub runner wi
 
 This builds, tests, and publishes the image.
 
+If GitHub CI cannot publish the GHCR image, stop and ask for guidance instead of improvising a local publishing workaround. That kind of failure usually means the release contract is wrong in one of the expected places:
+
+- workflow permissions
+- package visibility
+- token scopes
+- package naming or repository linkage
+
+Manual registry pushes and node-local image imports are sometimes useful emergency bridges, but they should be explicit exceptions, not the default operator response to a broken CI publish.
+
 It should emit immutable tags such as:
 
 - `sha-<git-sha>`
