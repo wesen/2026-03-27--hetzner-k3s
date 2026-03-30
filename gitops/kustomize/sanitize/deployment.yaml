@@ -22,7 +22,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: sanitize
-          image: ghcr.io/go-go-golems/sanitize:sha-cebe68d
+          image: ghcr.io/go-go-golems/sanitize:sha-6065f60
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
