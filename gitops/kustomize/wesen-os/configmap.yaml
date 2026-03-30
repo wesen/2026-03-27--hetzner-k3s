@@ -21,8 +21,8 @@ data:
         {
           "remoteId": "inventory",
           "mode": "remote-manifest",
-          "enabled": false,
-          "manifestUrl": "https://assets.example.invalid/remotes/inventory/versions/latest/mf-manifest.json"
+          "enabled": true,
+          "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-f69ca10/mf-manifest.json"
         }
       ]
     }
