@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pretext-trace
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: pretext-trace-pretext-trace-basic-auth@kubernetescrd
+  labels:
+    app.kubernetes.io/name: pretext-trace
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - pretext-trace.yolo.scapegoat.dev
+      secretName: pretext-trace-tls
+  rules:
+    - host: pretext-trace.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pretext-trace
+                port:
+                  number: 80

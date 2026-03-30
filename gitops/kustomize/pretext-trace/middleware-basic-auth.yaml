@@ -1,0 +1,12 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: pretext-trace-basic-auth
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: pretext-trace
+    app.kubernetes.io/component: web
+spec:
+  basicAuth:
+    secret: pretext-trace-basic-auth

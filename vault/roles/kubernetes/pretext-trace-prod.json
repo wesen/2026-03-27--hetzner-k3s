@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": ["pretext-trace"],
+  "bound_service_account_namespaces": ["pretext-trace"],
+  "policies": ["pretext-trace-prod"],
+  "token_ttl": "1h"
+}
