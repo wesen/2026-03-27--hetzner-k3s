@@ -9,4 +9,4 @@ metadata:
     app.kubernetes.io/component: web
 spec:
   basicAuth:
-    secret: pretext-trace-basic-auth
+    secret: pretext-trace-basic-auth-inline

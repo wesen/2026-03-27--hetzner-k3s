@@ -8,8 +8,8 @@ resources:
   - serviceaccount.yaml
   - vault-connection.yaml
   - vault-auth.yaml
-  - vault-static-secret-basic-auth.yaml
   - vault-static-secret-image-pull.yaml
+  - secret-basic-auth.yaml
   - middleware-basic-auth.yaml
   - deployment.yaml
   - service.yaml
