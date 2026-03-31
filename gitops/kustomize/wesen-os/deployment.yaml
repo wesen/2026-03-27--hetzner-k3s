@@ -23,7 +23,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: wesen-os
-          image: ghcr.io/wesen/wesen-os:sha-58a11a2
+          image: ghcr.io/wesen/wesen-os:sha-f82bbfe
           imagePullPolicy: IfNotPresent
           args:
             - --addr=:8091
