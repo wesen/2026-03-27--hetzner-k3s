@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "remotes": [
+    {
+      "remoteId": "inventory",
+      "mode": "remote-manifest",
+      "enabled": true,
+      "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-8bee502/mf-manifest.json"
+    }
+  ]
+}

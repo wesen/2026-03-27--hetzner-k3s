@@ -61,12 +61,7 @@ spec:
               memory: 1Gi
           volumeMounts:
             - name: launcher-config
-              mountPath: /config/profiles.runtime.yaml
-              subPath: profiles.runtime.yaml
-              readOnly: true
-            - name: launcher-config
-              mountPath: /config/federation.registry.json
-              subPath: federation.registry.json
+              mountPath: /config
               readOnly: true
             - name: launcher-data
               mountPath: /app/data
