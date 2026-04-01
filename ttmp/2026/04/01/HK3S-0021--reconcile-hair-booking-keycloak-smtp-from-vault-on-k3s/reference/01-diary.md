@@ -60,7 +60,7 @@ Vault Kubernetes auth roles, and the cluster-native reconciliation path.
 
 **Inferred user intent:** Move from one-off operator fixes to a tracked, replayable, cluster-native SMTP reconciliation workflow with the docs and commits kept in sync.
 
-**Commit (code):** Pending
+**Commit (code):** `3092e9a` — `docs: describe keycloak smtp secret reconciliation`
 
 ### What I did
 
@@ -300,7 +300,8 @@ steady-state control loop. That split is now explicit instead of implied.
 - Updated the K3s `README.md` start-here links to point at that new document.
 - Updated the app-side SMTP playbook so it now describes the K3s reconciler as
   the steady-state control loop and demotes the AppRole helper to legacy
-  operator workflow.
+  operator workflow. The app-side doc change was committed in the `hair-booking`
+  repo as `56f9ccb`.
 - Updated this ticket's tasks, changelog, and status sections.
 
 ### Why
