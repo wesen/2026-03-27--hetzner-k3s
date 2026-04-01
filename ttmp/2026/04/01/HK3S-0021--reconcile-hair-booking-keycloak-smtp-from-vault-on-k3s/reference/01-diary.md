@@ -290,7 +290,7 @@ steady-state control loop. That split is now explicit instead of implied.
 
 **Inferred user intent:** Separate rollout control from documentation work while making the new SMTP secret path understandable to the next operator.
 
-**Commit (code):** Pending
+**Commit (code):** `32c904c` — `docs: add argocd verification for smtp reconciler`
 
 ### What I did
 
@@ -395,7 +395,8 @@ resource model that Argo actually owns.
 
 - Added an Argo CD verification section to the K3s SMTP reconciler playbook.
 - Added a short pointer in the app-side SMTP playbook so readers know where the
-  canonical Argo verification steps live.
+  canonical Argo verification steps live. That app-side pointer change was
+  committed in the `hair-booking` repo as `bf55f24`.
 - Updated the ticket changelog to record the final documentation pass.
 
 ### Why
