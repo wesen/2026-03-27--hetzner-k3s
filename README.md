@@ -43,6 +43,8 @@ Choose the entry point that matches what you are trying to do:
   - [docs/app-packaging-and-gitops-pr-standard.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-packaging-and-gitops-pr-standard.md)
 - I need the private GHCR pull-secret pattern:
   - [HK3S-0014 index](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/03/29/HK3S-0014--add-vault-backed-ghcr-image-pull-secret-pattern-for-private-app-images/index.md)
+- I need the realm-side Keycloak SMTP secret reconciliation pattern:
+  - [docs/keycloak-vault-smtp-reconciler-pattern.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/keycloak-vault-smtp-reconciler-pattern.md)
 - I need to operate backups and scratch restores for the shared data services:
   - [docs/cluster-data-services-backup-and-restore-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/cluster-data-services-backup-and-restore-playbook.md)
 - I need stable SSH and `kubectl` access through Tailscale:

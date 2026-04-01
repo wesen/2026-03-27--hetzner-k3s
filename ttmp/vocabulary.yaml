@@ -71,6 +71,8 @@ topics:
       description: Day-2 operational workflows, release execution, and operator runbooks
     - slug: cli
       description: Command-line interfaces and operator tooling
+    - slug: email
+      description: Email delivery, SMTP configuration, and related operator workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

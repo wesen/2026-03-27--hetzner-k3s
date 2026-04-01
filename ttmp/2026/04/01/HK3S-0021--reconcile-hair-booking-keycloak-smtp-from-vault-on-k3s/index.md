@@ -23,7 +23,7 @@ RelatedFiles:
     - Path: /home/manuel/code/wesen/hair-booking/ttmp/2026/03/24/HAIR-010--separate-hair-booking-keycloak-realm-and-add-signup-social-login/scripts/configure_hosted_keycloak_smtp_and_smoke.sh
       Note: Legacy operator helper whose behavior the reconciler will replace
 ExternalSources: []
-Summary: Add a K3s-native job that reconciles the `kv/apps/hair-booking/prod/ses` Vault secret into the Keycloak `hair-booking` realm SMTP configuration using Kubernetes auth instead of the older off-cluster AppRole helper flow.
+Summary: Add a K3s-native job that reconciles the `kv/apps/hair-booking/prod/ses` Vault secret into the Keycloak `hair-booking` realm SMTP configuration using Kubernetes auth instead of the older off-cluster AppRole helper flow, and document the resulting steady-state SMTP secret path.
 LastUpdated: 2026-04-01T09:01:12.975790331-04:00
 WhatFor: Finish the migration from operator-driven SMTP sync to cluster-native reconciliation so the K3s Keycloak realm keeps the hair-booking SES settings aligned with Vault.
 WhenToUse: Use when implementing or reviewing the Keycloak-side SMTP reconciliation path for hair-booking on K3s, or when validating how Vault-backed app email settings should flow into Keycloak without Terraform owning SMTP secrets.
@@ -64,8 +64,9 @@ Current disposition:
 - `hair-booking` K3s deployment: live
 - K3s Keycloak realm `hair-booking`: live
 - SES secret in K3s Vault: present
-- legacy operator sync helper: working, but not cluster-native
-- reconciler job: not implemented yet
+- legacy operator sync helper: retained for rollback and one-off replay
+- reconciler job: implemented in repo and pushed in commit `f1612d2`
+- live cluster validation: completed by manual rollout; Argo adoption depends on the `keycloak` application syncing the pushed revision
 
 ## Topics
 
