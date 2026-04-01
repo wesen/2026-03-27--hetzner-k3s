@@ -126,6 +126,57 @@ If the app needs true hot reload, the better pattern may be:
 
 That is a different runtime contract.
 
+## Choosing Between The Main Config Patterns
+
+Use this quick decision guide when designing or refactoring a Kustomize package.
+
+### Pattern 1: Generated Config With Automatic Rollout
+
+Choose this when:
+
+- the process reads config at startup
+- a restart is operationally acceptable
+- you want config changes in Git to cause a predictable rollout
+- you do not want to implement file watching or reload-safe runtime behavior
+
+This is the default for most services in this repository.
+
+### Pattern 2: True Hot Reload Without `subPath`
+
+Choose this only when the application genuinely needs live config updates without a pod restart.
+
+That usually means all of the following are true:
+
+- the config changes frequently enough that restarting is undesirable
+- the process can reread config per request or watch files safely
+- partial config refresh behavior is understood and tested
+- operators know they are relying on runtime reload semantics, not rollout semantics
+
+If you choose this pattern:
+
+- mount the whole ConfigMap directory
+- do not use `subPath` for the hot-reloaded files
+- make the process reread or watch the files explicitly
+- document the reload contract clearly
+
+### Pattern 3: Manual Restart Or Manual Revision Bump
+
+Choose this only as an intermediate step when:
+
+- the package cannot yet be refactored cleanly
+- the config shape is still unstable
+- you need a short-term operational workaround
+
+This is the least desirable steady-state pattern because it depends on people remembering an extra step after config changes.
+
+## Decision Table
+
+| Need | Best fit |
+| --- | --- |
+| Startup config, restart OK, want clean GitOps rollouts | Generated config with automatic rollout |
+| Live config updates without restart | Hot reload without `subPath` |
+| Temporary workaround while refactoring | Manual restart / manual revision bump |
+
 ## Recommended Mount Shape
 
 If your app already expects files under one directory, mount the whole directory:
@@ -188,6 +239,21 @@ kubectl -n <namespace> rollout status deploy/<app>
 ```
 
 Then make a config-only change and prove the rollout happens without a manual restart.
+
+## Reusable Checklist For Future Packages
+
+When applying this pattern to another package in this repository:
+
+1. Move inline ConfigMap data into real files under the Kustomize package.
+2. Replace the handwritten ConfigMap resource with `configMapGenerator`.
+3. Preserve any annotations the generated object still needs, such as sync-wave ordering.
+4. Keep the logical ConfigMap name stable in the Deployment manifest.
+5. Mount the config as a directory when the process expects multiple files.
+6. Keep the process flags or env vars pointing at stable in-container file paths.
+7. Render the package with `kubectl kustomize` and confirm the generated name has a hash suffix.
+8. Confirm Kustomize rewrites the Deployment volume reference to the generated name.
+9. After merge, make one config-only change and prove that Kubernetes rolls the Deployment automatically.
+10. Add or update operator-facing docs if the package is important enough that people will troubleshoot it directly.
 
 ## `subPath` Is Not Always Wrong
 
