@@ -367,3 +367,83 @@ git -C /home/manuel/code/wesen/2026-03-27--hetzner-k3s push origin main
 sed -n '1,260p' /home/manuel/code/wesen/hair-booking/docs/keycloak-vault-smtp-sync-playbook.md
 rg -n "SMTP|smtp|VaultStaticSecret|hair-booking-smtp|keycloak-hair-booking-smtp-sync|Keycloak" /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs /home/manuel/code/wesen/2026-03-27--hetzner-k3s/README.md -g '*.md'
 ```
+
+## Step 4: Finish the operator verification documentation
+
+After the implementation and the first documentation pass, there was still one
+practical gap: the docs explained the control plane, but they did not yet tell
+an operator exactly what to look for in Argo CD after syncing the `keycloak`
+application. That is the first question a real operator asks once the manifests
+are pushed.
+
+I closed that gap by adding an explicit Argo CD verification section to the K3s
+SMTP reconciler document and a pointer from the app-side playbook back to that
+platform doc. This keeps the “how do I verify adoption?” answer close to the
+resource model that Argo actually owns.
+
+### Prompt Context
+
+**User prompt (verbatim):** "peerfect, finish writing up the documentation"
+
+**Assistant interpretation:** Complete the remaining operator-facing documentation details so the SMTP reconciler rollout and verification path are fully written down.
+
+**Inferred user intent:** Leave the ticket and platform docs in a state where the next person does not need to ask follow-up questions to understand how to verify the rollout.
+
+**Commit (code):** Pending
+
+### What I did
+
+- Added an Argo CD verification section to the K3s SMTP reconciler playbook.
+- Added a short pointer in the app-side SMTP playbook so readers know where the
+  canonical Argo verification steps live.
+- Updated the ticket changelog to record the final documentation pass.
+
+### Why
+
+- The resource ownership model only becomes useful if the operator knows where
+  to inspect it in Argo CD after a sync.
+
+### What worked
+
+- The new section fit naturally into the platform-side validation chapter.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The most useful final docs are usually not more architecture prose. They are
+  the concrete verification steps the operator reaches for immediately.
+
+### What was tricky to build
+
+- The main constraint was avoiding duplicated explanations across repos. The
+  K3s doc now owns Argo verification, while the app-side doc simply points to
+  it.
+
+### What warrants a second pair of eyes
+
+- Whether the Argo verification section should later be lifted into a more
+  general Keycloak operator document if more realm-side reconcilers appear.
+
+### What should be done in the future
+
+- After the user syncs Argo, compare the live `keycloak` application tree
+  against the documented expected resources and note any differences back in
+  this ticket if needed.
+
+### Code review instructions
+
+- Review:
+  - `/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/keycloak-vault-smtp-reconciler-pattern.md`
+  - `/home/manuel/code/wesen/hair-booking/docs/keycloak-vault-smtp-sync-playbook.md`
+
+### Technical details
+
+Key commands run:
+
+```bash
+sed -n '1,320p' /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/keycloak-vault-smtp-reconciler-pattern.md
+sed -n '1,260p' /home/manuel/code/wesen/hair-booking/docs/keycloak-vault-smtp-sync-playbook.md
+```

@@ -179,6 +179,42 @@ The current schedule is every 15 minutes.
 
 ## Validation Commands
 
+### Argo CD verification
+
+After the `keycloak` application syncs the revision that contains the
+reconciler, the first check should be in Argo CD itself.
+
+In the Argo UI, open application `keycloak` and confirm:
+
+- app health is `Healthy`
+- sync status is `Synced`
+- the application revision includes the reconciler commit or a later one
+- the application tree contains:
+  - `ServiceAccount/keycloak-hair-booking-smtp-sync`
+  - `Role/keycloak-hair-booking-smtp-sync`
+  - `RoleBinding/keycloak-hair-booking-smtp-sync`
+  - `VaultAuth/keycloak-hair-booking-smtp-sync`
+  - `VaultStaticSecret/keycloak-hair-booking-smtp`
+  - `ConfigMap/keycloak-hair-booking-smtp-sync`
+  - `ConfigMap/keycloak-hair-booking-smtp-sync-state`
+  - `CronJob/keycloak-hair-booking-smtp-sync`
+
+The most important failure modes to watch for are:
+
+- `Missing`: the manifest exists in Git but Argo did not create the resource
+- `OutOfSync`: Argo sees drift between Git and cluster state
+- unhealthy `VaultAuth` or `VaultStaticSecret`: the secret plumbing is broken
+
+From the CLI, the equivalent top-level check is:
+
+```bash
+export KUBECONFIG=/home/manuel/code/wesen/2026-03-27--hetzner-k3s/.cache/kubeconfig-tailnet.yaml
+kubectl -n argocd get application keycloak
+kubectl -n argocd get application keycloak -o yaml
+```
+
+### Cluster-side verification
+
 Render the package:
 
 ```bash

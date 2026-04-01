@@ -8,3 +8,4 @@
 - Implemented the `hair-booking` SMTP reconciler in the Keycloak Kustomize package and committed it as `f1612d2`
 - Validated the reconciler end-to-end against `auth.yolo.scapegoat.dev`, including an `updated` run and a no-op `in-sync` rerun
 - Added the K3s platform doc for the realm-side SMTP reconciler pattern and updated the app-side playbook to describe the new steady-state split
+- Added explicit Argo CD verification guidance so an operator can confirm the `keycloak` application adopted the reconciler resources after sync
