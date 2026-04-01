@@ -6,6 +6,12 @@
       "mode": "remote-manifest",
       "enabled": true,
       "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-8bee502/mf-manifest.json"
+    },
+    {
+      "remoteId": "sqlite",
+      "mode": "remote-manifest",
+      "enabled": true,
+      "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/sqlite/versions/sha-f3b655d/mf-manifest.json"
     }
   ]
 }
