@@ -1,0 +1,6 @@
+{
+  "bound_service_account_names": ["keycloak-hair-booking-smtp-sync"],
+  "bound_service_account_namespaces": ["keycloak"],
+  "policies": ["keycloak-hair-booking-smtp-sync"],
+  "token_ttl": "1h"
+}

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-hair-booking-smtp-sync-state
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data: {}

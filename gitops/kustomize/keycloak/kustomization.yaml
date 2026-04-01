@@ -7,14 +7,22 @@ resources:
   - namespace.yaml
   - keycloak-serviceaccount.yaml
   - keycloak-db-bootstrap-serviceaccount.yaml
+  - keycloak-hair-booking-smtp-sync-serviceaccount.yaml
+  - keycloak-hair-booking-smtp-sync-role.yaml
+  - keycloak-hair-booking-smtp-sync-rolebinding.yaml
   - vault-connection.yaml
   - keycloak-vault-auth.yaml
   - keycloak-db-bootstrap-vault-auth.yaml
+  - keycloak-hair-booking-smtp-sync-vault-auth.yaml
   - keycloak-runtime-secret.yaml
   - keycloak-bootstrap-admin-secret.yaml
   - keycloak-postgres-admin-secret.yaml
+  - keycloak-hair-booking-smtp-secret.yaml
+  - keycloak-hair-booking-smtp-sync-state-configmap.yaml
   - db-bootstrap-script-configmap.yaml
+  - keycloak-hair-booking-smtp-sync-configmap.yaml
   - db-bootstrap-job.yaml
+  - keycloak-hair-booking-smtp-sync-cronjob.yaml
   - service.yaml
   - deployment.yaml
   - ingress.yaml

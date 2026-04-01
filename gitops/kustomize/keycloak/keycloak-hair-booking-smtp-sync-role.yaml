@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak-hair-booking-smtp-sync
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["keycloak-hair-booking-smtp-sync-state"]
+    verbs: ["get", "update", "patch"]

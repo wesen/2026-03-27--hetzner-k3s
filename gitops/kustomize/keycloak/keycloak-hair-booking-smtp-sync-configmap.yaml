@@ -1,0 +1,260 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-hair-booking-smtp-sync
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  reconcile.py: |
+    #!/usr/bin/env python3
+    import hashlib
+    import json
+    import os
+    import ssl
+    import sys
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+    from datetime import datetime, timezone
+
+    def require_env(name: str) -> str:
+        value = os.environ.get(name, "").strip()
+        if not value:
+            print(f"missing required environment variable: {name}", file=sys.stderr)
+            sys.exit(1)
+        return value
+
+
+    def normalize_bool(value: str) -> str:
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return "true"
+        if lowered in {"0", "false", "no", "off"}:
+            return "false"
+        print(f"invalid boolean value: {value}", file=sys.stderr)
+        sys.exit(1)
+
+
+    def read_file(path: str) -> str:
+        try:
+            return open(path, "r", encoding="utf-8").read().strip()
+        except OSError as exc:
+            print(f"failed to read {path}: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+
+    def http_json(url: str, *, method: str = "GET", headers=None, data=None, expect_json: bool = True):
+        request = urllib.request.Request(url, method=method)
+        for key, value in (headers or {}).items():
+            request.add_header(key, value)
+        if data is not None:
+            payload = json.dumps(data).encode("utf-8")
+            request.add_header("Content-Type", "application/json")
+            request.data = payload
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            print(f"http request failed: {method} {url}: {exc.code} {body}", file=sys.stderr)
+            raise
+
+        if not expect_json:
+            return body
+        if not body:
+            return {}
+        return json.loads(body)
+
+
+    def kube_api_json(path: str, *, method: str = "GET", data=None):
+        token_path = require_env("KUBERNETES_BEARER_TOKEN_FILE")
+        token = read_file(token_path)
+        ca_path = require_env("KUBERNETES_CA_CERT")
+        base_url = require_env("KUBERNETES_API_URL").rstrip("/")
+        request = urllib.request.Request(f"{base_url}{path}", method=method)
+        request.add_header("Authorization", f"Bearer {token}")
+        if data is not None:
+            payload = json.dumps(data).encode("utf-8")
+            request.add_header("Content-Type", "application/merge-patch+json")
+            request.data = payload
+        context = ssl.create_default_context(cafile=ca_path)
+        try:
+            with urllib.request.urlopen(request, timeout=30, context=context) as response:
+                body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return None
+            body = exc.read().decode("utf-8", errors="replace")
+            print(f"kubernetes api request failed: {method} {path}: {exc.code} {body}", file=sys.stderr)
+            raise
+        if not body:
+            return {}
+        return json.loads(body)
+
+
+    def load_state_hash(configmap_name: str, namespace: str) -> str:
+        configmap = kube_api_json(f"/api/v1/namespaces/{namespace}/configmaps/{configmap_name}")
+        if not configmap:
+            return ""
+        return (configmap.get("data") or {}).get("desiredHash", "")
+
+
+    def write_state_hash(configmap_name: str, namespace: str, desired_hash: str, secret_path: str):
+        payload = {
+            "data": {
+                "desiredHash": desired_hash,
+                "secretPath": secret_path,
+                "lastAppliedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        }
+        kube_api_json(
+            f"/api/v1/namespaces/{namespace}/configmaps/{configmap_name}",
+            method="PATCH",
+            data=payload,
+        )
+
+
+    def fetch_token(base_url: str, client_id: str, username: str, password: str) -> str:
+        encoded = urllib.parse.urlencode(
+            {
+                "grant_type": "password",
+                "client_id": client_id,
+                "username": username,
+                "password": password,
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            f"{base_url}/realms/master/protocol/openid-connect/token",
+            data=encoded,
+            method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                token_response = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            print(f"keycloak token request failed: {exc.code} {body}", file=sys.stderr)
+            raise
+        return token_response["access_token"]
+
+
+    keycloak_base_url = require_env("KEYCLOAK_BASE_URL").rstrip("/")
+    keycloak_realm = require_env("KEYCLOAK_REALM")
+    keycloak_admin_client_id = require_env("KEYCLOAK_ADMIN_CLIENT_ID")
+    keycloak_admin_username = require_env("KEYCLOAK_ADMIN_USERNAME")
+    keycloak_admin_password = require_env("KEYCLOAK_ADMIN_PASSWORD")
+    secret_path = require_env("SMTP_SECRET_PATH")
+    state_configmap = require_env("SMTP_STATE_CONFIGMAP")
+    kubernetes_namespace = require_env("KUBERNETES_NAMESPACE")
+
+    desired_smtp = {
+        "host": require_env("KEYCLOAK_SMTP_HOST"),
+        "port": require_env("KEYCLOAK_SMTP_PORT"),
+        "user": require_env("KEYCLOAK_SMTP_USERNAME"),
+        "password": require_env("KEYCLOAK_SMTP_PASSWORD"),
+        "from": require_env("KEYCLOAK_SMTP_FROM"),
+        "fromDisplayName": require_env("KEYCLOAK_SMTP_FROM_DISPLAY_NAME"),
+        "replyTo": require_env("KEYCLOAK_SMTP_REPLY_TO"),
+        "replyToDisplayName": require_env("KEYCLOAK_SMTP_REPLY_TO_DISPLAY_NAME"),
+        "auth": "true",
+        "starttls": normalize_bool(require_env("KEYCLOAK_SMTP_STARTTLS")),
+        "ssl": normalize_bool(require_env("KEYCLOAK_SMTP_SSL")),
+    }
+
+    desired_hash_input = {
+        "smtpServer": desired_smtp,
+        "secretPath": secret_path,
+    }
+    desired_hash = hashlib.sha256(
+        json.dumps(desired_hash_input, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    access_token = fetch_token(
+        keycloak_base_url,
+        keycloak_admin_client_id,
+        keycloak_admin_username,
+        keycloak_admin_password,
+    )
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    realm = http_json(f"{keycloak_base_url}/admin/realms/{keycloak_realm}", headers=headers)
+    current_attrs = dict(realm.get("attributes") or {})
+    legacy_attr_keys = {
+        "hair-booking.smtp.reconcilerHash",
+        "hair-booking.smtp.secretPath",
+    }
+    desired_attrs = {
+        key: value for key, value in current_attrs.items() if key not in legacy_attr_keys
+    }
+    current_smtp = dict(realm.get("smtpServer") or {})
+    current_state_hash = load_state_hash(state_configmap, kubernetes_namespace)
+
+    current_visible = {
+        "host": current_smtp.get("host", ""),
+        "port": current_smtp.get("port", ""),
+        "user": current_smtp.get("user", ""),
+        "from": current_smtp.get("from", ""),
+        "fromDisplayName": current_smtp.get("fromDisplayName", ""),
+        "replyTo": current_smtp.get("replyTo", ""),
+        "replyToDisplayName": current_smtp.get("replyToDisplayName", ""),
+        "auth": current_smtp.get("auth", ""),
+        "starttls": current_smtp.get("starttls", ""),
+        "ssl": current_smtp.get("ssl", ""),
+    }
+
+    desired_visible = {
+        "host": desired_smtp["host"],
+        "port": desired_smtp["port"],
+        "user": desired_smtp["user"],
+        "from": desired_smtp["from"],
+        "fromDisplayName": desired_smtp["fromDisplayName"],
+        "replyTo": desired_smtp["replyTo"],
+        "replyToDisplayName": desired_smtp["replyToDisplayName"],
+        "auth": desired_smtp["auth"],
+        "starttls": desired_smtp["starttls"],
+        "ssl": desired_smtp["ssl"],
+    }
+
+    if (
+        current_state_hash == desired_hash
+        and current_visible == desired_visible
+        and desired_attrs == current_attrs
+    ):
+        print(
+            json.dumps(
+                {
+                    "realm": keycloak_realm,
+                    "status": "in-sync",
+                    "secretPath": secret_path,
+                    "stateHash": desired_hash,
+                    "smtpServer": desired_visible,
+                }
+            )
+        )
+        sys.exit(0)
+
+    realm["smtpServer"] = desired_smtp
+    realm["attributes"] = desired_attrs
+
+    http_json(
+        f"{keycloak_base_url}/admin/realms/{keycloak_realm}",
+        method="PUT",
+        headers=headers,
+        data=realm,
+        expect_json=False,
+    )
+    write_state_hash(state_configmap, kubernetes_namespace, desired_hash, secret_path)
+
+    print(
+        json.dumps(
+            {
+                "realm": keycloak_realm,
+                "status": "updated",
+                "secretPath": secret_path,
+                "stateHash": desired_hash,
+                "smtpServer": desired_visible,
+            }
+        )
+    )
