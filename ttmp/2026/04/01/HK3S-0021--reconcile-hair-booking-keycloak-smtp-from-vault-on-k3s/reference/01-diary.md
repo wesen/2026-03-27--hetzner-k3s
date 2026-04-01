@@ -397,6 +397,9 @@ resource model that Argo actually owns.
 - Added a short pointer in the app-side SMTP playbook so readers know where the
   canonical Argo verification steps live. That app-side pointer change was
   committed in the `hair-booking` repo as `bf55f24`.
+- Tightened the ownership split so the K3s repo is explicitly the canonical
+  home for the reconciler pattern and the `hair-booking` repo remains only the
+  app-specific companion doc.
 - Updated the ticket changelog to record the final documentation pass.
 
 ### Why

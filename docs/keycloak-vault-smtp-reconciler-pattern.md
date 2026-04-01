@@ -39,6 +39,24 @@ point:
 Use this when an app needs Keycloak to send email, but the SMTP secret should
 not live in Git and should not be owned by Terraform state.
 
+## Documentation Ownership
+
+This is the canonical documentation for the realm-side SMTP reconciliation
+pattern because this repository owns:
+
+- the Argo `Application` for Keycloak
+- the Keycloak Kustomize package
+- the `VaultAuth`, `VaultStaticSecret`, `CronJob`, and RBAC resources
+- the operator verification path in Argo CD
+
+Application repositories should keep only a thinner companion document that
+covers:
+
+- the app-specific Vault secret path
+- the expected secret shape for that app
+- any legacy helper scripts or rollback notes
+- app-specific smoke tests
+
 ## The Problem This Solves
 
 Keycloak stores SMTP configuration inside mutable realm state. Kubernetes and

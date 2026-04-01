@@ -9,3 +9,4 @@
 - Validated the reconciler end-to-end against `auth.yolo.scapegoat.dev`, including an `updated` run and a no-op `in-sync` rerun
 - Added the K3s platform doc for the realm-side SMTP reconciler pattern and updated the app-side playbook to describe the new steady-state split
 - Added explicit Argo CD verification guidance so an operator can confirm the `keycloak` application adopted the reconciler resources after sync
+- Made the K3s doc explicitly canonical and reduced the `hair-booking` doc to an app-specific companion playbook
