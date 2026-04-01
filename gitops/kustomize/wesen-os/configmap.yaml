@@ -22,7 +22,7 @@ data:
           "remoteId": "inventory",
           "mode": "remote-manifest",
           "enabled": true,
-          "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-1a32286/mf-manifest.json"
+          "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-fea7b7a/mf-manifest.json"
         }
       ]
     }
