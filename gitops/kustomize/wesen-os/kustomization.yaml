@@ -5,8 +5,16 @@ namespace: wesen-os
 
 resources:
   - namespace.yaml
-  - configmap.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
 
+configMapGenerator:
+  - name: wesen-os-config
+    files:
+      - config/profiles.runtime.yaml
+      - config/federation.registry.json
+
+generatorOptions:
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"

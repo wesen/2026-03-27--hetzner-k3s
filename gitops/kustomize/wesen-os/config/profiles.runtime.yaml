@@ -1,0 +1,8 @@
+slug: cluster-default
+profiles:
+  default:
+    slug: default
+    runtime:
+      step_settings_patch:
+        ai-chat:
+          ai-engine: gpt-4.1-mini

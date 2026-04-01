@@ -118,6 +118,41 @@ What it means:
 Why it happens here:
 
 - if no ingress claims the hostname, Traefik falls back to its default self-signed certificate
+
+### Argo says `Synced`, but the app still serves old config
+
+Typical symptom:
+
+- you merge a GitOps PR that changes a ConfigMap
+- the Argo Application is `Synced`
+- the app endpoint still returns the old configuration value
+
+What it means:
+
+- the desired state changed
+- but the running pod did not actually start with the new config yet
+
+Why it happens here:
+
+- this repo has historically used handwritten ConfigMaps plus `subPath` file mounts
+- a `subPath`-mounted file does not behave like a simple “hot updated” config source in the way many operators expect
+
+Safe fix:
+
+Short term:
+
+```bash
+kubectl -n <namespace> rollout restart deploy/<app>
+kubectl -n <namespace> rollout status deploy/<app>
+```
+
+Longer term:
+
+- refactor the Kustomize package to use generated config and rollout-on-change
+
+See:
+
+- [kustomize-generated-config-rollout-pattern.md](./kustomize-generated-config-rollout-pattern.md)
 - this is usually a routing or resource-ownership problem, not a cert-manager problem
 
 Safe fix:
