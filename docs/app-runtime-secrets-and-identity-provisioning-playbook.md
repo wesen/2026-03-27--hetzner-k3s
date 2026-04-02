@@ -203,6 +203,18 @@ terraform apply
 
 3. Record the client IDs, redirect URIs, and any generated secrets.
 
+Operator notes from the first live `smailnail` rollout:
+
+- if the env uses the remote S3 backend, export `AWS_PROFILE=manuel` in the
+  same shell that runs `terraform init/plan/apply`; otherwise Terraform can
+  fail with a backend `403 Forbidden` even when the AWS CLI works elsewhere
+- when the target Keycloak admin API is the in-cluster host
+  `https://auth.yolo.scapegoat.dev`, a working operator path is to read the
+  bootstrap-admin credentials from:
+  - `kubectl -n keycloak get secret keycloak-bootstrap-admin`
+- if the browser client secret is generated during the apply, seed the Vault
+  runtime secret from that same operator session before starting the rollout
+
 ### Phase 2: Vault values
 
 1. Seed the runtime secret path.
@@ -238,6 +250,15 @@ cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
 ./scripts/validate-vault-kubernetes-auth.sh
 ```
 
+Important:
+
+- check the role names in `origin/main` before renaming a `VaultAuth` role
+  locally; Argo reconciles the merged remote manifest contract, not the local
+  rename you may still be preparing
+- `bootstrap-vault-kubernetes-auth.sh` may print warnings that older roles do
+  not have an audience configured; those warnings are non-blocking for rollout,
+  but they should be treated as a later hardening pass
+
 ### Phase 4: GitOps rollout
 
 1. Merge the image-bump PR in the GitOps repo.
@@ -261,6 +282,17 @@ Validate the real surfaces:
 - logout if the app uses browser logout callbacks
 - MCP auth path if the app exposes MCP
 - successful completion of any DB bootstrap `Job`
+
+For `smailnail`, the first live rollout confirmed this minimum validation set:
+
+- `kubectl -n argocd get application smailnail`
+  -> `Healthy Synced`
+- `kubectl -n smailnail get pods,jobs,ingress,secrets`
+  -> app pod `Ready`, db bootstrap job `Complete`, ingress present
+- `curl -I https://smailnail.yolo.scapegoat.dev/readyz`
+  -> `HTTP/2 200`
+- `curl https://auth.yolo.scapegoat.dev/realms/smailnail/.well-known/openid-configuration`
+  -> issuer and OIDC endpoints resolve on the K3s Keycloak host
 
 ## Minimal File Contract Per Repo
 

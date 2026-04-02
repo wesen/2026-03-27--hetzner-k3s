@@ -22,20 +22,20 @@
 
 ## Phase 3: Keycloak and platform identity
 
-- [ ] Add or update the parallel K3s Keycloak environment for `smailnail` under the central Terraform repo
-- [ ] Set browser-client redirect URIs and origins for the K3s app hostname
-- [ ] Set MCP redirect URIs and audience/scope policy for the K3s app hostname
+- [x] Add or update the parallel K3s Keycloak environment for `smailnail` under the central Terraform repo
+- [x] Set browser-client redirect URIs and origins for the K3s app hostname
+- [x] Set MCP redirect URIs and audience/scope policy for the K3s app hostname
 - [ ] Decide whether the existing hosted Terraform browser client is stale and should be corrected as part of this migration
 - [ ] Keep the external Keycloak control plane as rollback until the K3s path is validated
 
 ## Phase 4: Vault and runtime secret shape
 
-- [ ] Define the Vault path for the `smailnail` runtime secret
-- [ ] Store app DB credentials in Vault
-- [ ] Store the `smailnaild` encryption key in Vault
-- [ ] Store OIDC client secrets in Vault
-- [ ] If needed, store GHCR image-pull credentials in Vault
-- [ ] Add or update Vault policies and Kubernetes auth roles for the `smailnail` service account
+- [x] Define the Vault path for the `smailnail` runtime secret
+- [x] Store app DB credentials in Vault
+- [x] Store the `smailnaild` encryption key in Vault
+- [x] Store OIDC client secrets in Vault
+- [x] If needed, store GHCR image-pull credentials in Vault
+- [x] Add or update Vault policies and Kubernetes auth roles for the `smailnail` service account
 
 ## Phase 5: GitOps package in this repo
 
@@ -59,14 +59,14 @@
 
 ## Phase 7: Validation and cutover
 
-- [ ] Verify the app reaches `Healthy` in Argo CD
-- [ ] Verify `GET /readyz`
+- [x] Verify the app reaches `Healthy` in Argo CD
+- [x] Verify `GET /readyz`
 - [ ] Verify browser OIDC login against the K3s Keycloak hostname
 - [ ] Verify `GET /api/me`
 - [ ] Create an IMAP account through the hosted UI or API
 - [ ] Verify rule creation and rule dry-run
 - [ ] Verify bearer-authenticated MCP access using the stored `accountId` path
-- [ ] Bootstrap the Argo CD `Application` object once with `kubectl apply`
+- [x] Bootstrap the Argo CD `Application` object once with `kubectl apply`
 - [ ] Decide whether and when to cut over from the existing hosted endpoint
 
 ## Phase 8: Optional Dovecot fixture migration

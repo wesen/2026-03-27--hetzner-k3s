@@ -64,6 +64,13 @@ Before the first real rollout, also complete the cluster-side prerequisites in:
 
 - [app-runtime-secrets-and-identity-provisioning-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md)
 
+During the first live `smailnail` rollout, one more operator rule became
+explicit:
+
+- before changing Vault role names in local manifests, check `origin/main`
+  because Argo will reconcile the merged remote contract, not the local rename
+  you may still be staging
+
 If the repo is private, stop and wire the private-image pull path before you assume the rollout is done. Publishing successfully to GHCR is not enough for the cluster to pull the image.
 
 There is one more operator rule worth stating explicitly: if GitHub CI cannot publish the GHCR image, stop and ask for guidance instead of trying to solve the publish failure yourself with a local workaround. A broken GHCR publish usually means one of the control-plane assumptions is wrong:
