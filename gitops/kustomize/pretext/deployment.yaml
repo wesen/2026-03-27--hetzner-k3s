@@ -23,7 +23,7 @@ spec:
       containers:
         - name: pretext-explorer
           image: ghcr.io/wesen/pretext:sha-01be559
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               name: http
