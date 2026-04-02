@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["smailnail"],
+  "bound_service_account_namespaces": ["smailnail"],
+  "policies": ["smailnail"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}
