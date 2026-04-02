@@ -1,0 +1,13 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: smailnail-db-bootstrap
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  vaultConnectionRef: vault
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: smailnail-db-bootstrap
+    serviceAccount: smailnail-db-bootstrap

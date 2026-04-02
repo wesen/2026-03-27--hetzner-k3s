@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smailnail
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: smailnail
+    app.kubernetes.io/component: app
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - smailnail.yolo.scapegoat.dev
+      secretName: smailnail-tls
+  rules:
+    - host: smailnail.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: smailnail
+                port:
+                  number: 80
