@@ -22,8 +22,8 @@ spec:
       enableServiceLinks: false
       containers:
         - name: pretext-explorer
-          image: pretext-explorer:hk3s-0012
-          imagePullPolicy: Never
+          image: ghcr.io/wesen/pretext:sha-01be559
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
               name: http
