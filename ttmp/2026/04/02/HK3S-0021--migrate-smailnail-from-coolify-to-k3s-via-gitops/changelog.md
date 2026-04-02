@@ -11,6 +11,7 @@
 - Added the cross-repo runtime-secrets and identity playbook plus concrete `smailnail` bootstrap assets for Vault runtime secrets, GHCR pull secrets, and Vault Kubernetes auth
 - Applied the `smailnail` `k3s-parallel` Keycloak environment against `auth.yolo.scapegoat.dev`, seeded Vault, bootstrapped Vault Kubernetes auth, applied the Argo `Application`, and brought `smailnail` to `Healthy Synced`
 - Recorded the live rollout lessons in the stable playbooks: export `AWS_PROFILE` explicitly for backend-backed Terraform applies, use the K3s `keycloak-bootstrap-admin` secret for app-realm bootstrap on the in-cluster Keycloak, and treat missing Vault audiences as a follow-up hardening task rather than a rollout blocker
+- Verified the post-deploy anonymous browser/API surface: homepage renders, sign-in redirects to the `smailnail` Keycloak realm, `/api/me` returns the expected anonymous `401`, and the MCP protected-resource metadata advertises the correct issuer and resource URL
 
 ## 2026-04-02
 

@@ -293,6 +293,14 @@ For `smailnail`, the first live rollout confirmed this minimum validation set:
   -> `HTTP/2 200`
 - `curl https://auth.yolo.scapegoat.dev/realms/smailnail/.well-known/openid-configuration`
   -> issuer and OIDC endpoints resolve on the K3s Keycloak host
+- open `https://smailnail.yolo.scapegoat.dev/`
+  -> signed-out page renders and the login link redirects to
+  `https://auth.yolo.scapegoat.dev/realms/smailnail/...`
+- `curl https://smailnail.yolo.scapegoat.dev/api/me`
+  -> `401` when anonymous is expected before login
+- `curl https://smailnail.yolo.scapegoat.dev/.well-known/oauth-protected-resource`
+  -> protected-resource metadata advertises the `smailnail` Keycloak issuer and
+  the `/mcp` resource URL
 
 ## Minimal File Contract Per Repo
 

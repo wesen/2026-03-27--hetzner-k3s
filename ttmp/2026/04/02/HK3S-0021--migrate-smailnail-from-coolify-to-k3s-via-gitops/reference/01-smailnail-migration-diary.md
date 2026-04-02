@@ -273,3 +273,42 @@ The key result from this step was that `smailnail` is now actually running on K3
   - `HTTP/2 200`
 - Live OIDC issuer result:
   - `https://auth.yolo.scapegoat.dev/realms/smailnail`
+
+## Step 4: Run the post-deploy anonymous validation pass
+
+After the rollout was healthy at the infrastructure level, I still wanted one more layer of proof from the public surface before declaring the deployment usable. I did not have a real end-user login session to exercise browser-authenticated flows, so the right next step was to validate the anonymous edges that should already behave deterministically:
+
+- homepage renders
+- login link redirects to the correct Keycloak realm
+- `/api/me` returns an unauthenticated result rather than a crash or routing error
+- `/mcp` advertises the correct protected-resource metadata
+
+The key result from this step was that all of those pre-login surfaces behave consistently with the intended design. That means the remaining unproven slice is actual authenticated application behavior, not ingress, Keycloak wiring, or MCP metadata.
+
+### What I did
+
+- Fetched the homepage:
+  - `curl -D - https://smailnail.yolo.scapegoat.dev/`
+- Fetched the anonymous API edge:
+  - `curl -D - https://smailnail.yolo.scapegoat.dev/api/me`
+- Fetched the MCP endpoint and protected-resource metadata:
+  - `curl -D - https://smailnail.yolo.scapegoat.dev/mcp`
+  - `curl https://smailnail.yolo.scapegoat.dev/.well-known/oauth-protected-resource`
+- Used Playwright to load the homepage and click the login link once.
+
+### What worked
+
+- Homepage returned `200` and rendered the signed-out UI.
+- The sign-in link redirected to:
+  - `https://auth.yolo.scapegoat.dev/realms/smailnail/protocol/openid-connect/auth?...`
+- `/api/me` returned `401`, which is the correct anonymous response.
+- `/mcp` returned a Bearer challenge with:
+  - `resource_metadata="https://smailnail.yolo.scapegoat.dev/.well-known/oauth-protected-resource"`
+- The protected-resource document advertised:
+  - authorization server `https://auth.yolo.scapegoat.dev/realms/smailnail`
+  - resource `https://smailnail.yolo.scapegoat.dev/mcp`
+
+### What didn't work
+
+- The signed-out homepage logs a browser-console `401` for `/api/me`, but that is just the anonymous session probe and not a deployment error.
+- I did not complete a real user login, so `GET /api/me` after auth, UI account creation, and authenticated MCP calls remain unverified.
