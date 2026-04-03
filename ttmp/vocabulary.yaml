@@ -73,6 +73,12 @@ topics:
       description: Command-line interfaces and operator tooling
     - slug: email
       description: Email delivery, SMTP configuration, and related operator workflows
+    - slug: github-actions
+      description: GitHub Actions workflows, reusable workflows, and action automation
+    - slug: platform
+      description: Shared platform architecture and tooling
+    - slug: release-engineering
+      description: Build, packaging, release, and delivery automation workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

@@ -31,6 +31,8 @@ This page is the full operator playbook for building deployment infrastructure a
 This should now be the canonical document to hand to someone who owns an application repository and wants to get it onto this K3s platform. The other deployment docs are now supporting references:
 
 - use this page first for the full system model
+- use the runtime-secrets and identity playbook when the app needs Keycloak,
+  Vault, VSO, or private-image pull prerequisites
 - use the public-repo GHCR page when the repository and image are intentionally public
 - use the HK3S-0014 ticket bundle when the source repository is private and needs a Vault-backed GHCR pull secret
 
@@ -52,10 +54,22 @@ Use this as the short operator path:
 1. Make the source repo buildable on a clean GitHub runner.
 2. Add a production `Dockerfile`.
 3. Add a GitHub Actions workflow that tests and publishes immutable GHCR tags.
-4. Add `deploy/gitops-targets.json` plus a PR updater script.
+4. Add `deploy/gitops-targets.json` plus a caller workflow that uses the shared
+   `infra-tooling` release automation.
 5. Decide whether the image will be public or private.
 6. Add or update the matching GitOps package in this repo.
-7. Let CI open GitOps PRs and let Argo CD deploy from this repo, not from the source repo directly.
+7. Let CI open GitOps PRs through the shared `infra-tooling` workflow and let Argo CD deploy from this repo, not from the source repo directly.
+
+Before the first real rollout, also complete the cluster-side prerequisites in:
+
+- [app-runtime-secrets-and-identity-provisioning-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md)
+
+During the first live `smailnail` rollout, one more operator rule became
+explicit:
+
+- before changing Vault role names in local manifests, check `origin/main`
+  because Argo will reconcile the merged remote contract, not the local rename
+  you may still be staging
 
 If the repo is private, stop and wire the private-image pull path before you assume the rollout is done. Publishing successfully to GHCR is not enough for the cluster to pull the image.
 
@@ -165,7 +179,7 @@ This repo owns:
 - Docker build inputs
 - image publishing workflow
 - deployment target metadata
-- the helper that opens GitOps pull requests
+- the reusable workflow caller configuration that opens GitOps pull requests
 
 For `mysql-ide`, this is:
 
@@ -173,13 +187,17 @@ For `mysql-ide`, this is:
 - [Dockerfile](/home/manuel/code/wesen/2026-03-27--mysql-ide/Dockerfile)
 - [publish-image.yaml](/home/manuel/code/wesen/2026-03-27--mysql-ide/.github/workflows/publish-image.yaml)
 - [gitops-targets.json](/home/manuel/code/wesen/2026-03-27--mysql-ide/deploy/gitops-targets.json)
-- [open_gitops_pr.py](/home/manuel/code/wesen/2026-03-27--mysql-ide/scripts/open_gitops_pr.py)
 
 For `coinvault`, the same pattern now exists in a private-source repo:
 
 - [publish-image.yaml](/home/manuel/code/gec/2026-03-16--gec-rag/.github/workflows/publish-image.yaml)
 - [gitops-targets.json](/home/manuel/code/gec/2026-03-16--gec-rag/deploy/gitops-targets.json)
-- [open_gitops_pr.py](/home/manuel/code/gec/2026-03-16--gec-rag/scripts/open_gitops_pr.py)
+- the reusable workflow in `infra-tooling` is now the preferred shared path for
+  new repos, so future app repos should usually keep:
+  - `Dockerfile`
+  - `.github/workflows/publish-image.yaml`
+  - `deploy/gitops-targets.json`
+  and call the shared workflow instead of copying a local PR helper script
 
 ### 2. GitOps repository
 

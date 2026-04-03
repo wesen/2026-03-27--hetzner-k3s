@@ -9,6 +9,7 @@ The cluster currently runs:
 
 If you are here because you want to deploy a new app, start with:
 - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
+- [docs/app-runtime-secrets-and-identity-provisioning-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md)
 
 That is the canonical “bring your repo to this platform” guide.
 
@@ -37,6 +38,8 @@ Choose the entry point that matches what you are trying to do:
   - [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
 - I want to bring a new source repo onto this platform:
   - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
+- I need the cross-repo identity, Vault, VSO, and bootstrap prerequisites before a new app can start:
+  - [docs/app-runtime-secrets-and-identity-provisioning-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md)
 - I have a public repo and want the simplest GHCR path:
   - [docs/public-repo-ghcr-argocd-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/public-repo-ghcr-argocd-deployment-playbook.md)
 - I need the standardized repo and GitOps layout rules:
@@ -258,6 +261,8 @@ Public endpoints:
 
 - [docs/source-app-deployment-infrastructure-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/source-app-deployment-infrastructure-playbook.md)
   - canonical source-repo onboarding guide
+- [docs/app-runtime-secrets-and-identity-provisioning-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md)
+  - canonical cross-repo prerequisite guide for Keycloak, Vault, VSO, and DB bootstrap
 - [docs/operator-troubleshooting-faq.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/operator-troubleshooting-faq.md)
   - common failures, what they mean, and how to fix them
 - [docs/coinvault-k3s-deployment-playbook.md](/home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/coinvault-k3s-deployment-playbook.md)
