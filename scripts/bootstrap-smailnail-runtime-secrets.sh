@@ -45,11 +45,21 @@ random_key_base64() {
 }
 
 load_existing() {
-  if vault kv get -format=json "${kv_mount_path}/${secret_path}" >/tmp/smailnail-runtime-secret.json 2>/dev/null; then
-    jq -c '.data.data' /tmp/smailnail-runtime-secret.json
-  else
+  local tmp_json tmp_err
+  tmp_json="$(mktemp)"
+  tmp_err="$(mktemp)"
+
+  if vault kv get -format=json "${kv_mount_path}/${secret_path}" >"${tmp_json}" 2>"${tmp_err}"; then
+    jq -c '.data.data' "${tmp_json}"
+  elif grep -q "No value found at" "${tmp_err}"; then
     echo '{}'
+  else
+    cat "${tmp_err}" >&2
+    rm -f "${tmp_json}" "${tmp_err}"
+    return 1
   fi
+
+  rm -f "${tmp_json}" "${tmp_err}"
 }
 
 read_value() {
