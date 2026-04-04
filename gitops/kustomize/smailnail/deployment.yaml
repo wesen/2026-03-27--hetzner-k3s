@@ -23,7 +23,7 @@ spec:
       serviceAccountName: smailnail
       containers:
         - name: smailnail
-          image: ghcr.io/go-go-golems/smailnail:sha-f52bf01
+          image: ghcr.io/go-go-golems/smailnail:sha-151bc29
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
