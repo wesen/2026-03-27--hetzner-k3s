@@ -5,7 +5,7 @@
       "remoteId": "inventory",
       "mode": "remote-manifest",
       "enabled": true,
-      "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-8bee502/mf-manifest.json"
+      "manifestUrl": "https://scapegoat-federation-assets.fsn1.your-objectstorage.com/remotes/inventory/versions/sha-048aabe/mf-manifest.json"
     },
     {
       "remoteId": "sqlite",
