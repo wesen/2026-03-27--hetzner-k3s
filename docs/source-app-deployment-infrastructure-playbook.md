@@ -681,7 +681,7 @@ run: |
 
 That is now the pattern to use when the GitOps PR handoff is required.
 
-Initial secret bootstrap for a repo looks like:
+Initial secret bootstrap for a repo looks like this. If you keep the token in your local `.envrc`, load that file into your shell first, then run:
 
 ```bash
 gh secret set GITOPS_PR_TOKEN --repo <source-repo>

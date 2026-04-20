@@ -193,7 +193,7 @@ Do not gate the job or step with `if: secrets.MY_SECRET != ''`. The safer patter
 
 This matters because GitHub Actions workflow parsing for pushes and manual dispatch can reject `secrets.*` in `if` expressions even though the intent seems straightforward.
 
-Initial repo bootstrap should also include setting the secret explicitly:
+Initial repo bootstrap should also include setting the secret explicitly. If the token lives in your local `.envrc`, load it into the shell first, then run:
 
 ```bash
 gh secret set GITOPS_PR_TOKEN --repo <source-repo>
