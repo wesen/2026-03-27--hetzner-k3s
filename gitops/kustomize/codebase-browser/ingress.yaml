@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: codebase-browser
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: codebase-browser
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - codebase-browser.yolo.scapegoat.dev
+      secretName: codebase-browser-tls
+  rules:
+    - host: codebase-browser.yolo.scapegoat.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: codebase-browser
+                port:
+                  number: 80
