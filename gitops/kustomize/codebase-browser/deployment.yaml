@@ -22,7 +22,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: codebase-browser
-          image: ghcr.io/wesen/codebase-browser:sha-fbde508
+          image: ghcr.io/wesen/codebase-browser:sha-03b1367
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
