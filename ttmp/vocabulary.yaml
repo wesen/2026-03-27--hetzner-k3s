@@ -79,6 +79,12 @@ topics:
       description: Shared platform architecture and tooling
     - slug: release-engineering
       description: Build, packaging, release, and delivery automation workflows
+    - slug: goja
+      description: Goja JavaScript runtime and Go-native module integration
+    - slug: essay
+      description: Interactive REPL essay web application
+    - slug: goja-repl
+      description: goja-repl CLI, TUI, JSON server, and interactive essay
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
