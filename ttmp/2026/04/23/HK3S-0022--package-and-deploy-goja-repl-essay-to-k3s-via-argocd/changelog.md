@@ -38,3 +38,13 @@ Added GitOps Kustomize package for goja-essay (namespace, PVC, deployment, servi
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/ingress.yaml — Ingress binding goja.yolo.scapegoat.dev
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/pvc.yaml — PersistentVolumeClaim for SQLite session storage
 
+
+## 2026-04-23
+
+Recovered stuck Argo CD sync by removing the deleting Application finalizer, clearing the stale namespace/PVC, recreating the Application, and syncing current Git. Verified goja.yolo.scapegoat.dev over HTTP and HTTPS, confirmed cert-manager issued goja-essay-tls, created a REPL essay session, deleted the pod, and confirmed the session survived restart via the SQLite PVC.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/deployment.yaml — Running deployment for goja essay image ghcr.io/go-go-golems/go-go-goja:sha-4398f5a
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/pvc.yaml — PVC sync-wave moved to 1 so local-path binding and Deployment creation happen in the same wave
+

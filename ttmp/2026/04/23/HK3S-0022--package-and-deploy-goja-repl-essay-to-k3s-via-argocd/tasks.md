@@ -8,9 +8,9 @@
 - [x] Add GitOps PR helper script or reusable workflow wiring
 - [x] Add GitOps kustomize package (namespace, pvc, deployment, service, ingress) in hetzner-k3s repo
 - [x] Add Argo CD Application manifest for goja-essay in hetzner-k3s repo
-- [ ] Bootstrap GITOPS_PR_TOKEN secret in go-go-goja repo
-- [ ] Apply the Argo Application manually to the cluster
-- [ ] Validate public rollout: essay page, session creation, SQLite persistence across pod restart
+- [x] Bootstrap GITOPS_PR_TOKEN secret in go-go-goja repo
+- [x] Apply the Argo Application manually to the cluster (no app-of-apps pattern; Argo CD does not auto-scan directories)
+- [x] Validate public rollout: essay page, session creation, SQLite persistence across pod restart
 
 ## Completed
 

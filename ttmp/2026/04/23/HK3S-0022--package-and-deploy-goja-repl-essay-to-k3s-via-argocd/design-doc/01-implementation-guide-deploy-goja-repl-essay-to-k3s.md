@@ -443,7 +443,18 @@ Implementation notes:
 
 ### Phase 3: one-time cluster bootstrap
 
-Apply the Argo `Application` and force a hard refresh as shown above.
+The Hetzner K3s repo does **not** use an app-of-apps or ApplicationSet pattern. Argo CD does not auto-scan the `gitops/applications/` directory for new `Application` manifests. You must apply the `Application` CRD manually once:
+
+```bash
+cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
+export KUBECONFIG=$PWD/kubeconfig-<server-ip>.yaml
+
+kubectl apply -f gitops/applications/goja-essay.yaml
+kubectl -n argocd annotate application goja-essay \
+  argocd.argoproj.io/refresh=hard --overwrite
+```
+
+After this one-time bootstrap, Argo CD owns the Application and will auto-sync subsequent changes from Git.
 
 ### Phase 4: public validation
 
