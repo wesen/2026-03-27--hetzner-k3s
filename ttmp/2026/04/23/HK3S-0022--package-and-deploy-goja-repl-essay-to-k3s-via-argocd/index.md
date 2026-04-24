@@ -1,7 +1,7 @@
 ---
 Title: Package and deploy goja-repl essay to K3s via ArgoCD
 Ticket: HK3S-0022
-Status: active
+Status: complete
 Topics:
     - goja
     - goja-repl
@@ -54,10 +54,11 @@ RelatedFiles:
       Note: PersistentVolumeClaim for SQLite session storage
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-23T16:23:03.035715182-04:00
+LastUpdated: 2026-04-23T20:45:31.765659168-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 

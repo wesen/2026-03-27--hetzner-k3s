@@ -48,3 +48,8 @@ Recovered stuck Argo CD sync by removing the deleting Application finalizer, cle
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/deployment.yaml — Running deployment for goja essay image ghcr.io/go-go-golems/go-go-goja:sha-4398f5a
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/goja-essay/pvc.yaml — PVC sync-wave moved to 1 so local-path binding and Deployment creation happen in the same wave
 
+
+## 2026-04-23
+
+Ticket closed
+
