@@ -583,3 +583,24 @@ spec:
   address: http://vault.vault.svc.cluster.local:8200
   skipTLSVerify: true
 ```
+
+### Step 5 apply result
+
+The follow-up commit was pushed as `cd81ccd60406b91e851598268779b703ed2e2254` (`fix(vault): use internal service for vso connections`). I refreshed the four affected Argo CD Applications:
+
+```bash
+for app in draft-review hair-booking keycloak smailnail; do
+  kubectl -n argocd annotate application "$app" argocd.argoproj.io/refresh=hard --overwrite
+done
+```
+
+All four remained `Synced Healthy`, and the live `VaultConnection` resources now point at the internal service and report Ready:
+
+```text
+draft-review  vault             http://vault.vault.svc.cluster.local:8200  True
+hair-booking  vault             http://vault.vault.svc.cluster.local:8200  True
+keycloak      vault-connection  http://vault.vault.svc.cluster.local:8200  True
+smailnail     vault             http://vault.vault.svc.cluster.local:8200  True
+```
+
+The related `VaultStaticSecret` resources for those namespaces also remained `SYNCED=True`, `HEALTHY=True`, and `READY=True` after the connection update.

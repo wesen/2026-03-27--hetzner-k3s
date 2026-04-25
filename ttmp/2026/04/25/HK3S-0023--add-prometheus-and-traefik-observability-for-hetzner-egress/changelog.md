@@ -63,3 +63,12 @@ Follow-up: moved VSO VaultConnections for draft-review, hair-booking, keycloak, 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/keycloak/vault-connection.yaml — Moved VSO connection to internal Vault service
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/smailnail/vault-connection.yaml — Moved VSO connection to internal Vault service
 
+
+## 2026-04-25
+
+Applied internal VaultConnection follow-up; draft-review, hair-booking, keycloak, and smailnail remained Synced/Healthy and their VaultConnections now report Ready on the internal Vault service.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/04/25/HK3S-0023--add-prometheus-and-traefik-observability-for-hetzner-egress/reference/01-diary.md — Recorded live apply validation for internal VaultConnection follow-up
+
