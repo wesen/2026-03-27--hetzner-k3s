@@ -45,3 +45,8 @@ Validated Loki ingestion and Grafana dashboards; repaired Grafana admin password
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/04/25/HK3S-0024--add-grafana-dashboards-and-loki-ingress-log-attribution/reference/01-diary.md — Recorded live validation and Grafana provisioning repair
 
+
+## 2026-04-25
+
+Ticket closed
+

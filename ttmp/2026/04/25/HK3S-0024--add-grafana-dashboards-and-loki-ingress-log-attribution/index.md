@@ -1,7 +1,7 @@
 ---
 Title: Add Grafana dashboards and Loki ingress log attribution
 Ticket: HK3S-0024
-Status: active
+Status: complete
 Topics:
     - observability
     - monitoring
@@ -16,10 +16,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-25T10:30:24.18548917-04:00
+LastUpdated: 2026-04-25T10:44:29.864362419-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Add Grafana dashboards and Loki ingress log attribution
 
