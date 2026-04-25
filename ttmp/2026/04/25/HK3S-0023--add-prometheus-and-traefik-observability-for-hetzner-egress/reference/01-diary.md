@@ -251,3 +251,91 @@ The fix keeps Grafana persistence enabled and broadens the init container's Linu
 ### Technical details
 
 The failing pod was `monitoring-grafana-7d8f8999c6-xg2nf` in namespace `monitoring`. The stuck status was `Init:CrashLoopBackOff`, and the failed init container was `init-chown-data`.
+
+## Step 3: Tighten Traefik access-log header policy after seeing Vault tokens
+
+After enabling JSON access logs, validation immediately showed that `headers.defaultmode=keep` was too permissive for this cluster. Vault requests from in-cluster controllers include `X-Vault-Token`, and Traefik logged that header because only `Authorization`, `Cookie`, and `Set-Cookie` were explicitly dropped.
+
+I changed the policy to `headers.defaultmode=drop` and then allowed only the attribution headers we actually need. This preserves user-agent and forwarded-client context without making arbitrary application or secret-bearing headers durable in ingress logs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Continue applying and validating the observability stack, and fix any operational or security issues found during validation.
+
+**Inferred user intent:** Get useful ingress attribution without introducing avoidable secret leakage.
+
+**Commit (code):** pending — header redaction hardening is staged for a focused follow-up commit.
+
+### What I did
+
+- Generated traffic with:
+
+  ```bash
+  curl -k -s -o /dev/null -w '%{http_code}\n' https://pretext.yolo.scapegoat.dev/
+  ```
+
+- Inspected Traefik logs with:
+
+  ```bash
+  kubectl -n kube-system logs deploy/traefik --since=2m | tail -20
+  ```
+
+- Observed JSON access logs were working, but also observed `request_X-Vault-Token` in logs for Vault traffic.
+- Updated `gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml` from `headers.defaultmode=keep` to `headers.defaultmode=drop`.
+- Explicitly kept only:
+  - `User-Agent`
+  - `X-Forwarded-For`
+  - `X-Real-Ip`
+  - `X-Forwarded-Host`
+  - `X-Forwarded-Proto`
+- Validated the Kustomize render and client-side apply dry-run.
+
+### Why
+
+- Ingress access logs should support attribution, but they must not become a secret sink.
+- Default-keep headers are risky in a platform cluster because any workload/controller can use custom headers for credentials.
+- The core attribution fields needed for this ticket are already present in Traefik's structured log fields (`ClientHost`, `RequestHost`, `RequestPath`, `ServiceName`, byte counts, status, durations), so only a small header allowlist is needed.
+
+### What worked
+
+- Traefik JSON logs were confirmed live after the HelmChartConfig rollout.
+- A request to `pretext.yolo.scapegoat.dev` produced a structured access log with host, path, service, byte counts, status, and user-agent.
+
+### What didn't work
+
+- The initial header policy was unsafe. It logged `request_X-Vault-Token` values for Vault requests. This was corrected in Git before closing the ticket.
+
+### What I learned
+
+- Traefik's default structured fields are enough for most ingress attribution; keeping all headers is unnecessary and dangerous.
+- Vault Secrets Operator traffic crosses the public Traefik ingress for `vault.yolo.scapegoat.dev`, so ingress logs can see Vault request headers unless explicitly configured not to.
+
+### What was tricky to build
+
+- The original user requirement asked to include `user_agent` and forwarded address information. The safe interpretation is not “keep all headers,” but “allowlist the specific non-secret headers required for attribution.”
+
+### What warrants a second pair of eyes
+
+- Operators should consider rotating Vault tokens or waiting for short-lived token expiry because some token values were emitted in Traefik logs during the brief validation window before this fix.
+- Review whether `X-Forwarded-Host` and `X-Forwarded-Proto` need to be kept as headers, since Traefik also emits `RequestHost` and `RequestScheme` as structured fields.
+
+### What should be done in the future
+
+- When Loki/Promtail is added, include a log-scrubbing stage that drops any remaining `request_*Token*`, `request_*Authorization*`, and cookie-like fields defensively.
+
+### Code review instructions
+
+- Review only the header policy in `gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml`.
+- After apply, generate one request and verify logs include `request_User-Agent` but do not include `request_X-Vault-Token`.
+
+### Technical details
+
+The key invariant is:
+
+```text
+--accesslog.fields.headers.defaultmode=drop
+```
+
+and only a small attribution allowlist is added back with `headers.names.*=keep`.

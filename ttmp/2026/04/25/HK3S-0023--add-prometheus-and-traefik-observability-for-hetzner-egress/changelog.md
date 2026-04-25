@@ -25,3 +25,12 @@ Fixed Grafana local-path PVC init ownership repair by adding DAC_OVERRIDE and FO
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/monitoring.yaml — Grafana initChownData security context fix
 
+
+## 2026-04-25
+
+Hardened Traefik access logs by switching request-header logging from default keep to default drop with a small attribution allowlist after validation showed Vault token headers were being logged.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml — Traefik access-log header allowlist
+
