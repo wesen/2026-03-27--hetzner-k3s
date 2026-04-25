@@ -45,3 +45,8 @@ Applied monitoring, monitoring-extras, and traefik-observability to the live clu
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/monitoring-extras/podmonitor-traefik.yaml — Validated Traefik scrape target
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml — Validated redacted access log output
 
+
+## 2026-04-25
+
+Ticket closed
+

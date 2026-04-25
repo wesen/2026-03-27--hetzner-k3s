@@ -1,7 +1,7 @@
 ---
 Title: Add Prometheus and Traefik observability for Hetzner egress
 Ticket: HK3S-0023
-Status: active
+Status: complete
 Topics:
     - observability
     - monitoring
@@ -16,10 +16,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-04-25T08:59:32.504906668-04:00
+LastUpdated: 2026-04-25T09:22:25.0364443-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Add Prometheus and Traefik observability for Hetzner egress
 
