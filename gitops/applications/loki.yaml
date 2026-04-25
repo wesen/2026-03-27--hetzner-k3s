@@ -38,7 +38,7 @@ spec:
               pipelineStages:
                 - cri: {}
                 - match:
-                    selector: '{namespace="kube-system", app_kubernetes_io_name="traefik"}'
+                    selector: '{namespace="kube-system", app="traefik"}'
                     stages:
                       - replace:
                           expression: '(request_[^"]*(?:Token|Authorization|Cookie|Secret)[^"]*":"?)[^",}]+'

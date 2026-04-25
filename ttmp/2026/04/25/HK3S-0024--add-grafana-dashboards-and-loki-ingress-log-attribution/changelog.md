@@ -26,3 +26,13 @@ Confirmed Grafana was healthy and added a Loki StatefulSet ignoreDifferences rul
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/loki.yaml — Loki StatefulSet ignoreDifferences configuration
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/ttmp/2026/04/25/HK3S-0024--add-grafana-dashboards-and-loki-ingress-log-attribution/reference/01-diary.md — Recorded Grafana/Loki rollout debugging
 
+
+## 2026-04-25
+
+Aligned Traefik Loki selectors with live Promtail labels by switching LogQL and redaction matchers from app_kubernetes_io_name to app=traefik.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/loki.yaml — Promtail redaction selector
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/monitoring-extras/grafana-dashboard-traefik-attribution.yaml — Traefik LogQL selectors
+

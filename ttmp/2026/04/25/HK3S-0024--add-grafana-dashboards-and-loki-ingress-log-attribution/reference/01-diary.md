@@ -226,3 +226,75 @@ The remaining unhealthy-looking item was not Grafana; it was the Loki Argo CD Ap
   kubectl -n argocd get applications loki monitoring monitoring-extras
   kubectl -n logging get pods
   ```
+
+## Step 3: Align Loki queries and redaction selector with Promtail labels
+
+After Loki became healthy, I validated ingestion directly through the Loki API. Logs were being ingested, but the initial dashboard and Promtail redaction selectors used `app_kubernetes_io_name="traefik"`, while Promtail's actual stream labels for Traefik used `app="traefik"`.
+
+I updated the dashboard LogQL queries and the Promtail match selector to use the actual live label shape. This makes the Traefik attribution panels and the defensive redaction stage target the streams that Promtail is really sending.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue validating the rollout after confirming Grafana is healthy, and fix any logging/dashboard mismatch discovered.
+
+**Inferred user intent:** Ensure the new dashboards and Loki backend work, not just that pods are running.
+
+**Commit (code):** pending — label selector fix is staged for the next commit.
+
+### What I did
+
+- Port-forwarded Loki and queried labels/series:
+
+  ```bash
+  kubectl -n logging port-forward svc/loki 13100:3100
+  curl http://127.0.0.1:13100/loki/api/v1/labels
+  curl -G http://127.0.0.1:13100/loki/api/v1/series --data-urlencode 'match[]={namespace="kube-system"}'
+  ```
+
+- Found Traefik streams labeled like:
+
+  ```text
+  namespace="kube-system"
+  app="traefik"
+  job="kube-system/traefik"
+  ```
+
+- Updated `gitops/applications/loki.yaml` Promtail match selector from `app_kubernetes_io_name="traefik"` to `app="traefik"`.
+- Updated the Traefik dashboard LogQL queries to use `{namespace="kube-system", app="traefik"}`.
+- Re-ran Kustomize render and client-side dry-run.
+
+### Why
+
+- Loki/Promtail label names are determined by the chart's relabeling configuration, not necessarily by Kubernetes label key names.
+- Queries and redaction stages must match the actual Loki stream labels to be effective.
+
+### What worked
+
+- Loki was ingesting kube-system logs.
+- Traefik streams were present and easy to identify through the `/series` endpoint.
+
+### What didn't work
+
+- The first query `{namespace="kube-system", app_kubernetes_io_name="traefik"}` returned zero streams because that label is not present in Loki.
+
+### What I learned
+
+- For this chart, the useful Traefik selector is `{namespace="kube-system", app="traefik"}`.
+
+### What was tricky to build
+
+- Prometheus uses Kubernetes labels such as `app.kubernetes.io/name`, while Loki uses Promtail-generated labels such as `app`. The dashboards need to use the correct label system for each datasource.
+
+### What warrants a second pair of eyes
+
+- Once reapplied, confirm the Promtail redaction stage is active by checking that any token-like header fields are redacted or absent in Loki logs.
+
+### What should be done in the future
+
+- Add a short troubleshooting note listing the canonical Loki labels for Traefik streams.
+
+### Code review instructions
+
+- Review the LogQL selectors in `grafana-dashboard-traefik-attribution.yaml` and the Promtail match selector in `loki.yaml`.

@@ -34,19 +34,19 @@ data:
           "type": "table",
           "title": "Top hosts by bytes (Loki, last hour)",
           "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
-          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost) (sum_over_time({namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost) (sum_over_time({namespace=\"kube-system\", app=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
         },
         {
           "type": "table",
           "title": "Top paths by bytes (Loki, last hour)",
           "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
-          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost, RequestPath) (sum_over_time({namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost, RequestPath) (sum_over_time({namespace=\"kube-system\", app=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
         },
         {
           "type": "logs",
           "title": "Recent Traefik JSON access logs",
           "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
-          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "{namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json"}]
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "{namespace=\"kube-system\", app=\"traefik\"} | json"}]
         }
       ]
     }
