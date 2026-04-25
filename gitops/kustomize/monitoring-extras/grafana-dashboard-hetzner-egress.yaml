@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-hetzner-egress
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: grafana-dashboard-hetzner-egress
+data:
+  hetzner-egress.json: |-
+    {
+      "uid": "hetzner-egress",
+      "title": "Hetzner Egress",
+      "tags": ["hetzner", "egress", "node-exporter"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-24h", "to": "now"},
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Outbound bandwidth by node (eth0)",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+          "fieldConfig": {"defaults": {"unit": "bps", "custom": {"drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10}}, "overrides": []},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum by (instance) (rate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])) * 8", "legendFormat": "{{instance}}"}]
+        },
+        {
+          "type": "stat",
+          "title": "Cluster egress last 24h",
+          "gridPos": {"x": 0, "y": 8, "w": 8, "h": 5},
+          "fieldConfig": {"defaults": {"unit": "gbytes", "decimals": 2}, "overrides": []},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(increase(node_network_transmit_bytes_total{device=\"eth0\"}[24h])) / 1024 / 1024 / 1024"}]
+        },
+        {
+          "type": "stat",
+          "title": "Current cluster outbound",
+          "gridPos": {"x": 8, "y": 8, "w": 8, "h": 5},
+          "fieldConfig": {"defaults": {"unit": "bps", "decimals": 2}, "overrides": []},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum(rate(node_network_transmit_bytes_total{device=\"eth0\"}[5m])) * 8"}]
+        },
+        {
+          "type": "bargauge",
+          "title": "24h egress by node",
+          "gridPos": {"x": 16, "y": 8, "w": 8, "h": 5},
+          "fieldConfig": {"defaults": {"unit": "gbytes", "decimals": 2}, "overrides": []},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum by (instance) (increase(node_network_transmit_bytes_total{device=\"eth0\"}[24h])) / 1024 / 1024 / 1024", "legendFormat": "{{instance}}"}]
+        }
+      ]
+    }

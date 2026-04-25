@@ -6,3 +6,5 @@ namespace: monitoring
 resources:
   - prometheus-rule-hetzner-egress.yaml
   - podmonitor-traefik.yaml
+  - grafana-dashboard-hetzner-egress.yaml
+  - grafana-dashboard-traefik-attribution.yaml

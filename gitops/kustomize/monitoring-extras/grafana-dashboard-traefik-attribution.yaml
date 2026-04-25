@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-traefik-attribution
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: grafana-dashboard-traefik-attribution
+data:
+  traefik-attribution.json: |-
+    {
+      "uid": "traefik-attribution",
+      "title": "Traefik Attribution",
+      "tags": ["traefik", "ingress", "loki"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Requests by service/status",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+          "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "sum by (service, code) (rate(traefik_service_requests_total[5m]))", "legendFormat": "{{service}} {{code}}"}]
+        },
+        {
+          "type": "table",
+          "title": "Top Traefik services by response bytes (Prometheus)",
+          "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+          "targets": [{"refId": "A", "datasource": {"type": "prometheus", "uid": "prometheus"}, "expr": "topk(20, sum by (service) (increase(traefik_service_responses_bytes_total[1h])))", "format": "table", "instant": true}]
+        },
+        {
+          "type": "table",
+          "title": "Top hosts by bytes (Loki, last hour)",
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost) (sum_over_time({namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
+        },
+        {
+          "type": "table",
+          "title": "Top paths by bytes (Loki, last hour)",
+          "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "topk(20, sum by (RequestHost, RequestPath) (sum_over_time({namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json | unwrap OriginContentSize [1h])))"}]
+        },
+        {
+          "type": "logs",
+          "title": "Recent Traefik JSON access logs",
+          "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+          "targets": [{"refId": "A", "datasource": {"type": "loki", "uid": "loki"}, "expr": "{namespace=\"kube-system\", app_kubernetes_io_name=\"traefik\"} | json"}]
+        }
+      ]
+    }
