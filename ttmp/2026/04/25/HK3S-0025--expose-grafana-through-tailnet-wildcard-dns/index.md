@@ -1,5 +1,5 @@
 ---
-Title: Expose Grafana through tailnet wildcard DNS
+Title: Expose Grafana through dedicated tailnet DNS
 Ticket: HK3S-0025
 Status: active
 Topics:
@@ -16,13 +16,13 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources: []
-Summary: ""
+Summary: "Plan and phased task list for exposing Grafana as grafana.tail.scapegoat.dev via Tailscale Kubernetes Operator and Terraform-managed dedicated DNS records."
 LastUpdated: 2026-04-25T11:15:59.815546372-04:00
-WhatFor: ""
-WhenToUse: ""
+WhatFor: "Track the operator-first private Grafana access implementation using dedicated tailnet DNS records rather than a wildcard reverse proxy."
+WhenToUse: "Use when implementing or reviewing the Tailscale Operator and Terraform DNS work for grafana.tail.scapegoat.dev."
 ---
 
-# Expose Grafana through tailnet wildcard DNS
+# Expose Grafana through dedicated tailnet DNS
 
 ## Overview
 

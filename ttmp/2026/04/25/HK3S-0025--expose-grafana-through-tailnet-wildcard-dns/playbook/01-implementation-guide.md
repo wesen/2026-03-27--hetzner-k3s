@@ -15,538 +15,437 @@ DocType: playbook
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: ../../../../../../../terraform/README.md
-      Note: Documents Terraform repo layout and DNS workflow
-    - Path: ../../../../../../../terraform/dns/README.md
-      Note: Documents sibling Terraform DNS ownership for scapegoat.dev
-    - Path: docs/grafana-keycloak-access-playbook.md
-      Note: |-
-        Future Grafana application-login/OIDC plan
-        Related future OIDC access plan
+    - Path: gitops/applications/monitoring.yaml
+      Note: Existing Grafana deployment and service live in the monitoring namespace
     - Path: gitops/applications/loki.yaml
       Note: Existing Loki logging backend that Grafana queries
-    - Path: gitops/applications/monitoring.yaml
-      Note: |-
-        Existing Grafana deployment and service live in the monitoring namespace
-        Existing Grafana Helm values and service source
+    - Path: docs/grafana-keycloak-access-playbook.md
+      Note: Future Grafana application-login/OIDC plan
+    - Path: ../terraform/dns/README.md
+      Note: Sibling Terraform repo owns scapegoat.dev DNS records
 ExternalSources: []
-Summary: Implementation guide for exposing Grafana privately as grafana.tail.scapegoat.dev through a pragmatic tailnet ingress proxy and a wildcard DNS record managed in ../terraform.
-LastUpdated: 2026-04-25T11:25:00-04:00
-WhatFor: 'Use this guide to implement option 1: a single Tailscale-connected reverse proxy in Kubernetes that serves *.tail.scapegoat.dev to tailnet clients.'
-WhenToUse: Use before adding tailnet-ingress GitOps manifests or Terraform DNS records for the private tailnet wildcard zone.
+Summary: "Implementation guide for exposing Grafana privately as grafana.tail.scapegoat.dev using dedicated DNS records and a Tailscale Kubernetes Operator-managed service exposure."
+LastUpdated: 2026-04-25T12:05:00-04:00
+WhatFor: "Use this guide to implement the operator-first tailnet DNS design for Grafana, with dedicated DNS records rather than a wildcard reverse proxy."
+WhenToUse: "Use before installing/configuring the Tailscale Kubernetes Operator, adding tailnet DNS records in ../terraform, or exposing Grafana privately over Tailscale."
 ---
 
-
-# Implementation Guide: Tailnet Wildcard DNS for Grafana
+# Implementation Guide: Dedicated Tailnet DNS for Grafana
 
 ## Purpose
 
-This playbook describes the pragmatic first implementation for exposing Grafana privately on the Tailscale network using a custom wildcard DNS zone. The goal is not to expose Grafana on the public Hetzner IP. The goal is to make a private URL such as:
+This playbook describes the revised implementation plan for exposing Grafana privately over Tailscale with a friendly DNS name:
 
 ```text
-https://grafana.tail.scapegoat.dev
+grafana.tail.scapegoat.dev
 ```
 
-resolve for Tailscale-connected clients and route to the existing Kubernetes service:
+The plan no longer starts with a wildcard `*.tail.scapegoat.dev` reverse proxy. The wildcard idea was useful because it mirrors the public `*.yolo.scapegoat.dev` model, but it adds an unnecessary shared-routing requirement for the first private service. Instead, this plan uses **dedicated DNS records** and an **operator-first Tailscale Kubernetes design**.
+
+The first target remains the existing Grafana service:
 
 ```text
 monitoring/monitoring-grafana:80
 ```
 
-The chosen option is **Option 1: a single tailnet ingress proxy**. It is intentionally simpler than installing the full Tailscale Kubernetes Operator/Gateway stack. One pod joins the tailnet as a stable Tailscale device, a reverse proxy in that pod routes by hostname, and Terraform in `../terraform` manages the DNS wildcard record for `*.tail.scapegoat.dev`.
-
-## Environment assumptions
-
-- The K3s/GitOps repository is:
-
-  ```text
-  /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-  ```
-
-- The shared Terraform repository that manages `scapegoat.dev` DNS is:
-
-  ```text
-  /home/manuel/code/wesen/terraform
-  ```
-
-- DNS scope currently documented by the Terraform repo is:
-
-  ```text
-  dns/zones/scapegoat-dev/envs/prod
-  ```
-
-- Grafana is already installed by `kube-prometheus-stack` in namespace `monitoring`.
-- Grafana service is expected to be:
-
-  ```text
-  monitoring-grafana.monitoring.svc.cluster.local:80
-  ```
-
-- Tailscale is already used for node admin access, but this playbook creates a **separate tailnet service device** for private HTTP routing.
-- The default private DNS zone for this ticket is:
-
-  ```text
-  tail.scapegoat.dev
-  ```
-
-- The first hostname to expose is:
-
-  ```text
-  grafana.tail.scapegoat.dev
-  ```
-
-## Design decision
-
-Use these names unless deliberately changed before implementation:
-
-| Concept | Name |
-|---|---|
-| Private DNS zone | `tail.scapegoat.dev` |
-| Wildcard DNS record | `*.tail.scapegoat.dev` |
-| Kubernetes namespace | `tailnet-ingress` |
-| Tailscale device name | `tailnet-ingress-k3s-demo-1` |
-| First routed app | `grafana.tail.scapegoat.dev` |
-| Backend service | `http://monitoring-grafana.monitoring.svc.cluster.local` |
-
-The namespace is named `tailnet-ingress`, not `grafana`, because the component should eventually expose multiple private admin services:
+The desired user-facing result is:
 
 ```text
-grafana.tail.scapegoat.dev      -> monitoring/monitoring-grafana
-prometheus.tail.scapegoat.dev   -> monitoring/monitoring-prometheus
-alertmanager.tail.scapegoat.dev -> monitoring/monitoring-alertmanager
-argocd.tail.scapegoat.dev       -> argocd/argocd-server
+Tailscale client browser
+  -> grafana.tail.scapegoat.dev
+  -> operator-managed Tailscale proxy/device
+  -> monitoring-grafana.monitoring.svc.cluster.local:80
 ```
 
-The DNS zone is named `tail.scapegoat.dev`, not `wildcard.scapegoat.dev`, because `tail` describes the purpose: these names are for tailnet access. `wildcard` describes an implementation detail.
+DNS for `scapegoat.dev` is managed in the sibling Terraform repo:
+
+```text
+/home/manuel/code/wesen/terraform
+```
+
+## Why the wildcard plan changed
+
+A wildcard DNS record answers many names with the same DNS target:
+
+```text
+*.tail.scapegoat.dev -> 100.x.y.z
+```
+
+That works naturally for the public `*.yolo.scapegoat.dev` zone because public Traefik already exists as the shared host-based router:
+
+```text
+*.yolo.scapegoat.dev -> Hetzner public IP -> Traefik -> Kubernetes Ingress rules
+```
+
+For a private tailnet setup, there is no equivalent shared private HTTP router unless we create one. If every private name resolves to the same Tailscale IP, something at that IP must inspect the HTTP `Host` header and route:
+
+```text
+grafana.tail.scapegoat.dev    -> Grafana
+prometheus.tail.scapegoat.dev -> Prometheus
+argocd.tail.scapegoat.dev     -> Argo CD
+```
+
+That shared router is not bad, but it is additional architecture. The Tailscale Kubernetes Operator is a better fit for exposing individual Kubernetes Services as individual tailnet services/devices. Dedicated DNS records align with that model:
+
+```text
+grafana.tail.scapegoat.dev -> operator-managed Grafana Tailscale service
+prometheus.tail.scapegoat.dev -> future operator-managed Prometheus service
+```
+
+The revised design keeps the nice naming convention of a private subdomain while avoiding a shared wildcard gateway on day one.
+
+## Current design decision
+
+Use these names unless deliberately changed during implementation:
+
+| Concept | Value |
+|---|---|
+| Private DNS subdomain | `tail.scapegoat.dev` |
+| First friendly DNS record | `grafana.tail.scapegoat.dev` |
+| First Tailscale device/service hostname | `grafana-k3s-demo-1` |
+| Kubernetes namespace for Grafana | `monitoring` |
+| Existing Grafana Service | `monitoring-grafana` |
+| DNS source of truth | `/home/manuel/code/wesen/terraform/dns/zones/scapegoat-dev/envs/prod` |
+| Preferred DNS record type | `CNAME` to Tailscale MagicDNS name |
+| DNS fallback | `A` record to stable Tailscale `100.x` IP |
+
+The old `tailnet-ingress` namespace remains useful only if we later build a shared private ingress/gateway. For the operator-first dedicated-service path, the operator may create its own namespaces/resources depending on the chosen Tailscale installation method, and the Grafana exposure resource may live near the service or in a dedicated GitOps package such as `tailnet-services`.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     Client[Tailscale client browser]
-    DNS[DNS: *.tail.scapegoat.dev]
-    TSIP[Tailscale IP of tailnet-ingress-k3s-demo-1\n100.x.y.z]
+    FriendlyDNS[grafana.tail.scapegoat.dev\nmanaged in ../terraform]
+    MagicDNS[grafana-k3s-demo-1.<tailnet>.ts.net\nTailscale MagicDNS]
+    TSProxy[Operator-managed Tailscale proxy/device]
 
     subgraph K3s[K3s cluster]
-        subgraph Tailnet[namespace: tailnet-ingress]
-            TS[tailscale sidecar\ntailscale0 + stable state]
-            Proxy[Caddy or nginx reverse proxy\nhost-based routing]
-        end
-
-        subgraph Monitoring[namespace: monitoring]
-            Grafana[Service: monitoring-grafana:80]
-        end
+        Operator[Tailscale Kubernetes Operator]
+        GrafanaSvc[Service: monitoring/monitoring-grafana:80]
+        GrafanaPod[Grafana pod]
     end
 
-    Client --> DNS --> TSIP --> TS --> Proxy --> Grafana
+    Client --> FriendlyDNS
+    FriendlyDNS --> MagicDNS
+    MagicDNS --> TSProxy
+    Operator --> TSProxy
+    TSProxy --> GrafanaSvc --> GrafanaPod
 ```
 
-The important boundary is that the public Traefik ingress is not in this path. The tailnet ingress proxy has a Tailscale interface and receives traffic over WireGuard from other tailnet clients. It forwards to normal Kubernetes service DNS inside the cluster.
-
-## DNS model
-
-The Terraform repository manages public DNS for `scapegoat.dev`. For this first version, use a public DNS wildcard record whose value is a Tailscale `100.x.y.z` address:
+The DNS record should preferably be a CNAME:
 
 ```text
-*.tail.scapegoat.dev  A  100.x.y.z
+grafana.tail.scapegoat.dev CNAME grafana-k3s-demo-1.<tailnet>.ts.net
 ```
 
-A `100.64.0.0/10` Tailscale address is not publicly routable. Publishing it in public DNS is acceptable for a pragmatic first version if the hostname itself is not sensitive. Non-tailnet clients may resolve the name, but they cannot route to the address. Tailnet clients can route to it through Tailscale.
+A CNAME is preferable because Terraform does not need to know the Tailscale `100.x` IP. If the operator-managed device IP changes but the MagicDNS name remains stable, the friendly name continues to work.
 
-There is a more private future option: configure Tailscale split DNS for `tail.scapegoat.dev` and run a private resolver that answers the wildcard internally. That is not Option 1. Option 1 uses Terraform-managed DNS in `../terraform` because that is the existing DNS source of truth.
-
-### Two-phase DNS bootstrap
-
-The wildcard A record cannot be fully known until the tailnet ingress pod has joined Tailscale and received a stable Tailscale IP. This creates a two-phase sequence:
-
-1. Deploy the tailnet ingress pod with persistent Tailscale state.
-2. Read its Tailscale IP.
-3. Add/update the wildcard DNS record in `../terraform`.
-4. Apply Terraform DNS.
-5. Validate `grafana.tail.scapegoat.dev` from a Tailscale client.
-
-The Tailscale IP should remain stable as long as the Tailscale state is persisted and the node/device is not deleted from the tailnet admin console.
-
-## TLS model
-
-There are three possible TLS choices.
-
-### Preferred: DNS-01 wildcard certificate
-
-Use a certificate for:
+If CNAME-to-MagicDNS is not practical with the DNS provider or client resolution path, use an A record fallback:
 
 ```text
-*.tail.scapegoat.dev
+grafana.tail.scapegoat.dev A 100.x.y.z
 ```
 
-issued through DNS-01 against the DNS provider that hosts `scapegoat.dev`. This works because `grafana.tail.scapegoat.dev` is not publicly reachable, so HTTP-01 cannot validate it. The current cluster issuer uses HTTP-01 for public Traefik ingresses; that is not sufficient for tailnet-only services.
+The A record fallback should be treated as slightly more operationally brittle because the DNS value depends on the device IP remaining stable.
 
-Implementation choices:
+## The Tailscale Kubernetes Operator role
 
-- Add a cert-manager `ClusterIssuer` or `Issuer` using DigitalOcean DNS-01.
-- Store the DigitalOcean DNS token in Vault and render it with VSO, or create a tightly scoped Kubernetes Secret manually as an initial bootstrap.
-- Add a `Certificate` in `tailnet-ingress` for `*.tail.scapegoat.dev`.
-- Mount the resulting TLS Secret into the reverse proxy.
-
-This is the clean browser experience and the recommended final shape for Option 1.
-
-### Temporary MVP: HTTP over Tailscale WireGuard
-
-Because Tailscale already encrypts traffic at the network layer, a temporary MVP can expose:
+The operator's job is to turn Kubernetes intent into tailnet resources. Instead of writing and maintaining a custom Tailscale sidecar, we install the operator and create Kubernetes resources that say, in effect:
 
 ```text
-http://grafana.tail.scapegoat.dev
+Expose monitoring/monitoring-grafana to the tailnet with hostname grafana-k3s-demo-1.
 ```
 
-This is acceptable only as a bootstrap/debugging step. It is not the desired final state because browsers and users expect HTTPS, and some apps generate absolute URLs or secure cookies based on scheme.
+Depending on the selected operator mode, this might be expressed as:
 
-### Avoid: public Traefik HTTP-01
+- an annotated Kubernetes `Service`
+- a `LoadBalancer` Service using Tailscale's load balancer class
+- a Tailscale `IngressClass`
+- Gateway API resources
+- a `ProxyGroup` or related custom resource if using shared proxies
 
-Do not route `grafana.tail.scapegoat.dev` through the public Traefik ingress just to get an HTTP-01 certificate. That defeats the point of a private tailnet endpoint.
+The exact mode must be selected after reading the current Tailscale Operator documentation. The preferred result is a simple, dedicated operator-managed proxy for Grafana first. Future services can repeat the pattern with their own DNS records.
 
-## GitOps package shape
+## DNS model in ../terraform
 
-Create a new package:
+Terraform owns the public DNS zone for `scapegoat.dev`. Even if the target is private to Tailscale, the friendly DNS record can still live in the public zone. A CNAME to a Tailscale MagicDNS name is not a secret; it is a convenience name. Only Tailscale-connected clients should be able to resolve/reach the target usefully.
 
-```text
-gitops/kustomize/tailnet-ingress/
-  namespace.yaml
-  serviceaccount.yaml
-  vault-connection.yaml                 # if using VSO for Tailscale/DNS/cert secrets
-  vault-auth.yaml                       # if using VSO
-  vault-static-secret-tailscale.yaml    # renders TS auth key/OAuth client secret
-  configmap-caddy.yaml                  # host routing config
-  certificate.yaml                      # if using cert-manager DNS-01 TLS
-  deployment.yaml                       # Tailscale sidecar + reverse proxy
-  service.yaml                          # optional internal service for debugging
-  kustomization.yaml
-```
+The conceptual Terraform shape for the preferred CNAME is:
 
-Create a new Argo CD Application:
-
-```text
-gitops/applications/tailnet-ingress.yaml
-```
-
-Destination namespace:
-
-```text
-tailnet-ingress
-```
-
-Use `CreateNamespace=true` and `ServerSideApply=true` like other Applications in this repo.
-
-## Tailscale identity and secret handling
-
-The tailnet ingress pod needs a way to join the tailnet. Use one of:
-
-1. **Reusable auth key** tagged for this service.
-2. **OAuth client credentials** if using a more automated Tailscale device lifecycle.
-
-For the pragmatic proxy deployment, a tagged reusable auth key is the simplest first pass. Store it outside Git. Preferred Vault path:
-
-```text
-kv/infra/tailscale/tailnet-ingress
-```
-
-Expected keys:
-
-```text
-auth-key
-hostname
-```
-
-The rendered Kubernetes Secret should look like:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: tailscale-auth
-  namespace: tailnet-ingress
-stringData:
-  TS_AUTHKEY: tskey-auth-...
-  TS_HOSTNAME: tailnet-ingress-k3s-demo-1
-```
-
-The Tailscale state should be persisted. Otherwise, every pod restart may register a new tailnet device and receive a new IP, which breaks the wildcard DNS record. Use either a PVC or a Kubernetes Secret state store, depending on the Tailscale container mode chosen.
-
-## Reverse proxy configuration
-
-A Caddy-style routing config should start small:
-
-```caddyfile
-grafana.tail.scapegoat.dev {
-  reverse_proxy http://monitoring-grafana.monitoring.svc.cluster.local:80
+```hcl
+resource "digitalocean_record" "grafana_tail" {
+  domain = "scapegoat.dev"
+  type   = "CNAME"
+  name   = "grafana.tail"
+  value  = "grafana-k3s-demo-1.<tailnet>.ts.net."
+  ttl    = 60
 }
 ```
 
-If TLS is terminated by Caddy with a mounted certificate, the config should reference the mounted wildcard cert/key. If TLS is terminated elsewhere, Caddy can listen on plain HTTP inside the pod.
+If the implementation falls back to A records:
 
-Do not enable anonymous Grafana. Tailnet reachability is a network control, not application identity. Keep Grafana login enabled until Keycloak OIDC is implemented.
+```hcl
+resource "digitalocean_record" "grafana_tail" {
+  domain = "scapegoat.dev"
+  type   = "A"
+  name   = "grafana.tail"
+  value  = var.grafana_tailnet_ip
+  ttl    = 60
+}
+```
 
-## Terraform DNS shape in ../terraform
-
-The DNS implementation belongs in:
+The exact Terraform file/module layout must be inspected in:
 
 ```text
 /home/manuel/code/wesen/terraform/dns/zones/scapegoat-dev/envs/prod
 ```
 
-The exact Terraform files need to be inspected/created there during implementation. The desired record is conceptually:
+Do not put DNS records for this zone in the K3s repo.
 
-```hcl
-resource "digitalocean_record" "tail_wildcard" {
-  domain = "scapegoat.dev"
-  type   = "A"
-  name   = "*.tail"
-  value  = var.tailnet_ingress_ip
-  ttl    = 60
-}
-```
+## TLS and authentication model
 
-If the DNS Terraform module uses a different structure, adapt to that structure. Keep the value configurable so the first implementation can bootstrap the Tailscale IP and then set it without hard-coding random values in multiple places.
+There are three distinct security layers. Do not collapse them.
 
-Possible variable:
+1. **Tailscale network access** decides which devices/users can connect to the tailnet service.
+2. **TLS/browser security** decides whether the browser trusts the URL and whether cookies/redirects behave correctly.
+3. **Grafana authentication** decides who the user is inside Grafana and which role they get.
 
-```hcl
-variable "tailnet_ingress_ip" {
-  description = "Stable Tailscale 100.x address for the tailnet ingress proxy serving *.tail.scapegoat.dev."
-  type        = string
-}
-```
+For a first private endpoint, it is acceptable to validate reachability over Tailscale before solving custom-domain TLS completely. But the final desired user experience should be HTTPS.
 
-Possible `terraform.tfvars` entry, not committed if secrets/local values are ignored:
+Possible TLS paths:
 
-```hcl
-tailnet_ingress_ip = "100.x.y.z"
-```
+- Use the operator/MagicDNS HTTPS path if browsing the MagicDNS hostname directly.
+- Use DNS-01 certificate issuance for `grafana.tail.scapegoat.dev` or `*.tail.scapegoat.dev` if using the custom domain with HTTPS.
+- Temporarily use HTTP over Tailscale/WireGuard only during bootstrap.
 
-The A record value is not a secret, but keeping it variable makes replacement explicit.
-
-## Implementation sequence
-
-### Phase 1: confirm names and prerequisites
-
-```bash
-cd /home/manuel/code/wesen/2026-03-27--hetzner-k3s
-export KUBECONFIG=$PWD/.cache/kubeconfig-tailnet.yaml
-
-kubectl -n monitoring get svc monitoring-grafana
-kubectl -n argocd get applications monitoring loki monitoring-extras
-```
-
-Expected:
+Grafana authentication must remain enabled. Do not enable anonymous Grafana simply because the endpoint is tailnet-only. The later application identity layer should use Keycloak OIDC as described in:
 
 ```text
-monitoring, loki, monitoring-extras are Synced Healthy
-monitoring-grafana service exists
+docs/grafana-keycloak-access-playbook.md
 ```
 
-Confirm the chosen DNS zone and hostname:
-
-```text
-Zone:     tail.scapegoat.dev
-Grafana:  grafana.tail.scapegoat.dev
-```
-
-### Phase 2: create Tailscale auth material
-
-In the Tailscale admin console, create an auth key for the tailnet ingress device. Prefer:
-
-- reusable only if needed by the deployment model
-- ephemeral disabled if using stable DNS
-- preauthorized enabled if appropriate
-- tagged, for example `tag:k8s-tailnet-ingress`
-
-Store it in Vault or a bootstrap Secret. Preferred long-term path is Vault/VSO.
-
-### Phase 3: create `tailnet-ingress` GitOps manifests
-
-Create the package and Application. The deployment should include:
-
-- a `tailscale/tailscale` container
-- a reverse proxy container such as Caddy
-- persistent Tailscale state
-- the Tailscale auth Secret
-- proxy config mapping `grafana.tail.scapegoat.dev` to `monitoring-grafana.monitoring.svc.cluster.local:80`
-
-If using TUN mode, the Tailscale container likely needs:
-
-```yaml
-securityContext:
-  capabilities:
-    add:
-      - NET_ADMIN
-      - NET_RAW
-```
-
-and possibly access to `/dev/net/tun`, depending on node/container runtime behavior. If using userspace mode, document exactly how inbound TCP/HTTPS is forwarded to the reverse proxy.
-
-### Phase 4: apply the Argo CD Application
-
-```bash
-kubectl apply -f gitops/applications/tailnet-ingress.yaml
-kubectl -n argocd annotate application tailnet-ingress argocd.argoproj.io/refresh=hard --overwrite
-kubectl -n argocd get application tailnet-ingress
-kubectl -n tailnet-ingress get pods -o wide
-```
-
-Expected:
-
-```text
-tailnet-ingress Synced Healthy
-Tailscale/proxy pod Running
-```
-
-### Phase 5: capture the Tailscale IP
-
-From a Tailscale-aware environment or from inside the pod, get the device IP:
-
-```bash
-kubectl -n tailnet-ingress exec deploy/tailnet-ingress -c tailscale -- tailscale ip -4
-```
-
-Expected:
-
-```text
-100.x.y.z
-```
-
-Confirm the Tailscale admin console shows device:
-
-```text
-tailnet-ingress-k3s-demo-1
-```
-
-### Phase 6: apply Terraform DNS
-
-In the Terraform repo:
-
-```bash
-cd /home/manuel/code/wesen/terraform
-export AWS_PROFILE=manuel
-# DIGITALOCEAN_TOKEN should come from direnv or ignored local env.
-terraform -chdir=dns/zones/scapegoat-dev/envs/prod init
-terraform -chdir=dns/zones/scapegoat-dev/envs/prod plan
-terraform -chdir=dns/zones/scapegoat-dev/envs/prod apply
-```
-
-Expected DNS result:
-
-```text
-*.tail.scapegoat.dev A 100.x.y.z
-```
-
-Validate from a client using normal DNS:
-
-```bash
-dig +short grafana.tail.scapegoat.dev
-```
-
-Expected:
-
-```text
-100.x.y.z
-```
-
-### Phase 7: validate from Tailscale and non-Tailscale clients
-
-From a Tailscale-connected client:
-
-```bash
-curl -I http://grafana.tail.scapegoat.dev
-# or, after TLS:
-curl -I https://grafana.tail.scapegoat.dev
-```
-
-Expected:
-
-```text
-HTTP 200/302 from Grafana login flow
-```
-
-From a non-Tailscale environment:
-
-```bash
-curl --connect-timeout 5 -I http://grafana.tail.scapegoat.dev
-```
-
-Expected:
-
-```text
-timeout or unroutable 100.x address
-```
-
-Do not treat public DNS resolution as a failure. The security property is that the returned address is private to Tailscale and not routable from the internet.
-
-## Exit criteria
-
-The ticket is complete when all of these are true:
-
-- `tailnet-ingress` Argo CD Application exists and is `Synced Healthy`.
-- The tailnet ingress pod is running and has stable Tailscale state.
-- The Tailscale admin console shows `tailnet-ingress-k3s-demo-1` or the agreed device name.
-- Terraform in `../terraform` manages `*.tail.scapegoat.dev` as an A record to the tailnet ingress Tailscale IP.
-- `grafana.tail.scapegoat.dev` resolves to the tailnet ingress IP.
-- A Tailscale-connected browser can reach Grafana through the custom hostname.
-- A non-Tailscale client cannot connect to the `100.x` address.
-- Grafana authentication remains enabled.
-- The implementation diary records commands, failures, IPs, DNS records, and validation results.
-
-## Failure modes and fixes
-
-### DNS resolves but browser cannot connect
-
-Check whether the client is connected to Tailscale and can ping the tailnet ingress IP:
-
-```bash
-tailscale status
-tailscale ping tailnet-ingress-k3s-demo-1
-ping 100.x.y.z
-```
-
-If ping fails, the problem is Tailscale reachability or ACLs, not Kubernetes routing.
-
-### Tailscale IP changes after pod restart
-
-The pod is not persisting Tailscale state, or the tailnet device was deleted. Fix state persistence before updating DNS again.
-
-### Grafana redirects to the wrong URL
-
-Grafana's `root_url` may need to be set to:
+For the custom tailnet hostname, the future Grafana `root_url` should likely become:
 
 ```text
 https://grafana.tail.scapegoat.dev
 ```
 
-This should be part of the later Keycloak/OIDC implementation or included earlier if redirects are broken.
+and the Keycloak redirect URI should become:
 
-### HTTPS certificate does not validate
-
-If using the custom domain, Tailscale MagicDNS certificates for `*.ts.net` will not match `grafana.tail.scapegoat.dev`. Use DNS-01 for `*.tail.scapegoat.dev` or temporarily use HTTP over the encrypted tailnet while implementing DNS-01.
-
-### Prometheus/Grafana dashboards work through port-forward but not tailnet
-
-Check the reverse proxy route and backend service DNS from the proxy pod:
-
-```bash
-kubectl -n tailnet-ingress exec deploy/tailnet-ingress -c proxy -- \
-  wget -S -O- http://monitoring-grafana.monitoring.svc.cluster.local/api/health
+```text
+https://grafana.tail.scapegoat.dev/login/generic_oauth
 ```
 
-If this fails, the problem is inside Kubernetes service routing, not DNS.
+## Phased implementation plan
 
-## Future migration path: Tailscale Kubernetes Operator
+### Phase 0: Confirm naming and DNS model
 
-Option 1 deliberately avoids the operator so the first system is easy to debug. Later, replace the custom Tailscale sidecar/proxy with the Tailscale Kubernetes Operator if we want Kubernetes-native resources for service exposure.
+Confirm the revised plan before writing manifests:
 
-The likely future shape is:
+```text
+Subdomain:      tail.scapegoat.dev
+First record:   grafana.tail.scapegoat.dev
+DNS style:      dedicated records, not wildcard
+Preferred type: CNAME to MagicDNS
+Fallback type:  A record to 100.x IP
+```
 
-- install Tailscale Kubernetes Operator
-- use Gateway API or operator-managed Services/Ingresses
-- keep `tail.scapegoat.dev` as the private DNS zone
-- keep `tailnet-ingress` as the namespace for private ingress policy and routes
-- preserve the same external hostname: `grafana.tail.scapegoat.dev`
+Exit criteria:
 
-The operator should be treated as an implementation refinement, not a change to the URL contract.
+- The ticket title/body no longer implies wildcard is required.
+- `grafana.tail.scapegoat.dev` is the first URL contract.
+- Future services will get explicit records such as `prometheus.tail.scapegoat.dev`.
+
+### Phase 1: Research current Tailscale Operator resource shape
+
+Read the current Tailscale Kubernetes Operator docs and decide the exposure mode. Capture answers to these questions:
+
+- How is the operator installed with Helm or static manifests?
+- What credentials does it need?
+- Can a Service be exposed directly with `tailscale.com/expose`?
+- Is `tailscale.com/hostname` supported for the chosen mode?
+- Should Grafana use an annotated Service, LoadBalancer class, Ingress, or Gateway API?
+- Does the operator create one device per Service, or can/should we use ProxyGroup?
+- What tags should the operator-created devices receive?
+
+Exit criteria:
+
+- A short design note is added to the diary with the selected operator mode.
+- The exact manifests to create are known.
+
+### Phase 2: Prepare Terraform DNS
+
+In the sibling Terraform repo:
+
+```bash
+cd /home/manuel/code/wesen/terraform
+export AWS_PROFILE=manuel
+terraform -chdir=dns/zones/scapegoat-dev/envs/prod init
+terraform -chdir=dns/zones/scapegoat-dev/envs/prod plan
+```
+
+Add the DNS record for the selected target. If using CNAME, the target is the operator-managed MagicDNS FQDN. If using A record fallback, the target is the operator-managed Tailscale IP.
+
+Exit criteria:
+
+- Terraform plan shows only the intended `grafana.tail.scapegoat.dev` record.
+- No unrelated DNS records are modified.
+
+### Phase 3: Install/configure the Tailscale Operator
+
+Create GitOps resources for the operator, unless a deliberate decision is made to install it outside this repo. The likely desired files are:
+
+```text
+gitops/applications/tailscale-operator.yaml
+gitops/kustomize/tailscale-operator/...
+```
+
+Credential handling must avoid committing secrets. Prefer Vault/VSO if feasible; otherwise document the bootstrap secret creation command and migrate to Vault later.
+
+Exit criteria:
+
+- The operator Argo CD Application is `Synced Healthy`.
+- Operator controller pods are running.
+- Credentials are not stored in Git.
+
+### Phase 4: Expose Grafana through the operator
+
+Create a GitOps package for the exposure resource. Possible paths:
+
+```text
+gitops/kustomize/tailnet-services/grafana.yaml
+```
+
+or:
+
+```text
+gitops/kustomize/grafana-tailnet/
+```
+
+The resource should expose:
+
+```text
+monitoring/monitoring-grafana:80
+```
+
+with a Tailscale hostname such as:
+
+```text
+grafana-k3s-demo-1
+```
+
+Exit criteria:
+
+- Operator-created proxy/device appears in Tailscale admin console.
+- MagicDNS name resolves for Tailscale clients.
+- Direct access to the MagicDNS name reaches Grafana.
+
+### Phase 5: Apply dedicated DNS record
+
+Apply the Terraform DNS record:
+
+```bash
+cd /home/manuel/code/wesen/terraform
+terraform -chdir=dns/zones/scapegoat-dev/envs/prod apply
+```
+
+Validate:
+
+```bash
+dig +short grafana.tail.scapegoat.dev
+```
+
+Exit criteria:
+
+- The friendly DNS record resolves to the chosen MagicDNS target or `100.x` IP.
+- A Tailscale-connected client can resolve and connect.
+- A non-Tailscale client cannot route to the service.
+
+### Phase 6: Validate Grafana behavior
+
+From a Tailscale-connected client:
+
+```bash
+curl -I http://grafana.tail.scapegoat.dev
+# or after HTTPS is configured:
+curl -I https://grafana.tail.scapegoat.dev
+```
+
+Then open the URL in a browser and confirm:
+
+- Grafana login appears.
+- Anonymous access is not enabled.
+- The `Hetzner Egress` dashboard is visible after login.
+- The `Traefik Attribution` dashboard is visible after login.
+- Grafana redirects, if any, do not send the user to the internal service name.
+
+If redirects are wrong, set Grafana `root_url` in `gitops/applications/monitoring.yaml`.
+
+### Phase 7: Harden access
+
+Once basic access works, harden identity and TLS:
+
+- Decide final HTTPS path for `grafana.tail.scapegoat.dev`.
+- Configure Keycloak OIDC for Grafana if exposing to more than one operator.
+- Store Grafana OAuth/client/admin secrets in Vault/VSO.
+- Restrict Tailscale ACLs so only intended users/devices can reach the Grafana device.
+
+Exit criteria:
+
+- Grafana has both private network restriction and application login.
+- Secrets are not generated ad hoc by Helm without an ownership plan.
+
+## Future service pattern
+
+After Grafana works, expose additional private admin services by repeating the dedicated-record pattern:
+
+```text
+prometheus.tail.scapegoat.dev   CNAME prometheus-k3s-demo-1.<tailnet>.ts.net
+alertmanager.tail.scapegoat.dev CNAME alertmanager-k3s-demo-1.<tailnet>.ts.net
+argocd.tail.scapegoat.dev       CNAME argocd-k3s-demo-1.<tailnet>.ts.net
+```
+
+Do not add a wildcard unless there is a clear need for a shared private gateway. Dedicated records are more explicit, easier to audit in Terraform, and better aligned with operator-managed service exposure.
+
+## Exit criteria for HK3S-0025
+
+The ticket is complete when:
+
+- The Tailscale Kubernetes Operator path has been researched and selected.
+- The operator is installed and healthy, or an explicit documented decision explains why implementation stopped before install.
+- Grafana is exposed through an operator-managed Tailscale service/device.
+- `grafana.tail.scapegoat.dev` is managed in `../terraform` as a dedicated DNS record.
+- A Tailscale-connected client can reach Grafana through the friendly hostname.
+- A non-Tailscale client cannot connect to the service.
+- Grafana authentication remains enabled.
+- The diary records exact resource names, DNS records, Tailscale names/IPs, commands, failures, and validation results.
+
+## Failure modes
+
+### CNAME resolves but the browser cannot connect
+
+Check whether the Tailscale client can resolve and reach the MagicDNS target:
+
+```bash
+tailscale status
+tailscale ping grafana-k3s-demo-1
+```
+
+If the MagicDNS target fails, fix the operator/Tailscale service before changing Terraform DNS.
+
+### DNS works on one machine but not another
+
+Check whether the failing machine is connected to Tailscale and using Tailscale DNS. Public DNS may return the CNAME, but the `.ts.net` target or the `100.x` address is only useful with Tailscale routing.
+
+### Grafana loads but redirects incorrectly
+
+Set `server.root_url` in Grafana values to the friendly URL.
+
+### The operator creates a new device/IP after restart
+
+Inspect operator/device lifecycle and whether the exposure mode uses stable identity. If using A record fallback, this breaks DNS. Prefer CNAME to stable MagicDNS name.
+
+### TLS does not match the custom domain
+
+MagicDNS TLS certificates are for `.ts.net` names, not `grafana.tail.scapegoat.dev`. Use DNS-01 custom-domain certificates or accept HTTP-over-tailnet only as a temporary bootstrap.

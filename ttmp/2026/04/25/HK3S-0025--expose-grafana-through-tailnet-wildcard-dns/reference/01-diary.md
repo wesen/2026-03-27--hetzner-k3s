@@ -118,3 +118,76 @@ Default URL contract:
 ```text
 grafana.tail.scapegoat.dev -> Tailscale IP 100.x.y.z -> tailnet-ingress proxy -> monitoring-grafana.monitoring.svc.cluster.local:80
 ```
+
+## Step 2: Revise plan to dedicated DNS records and operator-first implementation
+
+The original implementation guide treated the wildcard as a hard requirement and therefore designed around a shared tailnet reverse proxy. After discussion, the wildcard was clarified as a convenience pattern copied from the public `*.yolo.scapegoat.dev` setup, not a requirement. That changes the best first implementation.
+
+The revised plan now uses dedicated DNS records, starting with `grafana.tail.scapegoat.dev`, and prefers the Tailscale Kubernetes Operator. This better matches the operator's natural service-exposure model: expose one Kubernetes Service as one tailnet service/device, then point a friendly DNS name at the operator-managed MagicDNS hostname or Tailscale IP.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, update the plan to use dedicated CNAMEs, then add detailed list of tasks in multiple phases to stsasrt with this setup and then end up with a proper tailscale operator setup."
+
+**Assistant interpretation:** Replace the wildcard/shared-proxy plan with a dedicated-record plan, prefer CNAMEs to Tailscale MagicDNS names, and expand the task list into a phased path that starts with DNS/operator research and ends with a proper Tailscale Operator setup.
+
+**Inferred user intent:** Avoid unnecessary wildcard complexity and use the Tailscale Operator as the long-term clean implementation, while keeping DNS managed in the sibling Terraform repo.
+
+**Commit (code):** pending — planning docs and task updates are staged for a documentation commit.
+
+### What I did
+
+- Rewrote `playbook/01-implementation-guide.md` around:
+  - `grafana.tail.scapegoat.dev` as the first dedicated record
+  - `grafana-k3s-demo-1.<tailnet>.ts.net` as the preferred CNAME target shape
+  - Tailscale Kubernetes Operator as the preferred implementation path
+  - A record to `100.x` only as fallback
+  - no wildcard unless a future shared private gateway is explicitly needed
+- Replaced the task list with eight phases:
+  - Phase 0: naming and DNS model
+  - Phase 1: Tailscale Operator research/design
+  - Phase 2: Terraform DNS preparation in `../terraform`
+  - Phase 3: operator install/configuration
+  - Phase 4: Grafana exposure through the operator
+  - Phase 5: DNS apply and name-resolution validation
+  - Phase 6: Grafana behavior validation
+  - Phase 7: TLS and application identity hardening
+  - Phase 8: documentation and migration closure
+- Updated the ticket index title and summary from wildcard language to dedicated tailnet DNS language.
+
+### Why
+
+- Dedicated DNS records fit the Tailscale Operator better than a wildcard does.
+- A CNAME to the operator-managed MagicDNS name avoids hard-coding Tailscale `100.x` IPs in Terraform if the MagicDNS name remains stable.
+- The public `yolo` wildcard works because public Traefik is the shared router. Without a shared private tailnet gateway, wildcard DNS would force us to build that router before we need it.
+
+### What worked
+
+- The revised plan preserves the desired friendly URL scheme under `tail.scapegoat.dev` while simplifying the first implementation.
+- The task list now has clear phases and stop points, including an explicit operator documentation/research gate before manifests are written.
+
+### What didn't work
+
+- N/A; this was a planning revision only.
+
+### What I learned
+
+- The core design question is not "wildcard or not" but "shared gateway or per-service device." For the first Grafana endpoint, per-service device plus dedicated DNS is simpler and more operator-native.
+
+### What was tricky to build
+
+- The plan must keep three naming systems distinct: friendly DNS names in `scapegoat.dev`, Tailscale MagicDNS names under the tailnet domain, and Kubernetes Service names. Mixing them leads to brittle DNS/TLS assumptions.
+
+### What warrants a second pair of eyes
+
+- Verify that CNAME to the chosen MagicDNS name behaves correctly for Tailscale clients and is acceptable in the DigitalOcean DNS provider.
+- Verify current Tailscale Operator resource support before committing to annotated Service vs LoadBalancer vs Ingress vs Gateway API.
+
+### What should be done in the future
+
+- Execute Phase 1 by reading current Tailscale Operator docs and recording the exact exposure resource shape.
+
+### Code review instructions
+
+- Review `tasks.md` first to ensure the phases match the intended rollout.
+- Then review `playbook/01-implementation-guide.md` for consistency around dedicated records, CNAME preference, and operator-first implementation.
