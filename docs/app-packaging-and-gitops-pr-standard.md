@@ -271,7 +271,7 @@ Expected files:
 
 - `namespace.yaml`
 - `serviceaccount.yaml`
-- `vault-connection.yaml`
+- `vault-connection.yaml` using the internal service address `http://vault.vault.svc.cluster.local:8200` for in-cluster VSO sync
 - `vault-auth.yaml`
 - one or more `vault-static-secret-*.yaml`
 - `deployment.yaml`
@@ -308,7 +308,7 @@ Expected files:
 
 - `namespace.yaml`
 - `serviceaccount.yaml`
-- `vault-connection.yaml`
+- `vault-connection.yaml` using the internal service address `http://vault.vault.svc.cluster.local:8200` for in-cluster VSO sync
 - `vault-auth.yaml`
 - `vault-static-secret.yaml`
 - `service.yaml`

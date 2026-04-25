@@ -6,4 +6,5 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
 spec:
-  address: https://vault.yolo.scapegoat.dev
+  address: http://vault.vault.svc.cluster.local:8200
+  skipTLSVerify: true

@@ -500,3 +500,86 @@ sum by (instance) (increase(node_network_transmit_bytes_total{device="eth0"}[24h
 ```promql
 sum by (service, code, method) (rate(traefik_service_requests_total[5m]))
 ```
+
+## Step 5: Move VSO VaultConnections off the public Traefik hostname
+
+After investigating why Vault token headers appeared in Traefik access logs, the source was clear: several in-cluster Vault Secrets Operator `VaultConnection` resources still pointed at `https://vault.yolo.scapegoat.dev`. That forced routine VSO refresh traffic through the public ingress path even though Vault is available as an internal Kubernetes service.
+
+This follow-up changes those in-cluster VSO connections to `http://vault.vault.svc.cluster.local:8200` and updates the operator documentation so future app packages do not repeat the public-hostname pattern. The public Vault hostname remains valid for human/operator access from outside the cluster; it should not be used for Kubernetes controllers that can reach the service DNS name directly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "update the public traefik hostnames for vault to use the internal ones."
+
+**Assistant interpretation:** Replace the remaining VSO VaultConnection resources that route through Traefik with internal Vault service addresses and apply the change.
+
+**Inferred user intent:** Stop VSO-to-Vault controller traffic from traversing Traefik and eliminate this class of ingress-log secret exposure.
+
+**Commit (code):** pending — VaultConnection and documentation changes are being committed as a focused follow-up.
+
+### What I did
+
+- Updated these manifests from `https://vault.yolo.scapegoat.dev` to `http://vault.vault.svc.cluster.local:8200`:
+  - `gitops/kustomize/draft-review/vault-connection.yaml`
+  - `gitops/kustomize/hair-booking/vault-connection.yaml`
+  - `gitops/kustomize/keycloak/vault-connection.yaml`
+  - `gitops/kustomize/smailnail/vault-connection.yaml`
+- Set `skipTLSVerify: true` consistently for the internal HTTP service connection shape.
+- Updated documentation:
+  - `docs/app-runtime-secrets-and-identity-provisioning-playbook.md`
+  - `docs/app-packaging-and-gitops-pr-standard.md`
+  - `docs/vault-backed-postgres-bootstrap-job-pattern.md`
+- Validated Kustomize render for the four changed app packages.
+- Checked that no `gitops/kustomize/*/vault-connection.yaml` still points at `https://vault.yolo.scapegoat.dev`.
+
+### Why
+
+- In-cluster controllers should use Kubernetes service DNS for Vault rather than the public ingress hostname.
+- This avoids unnecessary Traefik dependency, avoids extra egress/ingress accounting noise, and prevents secret-bearing Vault headers from entering ingress access logs.
+
+### What worked
+
+- The affected manifests were easy to identify by grepping for `https://vault.yolo.scapegoat.dev` under `gitops/kustomize`.
+- Existing packages already used the internal pattern in several namespaces, so the change standardizes the outliers rather than inventing a new pattern.
+
+### What didn't work
+
+- N/A for this edit pass.
+
+### What I learned
+
+- The repo had a mixed VaultConnection pattern: older or shared services mostly used the internal service, while draft-review, hair-booking, keycloak, and smailnail used the public hostname.
+
+### What was tricky to build
+
+- Documentation has to preserve the distinction between public Vault access for humans/operators and internal Vault access for VSO. The correct guidance is not “never use the public Vault hostname”; it is “do not use it for in-cluster VSO sync.”
+
+### What warrants a second pair of eyes
+
+- Confirm that all four applications remain healthy after Argo reconciles the changed VaultConnection resources.
+- Confirm VSO status conditions continue to report healthy/ready for the changed namespaces.
+
+### What should be done in the future
+
+- Consider a policy/check that rejects new `VaultConnection` resources under `gitops/kustomize` if they use the public Vault ingress hostname.
+
+### Code review instructions
+
+- Review the four `vault-connection.yaml` files first.
+- Then review the docs for the new internal-service guidance.
+- Validate live state with:
+
+  ```bash
+  kubectl get vaultconnections -A -o json | jq -r '.items[] | [.metadata.namespace,.metadata.name,.spec.address] | @tsv' | sort
+  kubectl get vaultstaticsecret -A
+  ```
+
+### Technical details
+
+Canonical in-cluster VSO connection:
+
+```yaml
+spec:
+  address: http://vault.vault.svc.cluster.local:8200
+  skipTLSVerify: true
+```

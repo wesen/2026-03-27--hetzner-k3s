@@ -154,6 +154,21 @@ Typical keys:
 The `VaultAuth` Kubernetes resources in Git are not enough by themselves.
 Vault must also know the matching auth role and policy.
 
+For in-cluster workloads, `VaultConnection` should point at the internal Vault
+service, not the public Traefik hostname:
+
+```yaml
+spec:
+  address: http://vault.vault.svc.cluster.local:8200
+  skipTLSVerify: true
+```
+
+Do **not** use `https://vault.yolo.scapegoat.dev` for VSO-managed in-cluster
+secret sync. That routes controller traffic through Traefik, creates avoidable
+public-ingress dependency, and can expose secret-bearing headers to ingress
+access logs if logging is misconfigured. Keep the public Vault hostname for
+human/operator browser and CLI access from outside the cluster.
+
 Typical files in this repo:
 
 - `vault/policies/kubernetes/<app>.hcl`

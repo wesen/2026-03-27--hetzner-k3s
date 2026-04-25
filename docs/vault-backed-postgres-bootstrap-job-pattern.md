@@ -133,7 +133,7 @@ For an app like Keycloak, the resource package should usually contain:
 
 - `namespace.yaml`
 - `serviceaccount.yaml`
-- `vault-connection.yaml`
+- `vault-connection.yaml` pointing at `http://vault.vault.svc.cluster.local:8200` for in-cluster VSO sync, not the public Traefik hostname
 - `vault-auth.yaml`
 - `vault-static-secret.yaml` for the runtime DB secret
 - `vault-static-secret.yaml` for the bootstrap-admin secret if needed

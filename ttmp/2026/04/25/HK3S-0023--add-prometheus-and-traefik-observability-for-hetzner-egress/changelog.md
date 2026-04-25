@@ -50,3 +50,16 @@ Applied monitoring, monitoring-extras, and traefik-observability to the live clu
 
 Ticket closed
 
+
+## 2026-04-25
+
+Follow-up: moved VSO VaultConnections for draft-review, hair-booking, keycloak, and smailnail from the public Vault Traefik hostname to the internal Vault service; updated app packaging/runtime docs to document the internal-service rule.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/docs/app-runtime-secrets-and-identity-provisioning-playbook.md — Documents internal VaultConnection guidance for VSO
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/draft-review/vault-connection.yaml — Moved VSO connection to internal Vault service
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/hair-booking/vault-connection.yaml — Moved VSO connection to internal Vault service
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/keycloak/vault-connection.yaml — Moved VSO connection to internal Vault service
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/smailnail/vault-connection.yaml — Moved VSO connection to internal Vault service
+
