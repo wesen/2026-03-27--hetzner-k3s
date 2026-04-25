@@ -162,3 +162,92 @@ kubectl -n argocd get application monitoring
 kubectl apply -f gitops/applications/monitoring-extras.yaml
 kubectl apply -f gitops/applications/traefik-observability.yaml
 ```
+
+## Step 2: Fix Grafana init chown permissions during first rollout
+
+The first live apply installed most of the monitoring stack successfully, but the Grafana rollout got stuck on a replacement pod whose `init-chown-data` container could not recursively chown all persisted directories. This was caught before applying the dependent `monitoring-extras` application, which was intentional because those resources depend on Prometheus Operator CRDs from the monitoring stack.
+
+The fix keeps Grafana persistence enabled and broadens the init container's Linux capabilities just enough for recursive ownership repair on the local-path volume. This is safer for the immediate rollout than deleting the PVC or disabling persistence after data has already been initialized.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1; user also reported live failure: `Back-off restarting failed container init-chown-data in pod monitoring-grafana-7d8f8999c6-xg2nf_monitoring(95485de4-e218-489a-ae32-949662e90f5a)`)
+
+**Assistant interpretation:** Debug and fix the failed Grafana init container so the monitoring Application can become healthy before proceeding.
+
+**Inferred user intent:** Continue the requested apply, but handle rollout failures transparently and record what changed.
+
+**Commit (code):** pending — Grafana initChownData capability fix is staged for a focused follow-up commit.
+
+### What I did
+
+- Inspected the failing pod with:
+
+  ```bash
+  kubectl -n monitoring describe pod monitoring-grafana-7d8f8999c6-xg2nf
+  kubectl -n monitoring logs monitoring-grafana-7d8f8999c6-xg2nf -c init-chown-data --previous
+  kubectl -n monitoring get pods,pvc
+  kubectl -n monitoring get deploy monitoring-grafana -o yaml
+  ```
+
+- Observed that Prometheus, Alertmanager, kube-state-metrics, node-exporter, and the operator were already running.
+- Updated `gitops/applications/monitoring.yaml` to configure `grafana.initChownData.securityContext.capabilities.add` with `CHOWN`, `DAC_OVERRIDE`, and `FOWNER` while keeping `drop: [ALL]` and root execution for the init container.
+- Validated the changed Application manifest with:
+
+  ```bash
+  kubectl apply --dry-run=client -f gitops/applications/monitoring.yaml
+  ```
+
+### Why
+
+- The error came from the init container while recursively changing ownership of the Grafana data directory on a `local-path` PVC.
+- The rendered init container was root with `CHOWN` but had dropped all other capabilities; the failing directories required additional capability to traverse/override existing permissions during recursive ownership repair.
+- Keeping the init container constrained and only adding `DAC_OVERRIDE` and `FOWNER` preserves the chart's intended ownership model without broad privileged mode.
+
+### What worked
+
+- The failing container logs clearly identified the permission problem:
+
+  ```text
+  chown: /var/lib/grafana/csv: Permission denied
+  chown: /var/lib/grafana/pdf: Permission denied
+  chown: /var/lib/grafana/png: Permission denied
+  ```
+
+- The live stack had enough components running to show that the chart version and core CRD/operator install succeeded.
+
+### What didn't work
+
+- Waiting alone did not converge the rollout; Grafana stayed in `Init:CrashLoopBackOff` and the Argo CD Application stayed `Synced Progressing`.
+
+### What I learned
+
+- The kube-prometheus-stack Grafana subchart can create a running first pod and still fail a later rollout if persisted directories have permissions that the init chown container cannot traverse with only the `CHOWN` capability.
+- On this cluster, local-path persistence plus a restricted chown init container needs slightly broader ownership-repair capabilities.
+
+### What was tricky to build
+
+- The cluster had both one running old Grafana pod and one failing new Grafana pod. That made the service partially usable while the Deployment health was still bad. The correct signal was the Argo CD Application health and Deployment rollout state, not just whether any Grafana pod was running.
+
+### What warrants a second pair of eyes
+
+- Review whether adding `DAC_OVERRIDE` and `FOWNER` to the init container is acceptable for this cluster's security posture.
+- If strict pod security becomes a priority, consider pre-provisioning/chowning the local-path directory outside the pod or replacing Grafana persistence with a storage backend that preserves expected ownership.
+
+### What should be done in the future
+
+- If this fix does not converge, the next fallback is to inspect the local-path backing directory on the node and repair/delete only the Grafana PVC data after confirming there is no important dashboard state.
+
+### Code review instructions
+
+- Review the `grafana.initChownData.securityContext` block in `gitops/applications/monitoring.yaml`.
+- After deploy, validate with:
+
+  ```bash
+  kubectl -n monitoring rollout status deploy/monitoring-grafana
+  kubectl -n argocd get application monitoring
+  ```
+
+### Technical details
+
+The failing pod was `monitoring-grafana-7d8f8999c6-xg2nf` in namespace `monitoring`. The stuck status was `Init:CrashLoopBackOff`, and the failed init container was `init-chown-data`.

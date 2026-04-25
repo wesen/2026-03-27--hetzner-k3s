@@ -23,6 +23,21 @@ spec:
           enabled: true
           ingress:
             enabled: false
+          initChownData:
+            enabled: true
+            securityContext:
+              capabilities:
+                add:
+                  - CHOWN
+                  - DAC_OVERRIDE
+                  - FOWNER
+                drop:
+                  - ALL
+              readOnlyRootFilesystem: false
+              runAsNonRoot: false
+              runAsUser: 0
+              seccompProfile:
+                type: RuntimeDefault
           persistence:
             enabled: true
             storageClassName: local-path
