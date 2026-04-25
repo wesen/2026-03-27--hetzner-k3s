@@ -339,3 +339,164 @@ The key invariant is:
 ```
 
 and only a small attribution allowlist is added back with `headers.names.*=keep`.
+
+## Step 4: Apply monitoring extras, validate metrics, and close rollout tasks
+
+After the Grafana rollout fix and Traefik header redaction fix were pushed, all three Argo CD Applications converged. The monitoring namespace now has Prometheus, Grafana, Alertmanager, kube-state-metrics, node-exporter, and Prometheus Operator running; the extras Application owns the Hetzner egress rule and Traefik PodMonitor; and the Traefik observability Application owns the K3s HelmChartConfig.
+
+Validation confirmed the two critical telemetry paths: Prometheus can query `node_network_transmit_bytes_total{device="eth0"}` for host egress and can scrape Traefik through the `monitoring/traefik` PodMonitor target. Traefik JSON access logs also emit request attribution fields while the hardened header allowlist prevents `request_X-Vault-Token` from appearing in recent logs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the live apply and validate that the requested monitoring/attribution primitives are actually working in the cluster.
+
+**Inferred user intent:** End with GitOps state reconciled, live resources healthy, and enough validation evidence for operational use.
+
+**Commit (code):** `369826bb1c37edc524dc68d6cd28b7d6cee06282` — `feat(observability): add Hetzner egress monitoring`; `d233bd37d0ccb7588f7c5de26e0bc64454cf5ff2` — `fix(observability): unblock grafana pvc chown`; `bfb022a60b1525a8f0a4d6f9ec5a1dcf4f12c93b` — `fix(observability): redact traefik access log headers`
+
+### What I did
+
+- Applied and refreshed the Applications:
+
+  ```bash
+  kubectl apply -f gitops/applications/monitoring.yaml
+  kubectl apply -f gitops/applications/monitoring-extras.yaml
+  kubectl apply -f gitops/applications/traefik-observability.yaml
+  kubectl -n argocd annotate application <app> argocd.argoproj.io/refresh=hard --overwrite
+  ```
+
+- Waited for Grafana and Traefik rollouts:
+
+  ```bash
+  kubectl -n monitoring rollout status deploy/monitoring-grafana --timeout=120s
+  kubectl -n kube-system rollout status deploy/traefik --timeout=180s
+  ```
+
+- Validated Application health:
+
+  ```bash
+  kubectl -n argocd get applications monitoring monitoring-extras traefik-observability
+  ```
+
+  Result:
+
+  ```text
+  NAME                    SYNC STATUS   HEALTH STATUS
+  monitoring              Synced        Healthy
+  monitoring-extras       Synced        Healthy
+  traefik-observability   Synced        Healthy
+  ```
+
+- Validated monitoring pods:
+
+  ```bash
+  kubectl -n monitoring get pods
+  ```
+
+  All monitoring pods were `Running`.
+
+- Validated CR ownership:
+
+  ```bash
+  kubectl -n monitoring get prometheusrule hetzner-egress -o name
+  kubectl -n monitoring get podmonitor traefik -o name
+  ```
+
+- Port-forwarded Prometheus and queried metrics/rules:
+
+  ```bash
+  kubectl -n monitoring port-forward svc/monitoring-prometheus 19090:9090
+  curl 'http://127.0.0.1:19090/api/v1/query?query=node_network_transmit_bytes_total%7Bdevice%3D%22eth0%22%7D'
+  curl 'http://127.0.0.1:19090/api/v1/query?query=traefik_service_requests_total'
+  curl 'http://127.0.0.1:19090/api/v1/rules'
+  ```
+
+- Confirmed Prometheus target discovery includes:
+
+  ```text
+  up  monitoring/traefik  http://10.42.0.159:9100/metrics
+  up  node-exporter       http://91.98.46.169:9100/metrics
+  ```
+
+- Generated a request to `https://pretext.yolo.scapegoat.dev/` and checked recent Traefik logs for header redaction:
+
+  ```bash
+  kubectl -n kube-system logs deploy/traefik --since=30s | grep -c 'request_X-Vault-Token'
+  kubectl -n kube-system logs deploy/traefik --since=30s | grep -c 'request_User-Agent'
+  ```
+
+  Result: token field count `0`, user-agent field count non-zero.
+
+### Why
+
+- Applying only the Argo CD Applications is not enough; for this kind of change, the important proof is that Prometheus can query the exact host metric and scrape the intended ingress controller target.
+- The Traefik log validation proves attribution data is being emitted without continuing the accidental Vault token header exposure found in Step 3.
+
+### What worked
+
+- `monitoring`, `monitoring-extras`, and `traefik-observability` all reached `Synced Healthy`.
+- The Grafana hanging ReplicaSet resolved after Argo picked up the init container capability fix; the old ReplicaSets scaled to zero and `monitoring-grafana-74f8bb7cd9-8mm2b` ran `3/3`.
+- Prometheus returned one result for `node_network_transmit_bytes_total{device="eth0"}`.
+- Prometheus returned Traefik service request metrics after the PodMonitor target appeared.
+- The `HighHetznerEgress24h` and `VeryHighHetznerEgressRate` rules appeared in Prometheus.
+- Traefik restarted cleanly and retained the built-in K3s metrics arguments plus the new access-log/header arguments.
+
+### What didn't work
+
+- The first Prometheus query for Traefik immediately after applying `monitoring-extras` returned zero results because Prometheus had not yet reloaded target configuration. Waiting roughly one minute resolved this.
+- `kubectl logs deploy/traefik` briefly printed `Found 2 pods, using pod/...` during rollout, which was expected while Kubernetes was replacing the Traefik pod.
+
+### What I learned
+
+- Prometheus Operator CR discovery is not instantaneous; after a PodMonitor is created, allow a short interval before concluding it failed.
+- Argo CD can report `Synced Healthy` for the Application once it has reconciled, but validating metric queries and target health is still necessary.
+
+### What was tricky to build
+
+- The main rollout trap was sequencing and patience: Prometheus CRDs had to exist before applying `monitoring-extras`, Grafana needed a follow-up security context fix, and Prometheus needed a small reload window before showing the new Traefik target.
+- The main security trap was that JSON access logs worked too well with default header retention. The final configuration intentionally favors a narrow attribution header allowlist.
+
+### What warrants a second pair of eyes
+
+- The brief pre-fix Traefik log window did include Vault token header fields. Those tokens are likely short-lived service/controller tokens, but an operator should decide whether any Vault token/accessor rotation or audit review is warranted.
+- Alert thresholds still need operational tuning.
+
+### What should be done in the future
+
+- Add Loki/Promtail with defensive redaction to persist and query access logs safely.
+- Build Grafana dashboards for host egress and Traefik service attribution.
+- Decide whether to expose Grafana behind auth or keep it port-forward-only.
+
+### Code review instructions
+
+- Review commits in order:
+  1. `369826b` for the initial architecture/manifests.
+  2. `d233bd3` for the Grafana init chown fix.
+  3. `bfb022a` for the access-log header redaction fix.
+- Validate current state with:
+
+  ```bash
+  kubectl -n argocd get applications monitoring monitoring-extras traefik-observability
+  kubectl -n monitoring get pods
+  kubectl -n monitoring get prometheusrule hetzner-egress
+  kubectl -n monitoring get podmonitor traefik
+  kubectl -n kube-system get deploy traefik -o jsonpath='{.spec.template.spec.containers[0].args}' | jq -r '.[]' | grep accesslog
+  ```
+
+### Technical details
+
+Current key queries:
+
+```promql
+sum by (instance) (rate(node_network_transmit_bytes_total{device="eth0"}[5m])) * 8
+```
+
+```promql
+sum by (instance) (increase(node_network_transmit_bytes_total{device="eth0"}[24h])) / 1024 / 1024 / 1024
+```
+
+```promql
+sum by (service, code, method) (rate(traefik_service_requests_total[5m]))
+```

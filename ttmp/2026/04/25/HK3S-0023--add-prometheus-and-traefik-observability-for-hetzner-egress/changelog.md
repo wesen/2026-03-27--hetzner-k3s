@@ -34,3 +34,14 @@ Hardened Traefik access logs by switching request-header logging from default ke
 
 - /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml — Traefik access-log header allowlist
 
+
+## 2026-04-25
+
+Applied monitoring, monitoring-extras, and traefik-observability to the live cluster; validated Argo CD health, running monitoring pods, eth0 node-exporter metrics, Traefik PodMonitor target, Hetzner egress rules, and redacted Traefik JSON access logs.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/applications/monitoring.yaml — Applied monitoring stack
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/monitoring-extras/podmonitor-traefik.yaml — Validated Traefik scrape target
+- /home/manuel/code/wesen/2026-03-27--hetzner-k3s/gitops/kustomize/traefik-observability/traefik-helmchartconfig.yaml — Validated redacted access log output
+
