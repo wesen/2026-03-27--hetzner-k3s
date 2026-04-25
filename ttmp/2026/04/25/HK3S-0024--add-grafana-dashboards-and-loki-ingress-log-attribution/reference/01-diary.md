@@ -139,3 +139,90 @@ Example LogQL panel query:
 ```logql
 topk(20, sum by (RequestHost) (sum_over_time({namespace="kube-system", app_kubernetes_io_name="traefik"} | json | unwrap OriginContentSize [1h])))
 ```
+
+## Step 2: Confirm Grafana rollout and handle Loki StatefulSet diff noise
+
+During live rollout, the user noticed what looked like a hanging Grafana pod. I inspected the Grafana Deployment, ReplicaSets, and pod events. Grafana had already converged: there was exactly one desired/current/ready Grafana pod, old ReplicaSets were scaled to zero, and the only warning was a short startup readiness failure before Grafana began listening on port 3000.
+
+The remaining unhealthy-looking item was not Grafana; it was the Loki Argo CD Application showing `OutOfSync` while the Loki StatefulSet and Promtail DaemonSet were healthy. The Loki chart/live StatefulSet comparison differs in server-defaulted StatefulSet/PVC-template fields, so I added an Argo CD `ignoreDifferences` rule for the Loki StatefulSet's immutable/defaulted PVC template and retention-policy fields.
+
+### Prompt Context
+
+**User prompt (verbatim):** "one of the grafana pods seems to be hanging?"
+
+**Assistant interpretation:** Inspect the apparent hang, determine whether Grafana is actually stuck, and fix any rollout/sync issue that remains.
+
+**Inferred user intent:** Keep the observability rollout clean and avoid leaving stuck pods or unhealthy Argo CD Applications.
+
+**Commit (code):** pending — Loki `ignoreDifferences` fix is staged for the next commit.
+
+### What I did
+
+- Checked Grafana pods and ReplicaSets:
+
+  ```bash
+  kubectl -n monitoring get pods,rs -l app.kubernetes.io/name=grafana -o wide
+  kubectl -n monitoring describe deploy monitoring-grafana
+  ```
+
+- Confirmed current Grafana state:
+
+  ```text
+  monitoring-grafana-5d4dcf996f-mwsqh  3/3  Running
+  ```
+
+- Checked Argo CD Application state:
+
+  ```text
+  loki                OutOfSync  Healthy
+  monitoring          Synced     Healthy
+  monitoring-extras   Synced     Healthy
+  ```
+
+- Used the Argo CD CLI inside the `argocd-server` pod to inspect the Loki app and generated manifests.
+- Found the live Loki StatefulSet was healthy, but Argo CD still considered it `OutOfSync`.
+- Added `ignoreDifferences` to `gitops/applications/loki.yaml` for:
+  - `/spec/persistentVolumeClaimRetentionPolicy`
+  - `/spec/volumeClaimTemplates`
+
+### Why
+
+- Grafana was not actually stuck; it had rolled forward after the Loki datasource/dashboard change.
+- StatefulSet volume claim templates are effectively immutable and often pick up Kubernetes defaulted fields such as `volumeMode` or retention policy shape. For a single-node Loki install, those defaulted fields are not meaningful drift.
+
+### What worked
+
+- Grafana readiness recovered normally after startup.
+- Loki and Promtail pods were running.
+- The Argo CD CLI showed the Loki sync operation had succeeded even though resource comparison still showed the StatefulSet as `OutOfSync`.
+
+### What didn't work
+
+- `argocd app diff loki` returned no human-readable diff even though the Application resource list showed the StatefulSet as OutOfSync. I used `argocd app manifests loki` plus `kubectl get statefulset loki -o json` to compare the likely defaulted fields.
+
+### What I learned
+
+- The Loki Application health can be green while sync status is noisy due to StatefulSet/PVC template comparison details.
+- The visible Grafana warning was transient startup readiness noise, not a hanging rollout.
+
+### What was tricky to build
+
+- The confusing part was that the user-visible symptom mentioned Grafana, but the actual remaining Argo issue was Loki. Checking both Kubernetes workload health and Argo CD sync status prevented fixing the wrong component.
+
+### What warrants a second pair of eyes
+
+- The `ignoreDifferences` rule ignores the full Loki StatefulSet `volumeClaimTemplates`; that is acceptable for this current single PVC setup but should be revisited if Loki storage topology changes.
+
+### What should be done in the future
+
+- If Loki storage requirements change, remove or narrow the ignore rule and recreate/migrate the StatefulSet/PVC intentionally.
+
+### Code review instructions
+
+- Review `gitops/applications/loki.yaml`, especially the `ignoreDifferences` block.
+- Validate with:
+
+  ```bash
+  kubectl -n argocd get applications loki monitoring monitoring-extras
+  kubectl -n logging get pods
+  ```

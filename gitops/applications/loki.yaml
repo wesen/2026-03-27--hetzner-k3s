@@ -47,6 +47,14 @@ spec:
           enabled: false
         prometheus:
           enabled: false
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: loki
+      namespace: logging
+      jsonPointers:
+        - /spec/persistentVolumeClaimRetentionPolicy
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       prune: true
