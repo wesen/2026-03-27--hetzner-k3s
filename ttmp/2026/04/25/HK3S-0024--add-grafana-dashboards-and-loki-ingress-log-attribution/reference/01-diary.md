@@ -298,3 +298,120 @@ I updated the dashboard LogQL queries and the Promtail match selector to use the
 ### Code review instructions
 
 - Review the LogQL selectors in `grafana-dashboard-traefik-attribution.yaml` and the Promtail match selector in `loki.yaml`.
+
+## Step 4: Validate Loki ingestion, dashboards, and Grafana provisioning reload
+
+After applying the selector fix, all observability Applications reached `Synced Healthy`. Loki and Promtail were running, and direct Loki API queries showed Traefik streams under the live selector `{namespace="kube-system", app="traefik"}`.
+
+Grafana needed one manual repair: the persisted Grafana admin password in the SQLite database no longer matched the generated Kubernetes Secret that the sidecars use for provisioning reload calls. This caused sidecar reload requests to return `401 Unauthorized`. I reset Grafana's admin password to the current `monitoring-grafana` Secret value, then manually reloaded dashboard and datasource provisioning through the Grafana API. After that, the Loki datasource and both new dashboards were visible through the API.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Finish rollout validation and fix any hidden provisioning issue behind the apparent Grafana rollout concern.
+
+**Inferred user intent:** Ensure dashboards and Loki are actually usable, not just deployed.
+
+**Commit (code):** `c0ea21240278bb0767ff549d652e6feddba195c0` — `feat(observability): add loki and grafana dashboards`; `3b3aed65c62367ae10afe423f5fa6505161ff667` — `fix(observability): ignore loki statefulset pvc defaults`; `f9004d9afab57875604bbfb31c6cee63c41cc5bc` — `fix(observability): align loki traefik labels`
+
+### What I did
+
+- Applied latest Loki and monitoring-extras Applications.
+- Confirmed state:
+
+  ```text
+  loki                Synced  Healthy
+  monitoring          Synced  Healthy
+  monitoring-extras   Synced  Healthy
+  ```
+
+- Validated pods:
+
+  ```text
+  loki-0                1/1 Running
+  loki-promtail-fz25n   1/1 Running
+  monitoring-grafana-*  3/3 Running
+  ```
+
+- Queried Loki directly:
+
+  ```bash
+  curl -G http://127.0.0.1:13101/loki/api/v1/query \
+    --data-urlencode 'query={namespace="kube-system", app="traefik"}'
+  ```
+
+  Result: `success`, one Traefik stream.
+
+- Checked for token-header log entries in Loki:
+
+  ```bash
+  curl -G http://127.0.0.1:13101/loki/api/v1/query_range \
+    --data-urlencode 'query={namespace="kube-system", app="traefik"} |= "request_X-Vault-Token"' \
+    --data-urlencode 'limit=10'
+  ```
+
+  Result: `success`, zero values.
+
+- Inspected Grafana sidecar logs and saw provisioning reload failures:
+
+  ```text
+  401 Unauthorized {"message":"Invalid username or password"}
+  ```
+
+- Reset Grafana's admin password to the current Kubernetes Secret value:
+
+  ```bash
+  PASS=$(kubectl -n monitoring get secret monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 -d)
+  kubectl -n monitoring exec deploy/monitoring-grafana -c grafana -- \
+    grafana cli admin reset-admin-password "$PASS"
+  ```
+
+- Reloaded dashboard and datasource provisioning through the Grafana API.
+- Validated Grafana API sees:
+  - Datasources: `Prometheus`, `Alertmanager`, `Loki`
+  - Dashboards: `Hetzner Egress`, `Traefik Attribution`
+
+### Why
+
+- The sidecars write dashboards/datasources into the pod, but reload requires valid Grafana admin credentials.
+- Because Grafana uses persistent storage, the database admin password can drift from a regenerated Helm/Kubernetes Secret. Resetting the DB password to the current Secret value restored sidecar/API access.
+
+### What worked
+
+- Loki ingestion works.
+- Traefik logs are queryable in Loki.
+- The token-header search returned zero results after the redaction/internal VaultConnection fixes.
+- The dashboards and Loki datasource are now visible in Grafana.
+
+### What didn't work
+
+- Grafana API authentication initially failed with the current Secret value because the persisted Grafana DB had a different admin password.
+- The sidecars had written dashboard/datasource files but could not trigger provisioning reload until the password was reset.
+
+### What I learned
+
+- For GitOps-managed Grafana with persistence, generated admin secrets can drift from the persisted Grafana admin password. Keycloak SSO will make this less important for humans, but provisioning sidecars still use the admin credentials unless configured otherwise.
+
+### What was tricky to build
+
+- Kubernetes workload health did not reveal the provisioning reload issue. The pod was `Running` and ready, but sidecar logs and Grafana API checks showed dashboards/datasources were not fully reloaded until auth was repaired.
+
+### What warrants a second pair of eyes
+
+- We should eventually manage Grafana admin credentials through Vault/VSO or configure sidecar reload credentials more deliberately, instead of relying on generated chart secrets with persistent Grafana state.
+
+### What should be done in the future
+
+- Implement Keycloak SSO for user access.
+- Move Grafana admin/client secrets to Vault before exposing Grafana publicly.
+
+### Code review instructions
+
+- Validate Grafana manually with:
+
+  ```bash
+  kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
+  ```
+
+  Then browse to the `Hetzner Egress` and `Traefik Attribution` dashboards.

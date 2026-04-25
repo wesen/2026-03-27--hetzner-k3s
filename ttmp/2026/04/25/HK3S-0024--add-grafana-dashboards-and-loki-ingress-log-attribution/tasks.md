@@ -2,9 +2,9 @@
 
 ## TODO
 
-- [ ] Add tasks here
+- [x] Add tasks here
 
-- [ ] Add Grafana dashboards for Hetzner egress and Traefik attribution
-- [ ] Install Loki and Promtail for Traefik access-log retention
-- [ ] Wire Loki as a Grafana datasource
+- [x] Add Grafana dashboards for Hetzner egress and Traefik attribution
+- [x] Install Loki and Promtail for Traefik access-log retention
+- [x] Wire Loki as a Grafana datasource
 - [ ] Document Grafana Keycloak access plan
