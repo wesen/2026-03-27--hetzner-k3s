@@ -22,7 +22,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: goja-essay
-          image: ghcr.io/go-go-golems/go-go-goja:sha-4398f5a
+          image: ghcr.io/go-go-golems/go-go-goja:sha-cc0e22e
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
