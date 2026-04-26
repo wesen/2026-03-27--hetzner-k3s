@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discord-ui-showcase
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: discord-ui-showcase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: discord-ui-showcase
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: discord-ui-showcase
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: discord-ui-showcase
+      containers:
+        - name: discord-ui-showcase
+          image: ghcr.io/go-go-golems/discord-bot:sha-596f442
+          imagePullPolicy: IfNotPresent
+          args:
+            - --bot-repository
+            - /app/examples/discord-bots
+            - bots
+            - ui-showcase
+            - run
+            - --sync-on-start
+          env:
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_BOT_TOKEN
+            - name: DISCORD_APPLICATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_APPLICATION_ID
+            - name: DISCORD_GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_GUILD_ID
+                  optional: true
+            - name: DISCORD_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_PUBLIC_KEY
+                  optional: true
+            - name: DISCORD_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_CLIENT_ID
+                  optional: true
+            - name: DISCORD_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: discord-ui-showcase-runtime
+                  key: DISCORD_CLIENT_SECRET
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi

@@ -1,0 +1,7 @@
+{
+  "bound_service_account_names": ["discord-ui-showcase"],
+  "bound_service_account_namespaces": ["discord-ui-showcase"],
+  "policies": ["discord-ui-showcase"],
+  "ttl": "1h",
+  "max_ttl": "4h"
+}
