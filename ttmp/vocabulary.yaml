@@ -85,6 +85,8 @@ topics:
       description: Interactive REPL essay web application
     - slug: goja-repl
       description: goja-repl CLI, TUI, JSON server, and interactive essay
+    - slug: oidc
+      description: OpenID Connect identity and login flows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
